@@ -1,4 +1,4 @@
-# SWARM
+# HIVE
 
 ## A Note on Shouting Ants
 
