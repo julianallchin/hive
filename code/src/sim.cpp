@@ -11,113 +11,152 @@ using namespace madrona::phys;
 
 namespace RenderingSystem = madrona::render::RenderingSystem;
 
-namespace madEscape {
-
-// Register all the ECS components and archetypes that will be
-// used in the simulation
-void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
+namespace madEscape
 {
-    base::registerTypes(registry);
-    phys::PhysicsSystem::registerTypes(registry);
 
-    RenderingSystem::registerTypes(registry, cfg.renderBridge);
+    // Register all the ECS components and archetypes that will be
+    // used in the simulation
+    void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
+    {
+        base::registerTypes(registry);
+        phys::PhysicsSystem::registerTypes(registry);
 
-    registry.registerComponent<Action>();
-    registry.registerComponent<SelfObservation>();
-    registry.registerComponent<Reward>();
-    registry.registerComponent<Done>();
-    registry.registerComponent<GrabState>();
-    registry.registerComponent<Progress>();
-    registry.registerComponent<OtherAgents>();
-    registry.registerComponent<PartnerObservations>();
-    registry.registerComponent<RoomEntityObservations>();
-    registry.registerComponent<DoorObservation>();
-    registry.registerComponent<ButtonState>();
-    registry.registerComponent<OpenState>();
-    registry.registerComponent<DoorProperties>();
-    registry.registerComponent<Lidar>();
-    registry.registerComponent<StepsRemaining>();
-    registry.registerComponent<EntityType>();
+        RenderingSystem::registerTypes(registry, cfg.renderBridge);
 
-    registry.registerSingleton<WorldReset>();
-    registry.registerSingleton<LevelState>();
+        // Register individual components
+        registry.registerComponent<AntAction>();
+        registry.registerComponent<AntObservationComponent>();
+        registry.registerComponent<HiveReward>();
+        registry.registerComponent<HiveDone>();
+        registry.registerComponent<GrabState>();
+        registry.registerComponent<Lidar>();
+        registry.registerComponent<StepsRemaining>();
+        registry.registerComponent<EntityType>();
 
-    registry.registerArchetype<Agent>();
-    registry.registerArchetype<PhysicsEntity>();
-    registry.registerArchetype<DoorEntity>();
-    registry.registerArchetype<ButtonEntity>();
+        // Register singleton components
+        registry.registerSingleton<WorldReset>();
+        registry.registerSingleton<LevelState>();
+        registry.registerSingleton<HiveReward>();
+        registry.registerSingleton<HiveDone>();
+        registry.registerSingleton<StepsRemaining>();
 
-    registry.exportSingleton<WorldReset>(
-        (uint32_t)ExportID::Reset);
-    registry.exportColumn<Agent, Action>(
-        (uint32_t)ExportID::Action);
-    registry.exportColumn<Agent, SelfObservation>(
-        (uint32_t)ExportID::SelfObservation);
-    registry.exportColumn<Agent, PartnerObservations>(
-        (uint32_t)ExportID::PartnerObservations);
-    registry.exportColumn<Agent, RoomEntityObservations>(
-        (uint32_t)ExportID::RoomEntityObservations);
-    registry.exportColumn<Agent, DoorObservation>(
-        (uint32_t)ExportID::DoorObservation);
-    registry.exportColumn<Agent, Lidar>(
-        (uint32_t)ExportID::Lidar);
-    registry.exportColumn<Agent, StepsRemaining>(
-        (uint32_t)ExportID::StepsRemaining);
-    registry.exportColumn<Agent, Reward>(
-        (uint32_t)ExportID::Reward);
-    registry.exportColumn<Agent, Done>(
-        (uint32_t)ExportID::Done);
-}
+        // Register archetypes
+        registry.registerArchetype<Ant>();
+        registry.registerArchetype<Macguffin>();
+        registry.registerArchetype<Goal>();
+        registry.registerArchetype<Wall>();
+        registry.registerArchetype<MovableObject>();
 
-static inline void cleanupWorld(Engine &ctx)
-{
-    // Destroy current level entities
-    LevelState &level = ctx.singleton<LevelState>();
-    for (CountT i = 0; i < consts::numRooms; i++) {
-        Room &room = level.rooms[i];
-        for (CountT j = 0; j < consts::maxEntitiesPerRoom; j++) {
-            if (room.entities[j] != Entity::none()) {
-                ctx.destroyRenderableEntity(room.entities[j]);
+        // Export interfaces for Python training code
+        registry.exportSingleton<WorldReset>(
+            (uint32_t)ExportID::Reset);
+        registry.exportColumn<Ant, AntAction>(
+            (uint32_t)ExportID::Action);
+        registry.exportColumn<Ant, AntObservationComponent>(
+            (uint32_t)ExportID::SelfObservation);
+        registry.exportColumn<Ant, Lidar>(
+            (uint32_t)ExportID::Lidar);
+        registry.exportSingleton<StepsRemaining>(
+            (uint32_t)ExportID::StepsRemaining);
+        registry.exportSingleton<HiveReward>(
+            (uint32_t)ExportID::Reward);
+        registry.exportSingleton<HiveDone>(
+            (uint32_t)ExportID::Done);
+    }
+
+    static inline void cleanupWorld(Engine &ctx)
+    {
+        // Destroy current level entities
+        LevelState &level = ctx.singleton<LevelState>();
+
+        // Clean up movable objects
+        for (CountT i = 0; i < level.num_current_movable_objects; i++)
+        {
+            if (level.movable_objects[i] != Entity::none())
+            {
+                ctx.destroyRenderableEntity(level.movable_objects[i]);
             }
         }
 
-        ctx.destroyRenderableEntity(room.walls[0]);
-        ctx.destroyRenderableEntity(room.walls[1]);
-        ctx.destroyRenderableEntity(room.door);
+        // Clean up walls (except border walls which are persistent)
+        for (CountT i = 0; i < level.num_current_walls; i++)
+        {
+            if (level.walls[i] != Entity::none())
+            {
+                ctx.destroyRenderableEntity(level.walls[i]);
+            }
+        }
+
+        // Clean up macguffin and goal
+        if (level.macguffin != Entity::none())
+        {
+            ctx.destroyRenderableEntity(level.macguffin);
+        }
+
+        if (level.goal != Entity::none())
+        {
+            ctx.destroyRenderableEntity(level.goal);
+        }
     }
-}
 
-static inline void initWorld(Engine &ctx)
-{
-    phys::PhysicsSystem::reset(ctx);
+    static inline void initWorld(Engine &ctx)
+    {
+        phys::PhysicsSystem::reset(ctx);
 
-    // Assign a new episode ID
-    ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
-        ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
+        // Assign a new episode ID
+        ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
+                                           ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
 
-    // Defined in src/level_gen.hpp / src/level_gen.cpp
-    generateWorld(ctx);
-}
+        // Initialize level state and singletons
+        LevelState &level = ctx.singleton<LevelState>();
+        level.macguffin = Entity::none();
+        level.goal = Entity::none();
+        level.num_current_movable_objects = 0;
+        level.num_current_walls = 0;
 
-// This system runs each frame and checks if the current episode is complete
-// or if code external to the application has forced a reset by writing to the
-// WorldReset singleton.
-//
-// If a reset is needed, cleanup the existing world and generate a new one.
-inline void resetSystem(Engine &ctx, WorldReset &reset)
-{
-    int32_t should_reset = reset.reset;
-    if (ctx.data().autoReset) {
-        for (CountT i = 0; i < consts::numAgents; i++) {
-            Entity agent = ctx.data().agents[i];
-            Done done = ctx.get<Done>(agent);
-            if (done.v) {
+        // Initialize hive reward and done state
+        ctx.singleton<HiveReward>().v = 0.0f;
+        ctx.singleton<HiveDone>().v = 0;
+
+        // Set steps remaining to max episode length
+        ctx.singleton<StepsRemaining>().t = consts::maxEpisodeSteps;
+
+        // Determine number of objects based on curriculum difficulty
+        int currentDifficulty = ctx.data().curriculumDifficulty;
+        CountT numMovableObjects = std::min(
+            consts::defaultMovableObjects + currentDifficulty / 2,
+            (int)consts::maxMovableObjects);
+
+        CountT numWalls = std::min(
+            consts::defaultWalls + currentDifficulty / 3,
+            (int)consts::maxWalls);
+
+        // Defined in src/level_gen.hpp / src/level_gen.cpp
+        // This will generate the world using the parameters we've set
+        generateWorld(ctx, numMovableObjects, numWalls);
+    }
+
+    // This system runs each frame and checks if the current episode is complete
+    // or if code external to the application has forced a reset by writing to the
+    // WorldReset singleton.
+    //
+    // If a reset is needed, cleanup the existing world and generate a new one.
+    inline void resetSystem(Engine &ctx, WorldReset &reset)
+    {
+        int32_t should_reset = reset.reset;
+        if (ctx.data().autoReset)
+        {
+            // Check if the hive's episode is done
+            HiveDone &done = ctx.singleton<HiveDone>();
+            if (done.v == 1)
+            {
                 should_reset = 1;
             }
         }
     }
 
-    if (should_reset != 0) {
+    if (should_reset != 0)
+    {
         reset.reset = 0;
 
         cleanupWorld(ctx);
@@ -125,60 +164,62 @@ inline void resetSystem(Engine &ctx, WorldReset &reset)
     }
 }
 
-// Translates discrete actions from the Action component to forces
+// Translates discrete actions from the AntAction component to forces
 // used by the physics simulation.
-inline void movementSystem(Engine &,
-                           Action &action, 
-                           Rotation &rot, 
-                           ExternalForce &external_force,
-                           ExternalTorque &external_torque)
+inline void antMovementSystem(Engine &,
+                              AntAction &action,
+                              Rotation &rot,
+                              ExternalForce &external_force,
+                              ExternalTorque &external_torque)
 {
     constexpr float move_max = 1000;
     constexpr float turn_max = 320;
 
     Quat cur_rot = rot;
 
-    float move_amount = action.moveAmount *
-        (move_max / (consts::numMoveAmountBuckets - 1));
+    float move_amount = action.move_amount_idx *
+                        (move_max / (consts::numMoveAmountBuckets - 1));
 
     constexpr float move_angle_per_bucket =
         2.f * math::pi / float(consts::numMoveAngleBuckets);
 
-    float move_angle = float(action.moveAngle) * move_angle_per_bucket;
+    float move_angle = float(action.move_angle_idx) * move_angle_per_bucket;
 
     float f_x = move_amount * sinf(move_angle);
     float f_y = move_amount * cosf(move_angle);
 
-    constexpr float turn_delta_per_bucket = 
+    constexpr float turn_delta_per_bucket =
         turn_max / (consts::numTurnBuckets / 2);
     float t_z =
-        turn_delta_per_bucket * (action.rotate - consts::numTurnBuckets / 2);
+        turn_delta_per_bucket * (action.rotate_idx - consts::numTurnBuckets / 2);
 
-    external_force = cur_rot.rotateVec({ f_x, f_y, 0 });
-    external_torque = Vector3 { 0, 0, t_z };
+    external_force = cur_rot.rotateVec({f_x, f_y, 0});
+    external_torque = Vector3{0, 0, t_z};
 }
 
-// Implements the grab action by casting a short ray in front of the agent
+// Implements the grab action by casting a short ray in front of the ant
 // and creating a joint constraint if a grabbable entity is hit.
-inline void grabSystem(Engine &ctx,
-                       Entity e,
-                       Position pos,
-                       Rotation rot,
-                       Action action,
-                       GrabState &grab)
+inline void antGrabSystem(Engine &ctx,
+                          Entity e,
+                          Position pos,
+                          Rotation rot,
+                          AntAction action,
+                          GrabState &grab)
 {
-    if (action.grab == 0) {
+    if (action.grab_action == 0)
+    {
         return;
     }
 
     // if a grab is currently in progress, triggering the grab action
     // just releases the object
-    if (grab.constraintEntity != Entity::none()) {
+    if (grab.constraintEntity != Entity::none())
+    {
         ctx.destroyEntity(grab.constraintEntity);
         grab.constraintEntity = Entity::none();
-        
+
         return;
-    } 
+    }
 
     // Get the per-world BVH singleton component
     auto &bvh = ctx.singleton<broadphase::BVH>();
@@ -188,115 +229,52 @@ inline void grabSystem(Engine &ctx,
     Vector3 ray_o = pos + 0.5f * math::up;
     Vector3 ray_d = rot.rotateVec(math::fwd);
 
+    // Short ray cast for grabbing
     Entity grab_entity =
         bvh.traceRay(ray_o, ray_d, &hit_t, &hit_normal, 2.0f);
 
-    if (grab_entity == Entity::none()) {
+    if (grab_entity == Entity::none())
+    {
         return;
     }
 
     auto response_type = ctx.get<ResponseType>(grab_entity);
-    if (response_type != ResponseType::Dynamic) {
+    if (response_type != ResponseType::Dynamic)
+    {
         return;
     }
 
     auto entity_type = ctx.get<EntityType>(grab_entity);
-    if (entity_type == EntityType::Agent) {
+    // Ants can't grab other ants
+    if (entity_type == EntityType::Ant)
+    {
         return;
     }
 
     Vector3 other_pos = ctx.get<Position>(grab_entity);
     Quat other_rot = ctx.get<Rotation>(grab_entity);
 
-    Vector3 r1 = 1.25f * math::fwd + 0.5f * math::up;
+    // Use a shorter reach for ants
+    Vector3 r1 = 0.25f * math::fwd + 0.25f * math::up;
 
     Vector3 hit_pos = ray_o + ray_d * hit_t;
     Vector3 r2 =
         other_rot.inv().rotateVec(hit_pos - other_pos);
 
-    Quat attach1 = { 1, 0, 0, 0 };
+    Quat attach1 = {1, 0, 0, 0};
     Quat attach2 = (other_rot.inv() * rot).normalize();
 
-    float separation = hit_t - 1.25f;
+    float separation = hit_t - 0.25f;
 
     grab.constraintEntity = PhysicsSystem::makeFixedJoint(ctx,
-        e, grab_entity, attach1, attach2, r1, r2, separation);
+                                                          e, grab_entity, attach1, attach2, r1, r2, separation);
 }
 
-// Animates the doors opening and closing based on OpenState
-inline void setDoorPositionSystem(Engine &,
-                                  Position &pos,
-                                  OpenState &open_state)
-{
-    if (open_state.isOpen) {
-        // Put underground
-        if (pos.z > -4.5f) {
-            pos.z += -consts::doorSpeed * consts::deltaT;
-        }
-    }
-    else if (pos.z < 0.0f) {
-        // Put back on surface
-        pos.z += consts::doorSpeed * consts::deltaT;
-    }
-    
-    if (pos.z >= 0.0f) {
-        pos.z = 0.0f;
-    }
-}
-
-
-// Checks if there is an entity standing on the button and updates
-// ButtonState if so.
-inline void buttonSystem(Engine &ctx,
-                         Position pos,
-                         ButtonState &state)
-{
-    AABB button_aabb {
-        .pMin = pos + Vector3 { 
-            -consts::buttonWidth / 2.f, 
-            -consts::buttonWidth / 2.f,
-            0.f,
-        },
-        .pMax = pos + Vector3 { 
-            consts::buttonWidth / 2.f, 
-            consts::buttonWidth / 2.f,
-            0.25f
-        },
-    };
-
-    bool button_pressed = false;
-    PhysicsSystem::findEntitiesWithinAABB(
-            ctx, button_aabb, [&](Entity) {
-        button_pressed = true;
-    });
-
-    state.isPressed = button_pressed;
-}
-
-// Check if all the buttons linked to the door are pressed and open if so.
-// Optionally, close the door if the buttons aren't pressed.
-inline void doorOpenSystem(Engine &ctx,
-                           OpenState &open_state,
-                           const DoorProperties &props)
-{
-    bool all_pressed = true;
-    for (int32_t i = 0; i < props.numButtons; i++) {
-        Entity button = props.buttons[i];
-        all_pressed = all_pressed && ctx.get<ButtonState>(button).isPressed;
-    }
-
-    if (all_pressed) {
-        open_state.isOpen = true;
-    } else if (!props.isPersistent) {
-        open_state.isOpen = false;
-    }
-}
-
-// Make the agents easier to control by zeroing out their velocity
+// Make the ants easier to control by zeroing out their velocity
 // after each step.
-inline void agentZeroVelSystem(Engine &,
-                               Velocity &vel,
-                               Action &)
+inline void antZeroVelSystem(Engine &,
+                             Velocity &vel,
+                             AntAction &)
 {
     vel.linear.x = 0;
     vel.linear.y = 0;
@@ -315,6 +293,68 @@ static inline float globalPosObs(float v)
     return v / consts::worldLength;
 }
 
+// Computes the collective reward for the hive based on macguffin movement toward goal
+// and goal achievement.
+inline void hiveRewardSystem(Engine &ctx)
+{
+    LevelState &level = ctx.singleton<LevelState>();
+    HiveReward &reward = ctx.singleton<HiveReward>();
+    HiveDone &done = ctx.singleton<HiveDone>();
+    StepsRemaining &steps = ctx.singleton<StepsRemaining>();
+
+    // If done, don't update reward
+    if (done.v == 1)
+    {
+        return;
+    }
+
+    // Get positions of macguffin and goal
+    Vector3 macguffin_pos = ctx.get<Position>(level.macguffin);
+    Vector3 goal_pos = ctx.get<Position>(level.goal);
+
+    // Calculate 2D distance (ignore Z axis)
+    Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
+    Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
+    float dist = (goal_pos_2d - macguffin_pos_2d).length();
+
+    // Static variable to store previous distance
+    static thread_local float prev_dist = -1.0f;
+
+    // First time initialization
+    if (prev_dist < 0)
+    {
+        prev_dist = dist;
+        reward.v = 0.0f;
+        return;
+    }
+
+    // Step reward based on distance reduction
+    float step_reward = consts::distanceRewardScale * (prev_dist - dist);
+
+    // Goal reward if close enough
+    float goal_reward = 0.0f;
+    if (dist <= consts::goalDistanceThreshold)
+    {
+        goal_reward = consts::goalReward;
+        done.v = 1; // Episode complete on goal achievement
+    }
+
+    // Existential penalty per timestep
+    float exist_penalty = consts::existentialPenalty;
+
+    // Total reward for this step
+    reward.v = step_reward + goal_reward + exist_penalty;
+
+    // If steps remaining is zero, mark as done
+    if (--steps.t <= 0)
+    {
+        done.v = 1;
+    }
+
+    // Store current distance for next step
+    prev_dist = dist;
+}
+
 static inline float angleObs(float v)
 {
     return v / math::pi;
@@ -323,14 +363,14 @@ static inline float angleObs(float v)
 // Translate xy delta to polar observations for learning.
 static inline PolarObservation xyToPolar(Vector3 v)
 {
-    Vector2 xy { v.x, v.y };
+    Vector2 xy{v.x, v.y};
 
     float r = xy.length();
 
     // Note that this is angle off y-forward
     float theta = atan2f(xy.x, xy.y);
 
-    return PolarObservation {
+    return PolarObservation{
         .r = distObs(r),
         .theta = angleObs(theta),
     };
@@ -348,79 +388,45 @@ static inline float computeZAngle(Quat q)
     return atan2f(siny_cosp, cosy_cosp);
 }
 
-// This system packages all the egocentric observations together 
-// for the policy inputs.
-inline void collectObservationsSystem(Engine &ctx,
-                                      Position pos,
-                                      Rotation rot,
-                                      const Progress &progress,
-                                      const GrabState &grab,
-                                      const OtherAgents &other_agents,
-                                      SelfObservation &self_obs,
-                                      PartnerObservations &partner_obs,
-                                      RoomEntityObservations &room_ent_obs,
-                                      DoorObservation &door_obs)
+// This system packages ant observations for the ant policy inputs.
+// It collects self-state and relative polar coordinates to important objects.
+inline void collectAntObservationsSystem(Engine &ctx,
+                                         Position pos,
+                                         Rotation rot,
+                                         const GrabState &grab,
+                                         AntObservationComponent &ant_obs)
 {
-    CountT cur_room_idx = CountT(pos.y / consts::roomLength);
-    cur_room_idx = std::max(CountT(0), 
-        std::min(consts::numRooms - 1, cur_room_idx));
-
-    self_obs.roomX = pos.x / (consts::worldWidth / 2.f);
-    self_obs.roomY = (pos.y - cur_room_idx * consts::roomLength) /
-        consts::roomLength;
-    self_obs.globalX = globalPosObs(pos.x);
-    self_obs.globalY = globalPosObs(pos.y);
-    self_obs.globalZ = globalPosObs(pos.z);
-    self_obs.maxY = globalPosObs(progress.maxY);
-    self_obs.theta = angleObs(computeZAngle(rot));
-    self_obs.isGrabbing = grab.constraintEntity != Entity::none() ?
-        1.f : 0.f;
-
-    Quat to_view = rot.inv();
-
-#pragma unroll
-    for (CountT i = 0; i < consts::numAgents - 1; i++) {
-        Entity other = other_agents.e[i];
-
-        Vector3 other_pos = ctx.get<Position>(other);
-        GrabState other_grab = ctx.get<GrabState>(other);
-        Vector3 to_other = other_pos - pos;
-
-        partner_obs.obs[i] = {
-            .polar = xyToPolar(to_view.rotateVec(to_other)),
-            .isGrabbing = other_grab.constraintEntity != Entity::none() ?
-                1.f : 0.f,
-        };
-    }
-
+    // Get level state to access macguffin and goal entities
     const LevelState &level = ctx.singleton<LevelState>();
-    const Room &room = level.rooms[cur_room_idx];
 
-    for (CountT i = 0; i < consts::maxEntitiesPerRoom; i++) {
-        Entity entity = room.entities[i];
+    // Self state observations
+    ant_obs.global_x = globalPosObs(pos.x);
+    ant_obs.global_y = globalPosObs(pos.y);
+    ant_obs.orientation_theta = angleObs(computeZAngle(rot));
+    ant_obs.is_grabbing = grab.constraintEntity != Entity::none() ? 1.0f : 0.0f;
 
-        EntityObservation ob;
-        if (entity == Entity::none()) {
-            ob.polar = { 0.f, 1.f };
-            ob.encodedType = encodeType(EntityType::None);
-        } else {
-            Vector3 entity_pos = ctx.get<Position>(entity);
-            EntityType entity_type = ctx.get<EntityType>(entity);
+    // Get positions of important objects
+    Vector3 macguffin_pos = ctx.get<Position>(level.macguffin);
+    Vector3 goal_pos = ctx.get<Position>(level.goal);
 
-            Vector3 to_entity = entity_pos - pos;
-            ob.polar = xyToPolar(to_view.rotateVec(to_entity));
-            ob.encodedType = encodeType(entity_type);
-        }
+    // Calculate vectors to important objects in world space
+    Vector3 to_macguffin = macguffin_pos - pos;
+    Vector3 to_goal = goal_pos - pos;
 
-        room_ent_obs.obs[i] = ob;
-    }
+    // Convert to ant's local coordinate system
+    Quat to_view = rot.inv();
+    Vector3 local_to_macguffin = to_view.rotateVec(to_macguffin);
+    Vector3 local_to_goal = to_view.rotateVec(to_goal);
 
-    Entity cur_door = room.door;
-    Vector3 door_pos = ctx.get<Position>(cur_door);
-    OpenState door_open_state = ctx.get<OpenState>(cur_door);
+    // Convert to polar coordinates for observations
+    PolarObservation polar_to_macguffin = xyToPolar(local_to_macguffin);
+    PolarObservation polar_to_goal = xyToPolar(local_to_goal);
 
-    door_obs.polar = xyToPolar(to_view.rotateVec(door_pos - pos));
-    door_obs.isOpen = door_open_state.isOpen ? 1.f : 0.f;
+    // Store polar observations
+    ant_obs.polar_to_macguffin_r = polar_to_macguffin.r;
+    ant_obs.polar_to_macguffin_theta = polar_to_macguffin.theta;
+    ant_obs.polar_to_goal_r = polar_to_goal.r;
+    ant_obs.polar_to_goal_theta = polar_to_goal.theta;
 }
 
 // Launches consts::numLidarSamples per agent.
@@ -438,9 +444,9 @@ inline void lidarSystem(Engine &ctx,
     Vector3 agent_fwd = rot.rotateVec(math::fwd);
     Vector3 right = rot.rotateVec(math::right);
 
-    auto traceRay = [&](int32_t idx) {
-        float theta = 2.f * math::pi * (
-            float(idx) / float(consts::numLidarSamples)) + math::pi / 2.f;
+    auto traceRay = [&](int32_t idx)
+    {
+        float theta = 2.f * math::pi * (float(idx) / float(consts::numLidarSamples)) + math::pi / 2.f;
         float x = cosf(theta);
         float y = sinf(theta);
 
@@ -452,12 +458,15 @@ inline void lidarSystem(Engine &ctx,
             bvh.traceRay(pos + 0.5f * math::up, ray_dir, &hit_t,
                          &hit_normal, 200.f);
 
-        if (hit_entity == Entity::none()) {
+        if (hit_entity == Entity::none())
+        {
             lidar.samples[idx] = {
                 .depth = 0.f,
                 .encodedType = encodeType(EntityType::None),
             };
-        } else {
+        }
+        else
+        {
             EntityType entity_type = ctx.get<EntityType>(hit_entity);
 
             lidar.samples[idx] = {
@@ -467,18 +476,19 @@ inline void lidarSystem(Engine &ctx,
         }
     };
 
-
     // MADRONA_GPU_MODE guards GPU specific logic
 #ifdef MADRONA_GPU_MODE
-    // Can use standard cuda variables like threadIdx for 
+    // Can use standard cuda variables like threadIdx for
     // warp level programming
     int32_t idx = threadIdx.x % 32;
 
-    if (idx < consts::numLidarSamples) {
+    if (idx < consts::numLidarSamples)
+    {
         traceRay(idx);
     }
 #else
-    for (CountT i = 0; i < consts::numLidarSamples; i++) {
+    for (CountT i = 0; i < consts::numLidarSamples; i++)
+    {
         traceRay(i);
     }
 #endif
@@ -500,10 +510,13 @@ inline void rewardSystem(Engine &,
     float new_progress = reward_pos - old_max_y;
 
     float reward;
-    if (new_progress > 0) {
+    if (new_progress > 0)
+    {
         reward = new_progress * consts::rewardPerDist;
         progress.maxY = reward_pos;
-    } else {
+    }
+    else
+    {
         reward = consts::slackReward;
     }
 
@@ -520,16 +533,19 @@ inline void bonusRewardSystem(Engine &ctx,
                               Reward &reward)
 {
     bool partners_close = true;
-    for (CountT i = 0; i < consts::numAgents - 1; i++) {
+    for (CountT i = 0; i < consts::numAgents - 1; i++)
+    {
         Entity other = others.e[i];
         Progress other_progress = ctx.get<Progress>(other);
 
-        if (fabsf(other_progress.maxY - progress.maxY) > 2.f) {
+        if (fabsf(other_progress.maxY - progress.maxY) > 2.f)
+        {
             partners_close = false;
         }
     }
 
-    if (partners_close && reward.v > 0.f) {
+    if (partners_close && reward.v > 0.f)
+    {
         reward.v *= 1.25f;
     }
 }
@@ -542,12 +558,14 @@ inline void stepTrackerSystem(Engine &,
                               Done &done)
 {
     int32_t num_remaining = --steps_remaining.t;
-    if (num_remaining == consts::episodeLen - 1) {
+    if (num_remaining == consts::episodeLen - 1)
+    {
         done.v = 0;
-    } else if (num_remaining == 0) {
+    }
+    else if (num_remaining == 0)
+    {
         done.v = 1;
     }
-
 }
 
 // Helper function for sorting nodes in the taskgraph.
@@ -577,90 +595,47 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
     // Turn policy actions into movement
     auto move_sys = builder.addToGraph<ParallelForNode<Engine,
-        movementSystem,
-            Action,
-            Rotation,
-            ExternalForce,
-            ExternalTorque
-        >>({});
-
-    // Scripted door behavior
-    auto set_door_pos_sys = builder.addToGraph<ParallelForNode<Engine,
-        setDoorPositionSystem,
-            Position,
-            OpenState
-        >>({move_sys});
+                                                       antMovementSystem,
+                                                       AntAction,
+                                                       Rotation,
+                                                       ExternalForce,
+                                                       ExternalTorque>>({});
 
     // Build BVH for broadphase / raycasting
     auto broadphase_setup_sys = phys::PhysicsSystem::setupBroadphaseTasks(
-        builder, {set_door_pos_sys});
+        builder, {move_sys});
 
     // Grab action, post BVH build to allow raycasting
     auto grab_sys = builder.addToGraph<ParallelForNode<Engine,
-        grabSystem,
-            Entity,
-            Position,
-            Rotation,
-            Action,
-            GrabState
-        >>({broadphase_setup_sys});
+                                                       antGrabSystem,
+                                                       Entity,
+                                                       Position,
+                                                       Rotation,
+                                                       AntAction,
+                                                       GrabState>>({broadphase_setup_sys});
 
     // Physics collision detection and solver
     auto substep_sys = phys::PhysicsSystem::setupPhysicsStepTasks(builder,
-        {grab_sys}, consts::numPhysicsSubsteps);
+                                                                  {grab_sys}, consts::numPhysicsSubsteps);
 
-    // Improve controllability of agents by setting their velocity to 0
+    // Improve controllability of ants by setting their velocity to 0
     // after physics is done.
-    auto agent_zero_vel = builder.addToGraph<ParallelForNode<Engine,
-        agentZeroVelSystem, Velocity, Action>>(
-            {substep_sys});
+    auto ant_zero_vel = builder.addToGraph<ParallelForNode<Engine,
+                                                           antZeroVelSystem, Velocity, AntAction>>(
+        {substep_sys});
 
     // Finalize physics subsystem work
     auto phys_done = phys::PhysicsSystem::setupCleanupTasks(
-        builder, {agent_zero_vel});
+        builder, {ant_zero_vel});
 
-    // Check buttons
-    auto button_sys = builder.addToGraph<ParallelForNode<Engine,
-        buttonSystem,
-            Position,
-            ButtonState
-        >>({phys_done});
-
-    // Set door to start opening if button conditions are met
-    auto door_open_sys = builder.addToGraph<ParallelForNode<Engine,
-        doorOpenSystem,
-            OpenState,
-            DoorProperties
-        >>({button_sys});
-
-    // Compute initial reward now that physics has updated the world state
-    auto reward_sys = builder.addToGraph<ParallelForNode<Engine,
-         rewardSystem,
-            Position,
-            Progress,
-            Reward
-        >>({door_open_sys});
-
-    // Assign partner's reward
-    auto bonus_reward_sys = builder.addToGraph<ParallelForNode<Engine,
-         bonusRewardSystem,
-            OtherAgents,
-            Progress,
-            Reward
-        >>({reward_sys});
-
-    // Check if the episode is over
-    auto done_sys = builder.addToGraph<ParallelForNode<Engine,
-        stepTrackerSystem,
-            StepsRemaining,
-            Done
-        >>({bonus_reward_sys});
+    // Compute hive reward based on macguffin position relative to goal
+    auto hive_reward_sys = builder.addToGraph<SingletonNode<Engine,
+                                                            hiveRewardSystem>>({phys_done});
 
     // Conditionally reset the world if the episode is over
     auto reset_sys = builder.addToGraph<ParallelForNode<Engine,
-        resetSystem,
-            WorldReset
-        >>({done_sys});
+                                                        resetSystem,
+                                                        WorldReset>>({hive_reward_sys});
 
     auto clear_tmp = builder.addToGraph<ResetTmpAllocNode>({reset_sys});
     (void)clear_tmp;
@@ -678,19 +653,13 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     auto post_reset_broadphase = phys::PhysicsSystem::setupBroadphaseTasks(
         builder, {reset_sys});
 
-    // Finally, collect observations for the next step.
-    auto collect_obs = builder.addToGraph<ParallelForNode<Engine,
-        collectObservationsSystem,
-            Position,
-            Rotation,
-            Progress,
-            GrabState,
-            OtherAgents,
-            SelfObservation,
-            PartnerObservations,
-            RoomEntityObservations,
-            DoorObservation
-        >>({post_reset_broadphase});
+    // Collect ant observations for the next step
+    auto collect_ant_obs = builder.addToGraph<ParallelForNode<Engine,
+                                                              collectAntObservationsSystem,
+                                                              Position,
+                                                              Rotation,
+                                                              GrabState,
+                                                              AntObservationComponent>>({post_reset_broadphase});
 
     // The lidar system
 #ifdef MADRONA_GPU_MODE
@@ -699,34 +668,33 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     // The 32, 1 parameters could be changed to 32, 32 to create a system
     // that cooperatively processes 32 entities within a warp.
     auto lidar = builder.addToGraph<CustomParallelForNode<Engine,
-        lidarSystem, 32, 1,
+                                                          lidarSystem, 32, 1,
 #else
     auto lidar = builder.addToGraph<ParallelForNode<Engine,
-        lidarSystem,
+                                                    lidarSystem,
 #endif
-            Entity,
-            Lidar
-        >>({post_reset_broadphase});
+                                                          Entity,
+                                                          Lidar>>({post_reset_broadphase});
 
-    if (cfg.renderBridge) {
+    if (cfg.renderBridge)
+    {
         RenderingSystem::setupTasks(builder, {reset_sys});
     }
 
 #ifdef MADRONA_GPU_MODE
-    // Sort entities, this could be conditional on reset like the second
-    // BVH build above.
-    auto sort_agents = queueSortByWorld<Agent>(
-        builder, {lidar, collect_obs});
-    auto sort_phys_objects = queueSortByWorld<PhysicsEntity>(
-        builder, {sort_agents});
-    auto sort_buttons = queueSortByWorld<ButtonEntity>(
-        builder, {sort_phys_objects});
-    auto sort_walls = queueSortByWorld<DoorEntity>(
-        builder, {sort_buttons});
+    // Sort entities by world for improved performance
+    auto sort_ants = queueSortByWorld<Ant>(
+        builder, {lidar, collect_ant_obs});
+    auto sort_macguffin = queueSortByWorld<Macguffin>(
+        builder, {sort_ants});
+    auto sort_movable = queueSortByWorld<MovableObject>(
+        builder, {sort_macguffin});
+    auto sort_walls = queueSortByWorld<Wall>(
+        builder, {sort_movable});
     (void)sort_walls;
 #else
     (void)lidar;
-    (void)collect_obs;
+    (void)collect_ant_obs;
 #endif
 }
 
@@ -738,29 +706,36 @@ Sim::Sim(Engine &ctx,
     // Currently the physics system needs an upper bound on the number of
     // entities that will be stored in the BVH. We plan to fix this in
     // a future release.
-    constexpr CountT max_total_entities = consts::numAgents +
-        consts::numRooms * (consts::maxEntitiesPerRoom + 3) +
-        4; // side walls + floor
+    constexpr CountT max_total_entities = consts::maxAnts +
+                                          consts::maxMovableObjects + consts::maxWalls +
+                                          7; // 4 border walls + floor + macguffin + goal
 
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
-        consts::deltaT, consts::numPhysicsSubsteps, -9.8f * math::up,
-        max_total_entities);
+                              consts::deltaT, consts::numPhysicsSubsteps, -9.8f * math::up,
+                              max_total_entities);
 
     initRandKey = cfg.initRandKey;
     autoReset = cfg.autoReset;
 
     enableRender = cfg.renderBridge != nullptr;
 
-    if (enableRender) {
+    if (enableRender)
+    {
         RenderingSystem::init(ctx, cfg.renderBridge);
     }
 
+    // Start with a random number of ants between min and max
+    numAnts = ctx.data().rng.uniformInt(consts::minAnts, consts::maxAnts);
+
+    // Allocate dynamic array for ant entities
+    ants = new Entity[numAnts];
+
     curWorldEpisode = 0;
 
-    // Creates agents, walls, etc.
+    // Creates persistent entities (floor, border walls, ants)
     createPersistentEntities(ctx);
 
-    // Generate initial world state
+    // Generate initial world state with macguffin, goal, etc.
     initWorld(ctx);
 }
 
@@ -769,5 +744,4 @@ Sim::Sim(Engine &ctx,
 // application's world data type (Sim) and config and initialization types.
 // On the CPU it is a no-op.
 MADRONA_BUILD_MWGPU_ENTRY(Engine, Sim, Sim::Config, Sim::WorldInit);
-
 }

@@ -30,7 +30,8 @@ int main(int argc, char *argv[])
 {
     using namespace madEscape;
 
-    constexpr int64_t num_views = 2;
+    // Dynamic number of ants, but start with a reasonable number for viewer
+    constexpr int64_t default_num_ants = 8;
 
     // Read command line arguments
     uint32_t num_worlds = 1;
@@ -58,7 +59,7 @@ int main(int argc, char *argv[])
     uint32_t num_replay_steps = 0;
     if (replay_log_path != nullptr) {
         replay_log = readReplayLog(replay_log_path);
-        num_replay_steps = replay_log->size() / (num_worlds * num_views * 4);
+        num_replay_steps = replay_log->size() / (num_worlds * consts::maxAnts * 4);
     }
 
     bool enable_batch_renderer =
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
 #endif
 
     WindowManager wm {};
-    WindowHandle window = wm.makeWindow("Escape Room", 2730, 1536);
+    WindowHandle window = wm.makeWindow("Ant Colony Simulation", 2730, 1536);
     render::GPUHandle render_gpu = wm.initGPU(0, { window.get() });
 
     // Create the simulation manager
@@ -86,23 +87,23 @@ int main(int argc, char *argv[])
 
     float camera_move_speed = 10.f;
 
-    math::Vector3 initial_camera_position = { 0, consts::worldLength / 2.f, 30 };
+    math::Vector3 initial_camera_position = { 0, 0, 40 };
 
+    // Top-down view for the ant colony
     math::Quat initial_camera_rotation =
-        (math::Quat::angleAxis(-math::pi / 2.f, math::up) *
-        math::Quat::angleAxis(-math::pi / 2.f, math::right)).normalize();
+        math::Quat::angleAxis(-math::pi / 2.f, math::right).normalize();
 
 
     // Create the viewer viewer
     viz::Viewer viewer(mgr.getRenderManager(), window.get(), {
         .numWorlds = num_worlds,
-        .simTickRate = 20,
+        .simTickRate = 30,
         .cameraMoveSpeed = camera_move_speed,
         .cameraPosition = initial_camera_position,
         .cameraRotation = initial_camera_rotation,
     });
 
-    // Replay step
+    // Replay step for ant colony
     auto replayStep = [&]() {
         if (cur_replay_step == num_replay_steps - 1) {
             return true;
@@ -111,17 +112,22 @@ int main(int argc, char *argv[])
         printf("Step: %u\n", cur_replay_step);
 
         for (uint32_t i = 0; i < num_worlds; i++) {
-            for (uint32_t j = 0; j < num_views; j++) {
+            // Get the actual number of ants in this world from the ant count tensor
+            int32_t* ant_counts = (int32_t*)mgr.antCountTensor().raw();
+            int32_t num_ants = ant_counts[i];
+            if (num_ants <= 0) num_ants = default_num_ants; // Fallback if tensor not initialized
+            
+            for (uint32_t j = 0; j < (uint32_t)num_ants; j++) {
                 uint32_t base_idx = 0;
-                base_idx = 4 * (cur_replay_step * num_views * num_worlds +
-                    i * num_views + j);
+                base_idx = 4 * (cur_replay_step * consts::maxAnts * num_worlds +
+                    i * consts::maxAnts + j);
 
                 int32_t move_amount = (*replay_log)[base_idx];
                 int32_t move_angle = (*replay_log)[base_idx + 1];
                 int32_t turn = (*replay_log)[base_idx + 2];
                 int32_t g = (*replay_log)[base_idx + 3];
 
-                printf("%d, %d: %d %d %d %d\n",
+                printf("World %d, Ant %d: move=%d angle=%d turn=%d grab=%d\n",
                        i, j, move_amount, move_angle, turn, g);
                 mgr.setAction(i, j, move_amount, move_angle, turn, g);
             }
@@ -132,27 +138,19 @@ int main(int argc, char *argv[])
         return false;
     };
 
-    // Printers
-    auto self_printer = mgr.selfObservationTensor().makePrinter();
-    auto partner_printer = mgr.partnerObservationsTensor().makePrinter();
-    auto room_ent_printer = mgr.roomEntityObservationsTensor().makePrinter();
-    auto door_printer = mgr.doorObservationTensor().makePrinter();
+    // Printers for ant colony simulation
+    auto ant_printer = mgr.antObservationTensor().makePrinter();
+    auto ant_count_printer = mgr.antCountTensor().makePrinter();
     auto lidar_printer = mgr.lidarTensor().makePrinter();
     auto steps_remaining_printer = mgr.stepsRemainingTensor().makePrinter();
     auto reward_printer = mgr.rewardTensor().makePrinter();
 
     auto printObs = [&]() {
-        printf("Self\n");
-        self_printer.print();
+        printf("Ant Observations\n");
+        ant_printer.print();
 
-        printf("Partner\n");
-        partner_printer.print();
-
-        printf("Room Entities\n");
-        room_ent_printer.print();
-
-        printf("Door\n");
-        door_printer.print();
+        printf("Ant Count\n");
+        ant_count_printer.print();
 
         printf("Lidar\n");
         lidar_printer.print();
@@ -160,7 +158,7 @@ int main(int argc, char *argv[])
         printf("Steps Remaining\n");
         steps_remaining_printer.print();
 
-        printf("Reward\n");
+        printf("Hive Reward\n");
         reward_printer.print();
 
         printf("\n");
@@ -173,10 +171,11 @@ int main(int argc, char *argv[])
     {
         using Key = Viewer::KeyboardKey;
         if (input.keyHit(Key::R)) {
+            // Reset the current world
             mgr.triggerReset(world_idx);
         }
     },
-    [&mgr](CountT world_idx, CountT agent_idx,
+    [&mgr](CountT world_idx, CountT ant_idx,
            const Viewer::UserInput &input)
     {
         using Key = Viewer::KeyboardKey;
@@ -243,7 +242,8 @@ int main(int argc, char *argv[])
             move_angle = 0;
         }
 
-        mgr.setAction(world_idx, agent_idx, move_amount, move_angle, r, g);
+        // Set action for this individual ant
+        mgr.setAction(world_idx, ant_idx, move_amount, move_angle, r, g);
     }, [&]() {
         if (replay_log.has_value()) {
             bool replay_finished = replayStep();
@@ -253,7 +253,11 @@ int main(int argc, char *argv[])
             }
         }
 
+        // Step the ant colony simulation
         mgr.step();
+        
+        // Uncomment to see ant observations and rewards during simulation
+        //printObs();
 
         //printObs();
     }, []() {});
