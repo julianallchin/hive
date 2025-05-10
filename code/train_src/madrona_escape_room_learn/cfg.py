@@ -15,6 +15,26 @@ class PPOConfig:
     adaptive_entropy: bool = True
 
 @dataclass(frozen=True)
+class HivemindConfig:
+    """Configuration for hivemind architecture components"""
+    # Ant configuration
+    num_ants: int  # Number of ants per simulation
+    ant_obs_dim: int  # Dimension of local observation per ant
+    ant_mlp_hidden: int  # Hidden dimension in ant MLP
+    
+    # Communication parameters
+    command_dim: int  # Dimension of command from hivemind to ants
+    message_dim: int  # Dimension of message from ants to hivemind
+    
+    # Attention parameters
+    attn_heads: int  # Number of attention heads 
+    attn_output_dim: int  # Output dimension of attention
+    
+    # LSTM parameters 
+    lstm_hidden_dim: int  # Hidden dimension of LSTM
+    lstm_layers: int  # Number of LSTM layers
+
+@dataclass(frozen=True)
 class TrainConfig:
     num_updates: int
     steps_per_update: int
@@ -22,6 +42,7 @@ class TrainConfig:
     lr: float
     gamma: float
     ppo: PPOConfig
+    hivemind: HivemindConfig  # Hivemind configuration
     gae_lambda: float = 1.0
     normalize_advantages: bool = True
     normalize_values : bool = True
@@ -36,6 +57,10 @@ class TrainConfig:
                 rep += f"\n  ppo:"
                 for ppo_k, ppo_v in self.ppo.__dict__.items():
                     rep += f"\n    {ppo_k}: {ppo_v}"
+            elif k == 'hivemind':
+                rep += f"\n  hivemind:"
+                for hive_k, hive_v in self.hivemind.__dict__.items():
+                    rep += f"\n    {hive_k}: {hive_v}"
             else:
                 rep += f"\n  {k}: {v}" 
 
@@ -44,7 +69,7 @@ class TrainConfig:
 @dataclass(frozen=True)
 class SimInterface:
     step: Callable
-    obs: List[torch.Tensor]
-    actions: torch.Tensor
-    dones: torch.Tensor
-    rewards: torch.Tensor
+    obs: List[torch.Tensor]  # First element should be [batch_size, num_ants, ant_obs_dim]
+    actions: torch.Tensor    # Shape [batch_size, num_ants, action_components]
+    dones: torch.Tensor      # Shape [batch_size, 1]
+    rewards: torch.Tensor    # Shape [batch_size, 1] - global reward for the hivemind
