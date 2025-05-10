@@ -52,20 +52,6 @@ namespace madEscape
         int32_t grab_action;     // 0 = no-op, 1 = attempt to grab / release
     };
 
-    // Message content sent from an ant to the hivemind.
-    // This is an output from the ant's policy, read by the Python hivemind.
-    struct MessageToHivemind
-    {
-        float M[consts::messageDimension];
-    };
-
-    // Hidden state received by an ant from the hivemind.
-    // This is an input to the ant's policy, written by the Python hivemind.
-    struct HiddenStateFromHivemind
-    {
-        float H[consts::hiddenStateDimension];
-    };
-
     // Observation data for a single ant, excluding Lidar.
     // This is an output from the simulation to the policy.
     struct AntObservationComponent
@@ -159,11 +145,8 @@ namespace madEscape
                      GrabState,
                      Lidar,                   // Output to policy
                      AntObservationComponent, // Output to policy
-
-                     // IO with Python policy/hivemind
+                     
                      AntAction,               // Input from policy
-                     MessageToHivemind,       // Output from policy (to hivemind)
-                     HiddenStateFromHivemind, // Input from hivemind (to policy)
 
                      // Rendering
                      madrona::render::Renderable
@@ -216,12 +199,6 @@ namespace madEscape
     // Size of Lidar data (numLidarSamples * 2 floats per sample)
     static_assert(sizeof(Lidar) == sizeof(LidarSample) * consts::numLidarSamples);
     static_assert(sizeof(LidarSample) == sizeof(float) * 2);
-
-    // Size of MessageToHivemind
-    static_assert(sizeof(MessageToHivemind) == sizeof(float) * consts::messageDimension);
-
-    // Size of HiddenStateFromHivemind
-    static_assert(sizeof(HiddenStateFromHivemind) == sizeof(float) * consts::hiddenStateDimension);
 
     // Size of AntAction (4 int32_t values)
     static_assert(sizeof(AntAction) == sizeof(int32_t) * 4);

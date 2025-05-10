@@ -5,33 +5,43 @@
 namespace madEscape {
 
 namespace consts {
-// Each random world is composed of a fixed number of rooms that the agents
-// must solve in order to maximize their reward.
-inline constexpr madrona::CountT numRooms = 3;
+// Ant population constraints
+inline constexpr madrona::CountT minAnts = 1;     // Minimum number of ants
+inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
 
-// Generated levels assume 2 agents
-inline constexpr madrona::CountT numAgents = 2;
+// Maximum number of movable obstacles in the environment
+inline constexpr madrona::CountT maxMovableObjects = 10;
 
-// Maximum number of interactive objects per challenge room. This is needed
-// in order to setup the fixed-size learning tensors appropriately.
-inline constexpr madrona::CountT maxEntitiesPerRoom = 6;
+// Maximum number of interior walls in the environment
+inline constexpr madrona::CountT maxInteriorWalls = 5;
 
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
-inline constexpr float worldWidth = 20.f;
+inline constexpr float worldWidth = 40.f;  // Making it square since we don't have separate rooms
 inline constexpr float wallWidth = 1.f;
-inline constexpr float buttonWidth = 1.3f;
-inline constexpr float agentRadius = 1.f;
-inline constexpr float roomLength = worldLength / numRooms;
+inline constexpr float antRadius = 0.5f;    // Smaller than original agents
+inline constexpr float macguffinRadius = 1.f;
+inline constexpr float movableObjectRadius = 1.f;
+inline constexpr float goalRadius = 1.5f;   // Visual indicator of goal position
 
-// Each unit of distance forward (+ y axis) rewards the agents by this amount
-inline constexpr float rewardPerDist = 0.05f;
-// Each step that the agents don't make additional progress they get a small
-// penalty reward
-inline constexpr float slackReward = -0.005f;
+// Reward for decreasing distance between macguffin and goal
+inline constexpr float distanceRewardScale = 0.1f;
+// Reward for successfully moving macguffin to goal
+inline constexpr float goalReward = 1.0f;
+// Small existential penalty per timestep
+inline constexpr float existentialPenalty = -1.0f;
 
 // Steps per episode
-inline constexpr int32_t episodeLen = 200;
+inline constexpr int32_t episodeLen = 300;  // Longer episodes for the hive task
+inline constexpr int32_t maxEpisodeSteps = episodeLen;  // Alias for compatibility
+
+// Default values for curriculum learning
+inline constexpr uint32_t defaultAnts = 20;             // Start with fewer ants
+inline constexpr uint32_t defaultMovableObjects = 0;    // Start with no movable objects
+inline constexpr uint32_t defaultWalls = 0;            // Start with no interior walls
+
+// Distance threshold for considering macguffin at goal
+inline constexpr float goalDistanceThreshold = 2.0f;
 
 // How many discrete options for actions
 inline constexpr madrona::CountT numMoveAmountBuckets = 4;
@@ -43,9 +53,6 @@ inline constexpr madrona::CountT numLidarSamples = 30;
 
 // Time (seconds) per step
 inline constexpr float deltaT = 0.04f;
-
-// Speed at which doors raise and lower
-inline constexpr float doorSpeed = 30.f;
 
 // Number of physics substeps
 inline constexpr madrona::CountT numPhysicsSubsteps = 4.f;

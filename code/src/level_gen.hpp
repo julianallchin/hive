@@ -10,7 +10,7 @@ void createPersistentEntities(Engine &ctx);
 
 // Randomly generate a new world for a training episode
 // First, destroys any non-persistent state for the current world and then
-// generates a new play area.
+// generates a new play area with entities based on the curriculumDifficulty.
 void generateWorld(Engine &ctx);
 
 }

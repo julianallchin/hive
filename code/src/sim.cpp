@@ -52,16 +52,19 @@ namespace madEscape
             (uint32_t)ExportID::Reset);
         registry.exportColumn<Ant, AntAction>(
             (uint32_t)ExportID::Action);
+        registry.exportSingleton<HiveReward>(
+            (uint32_t)ExportID::Reward);
+        registry.exportSingleton<HiveDone>(
+            (uint32_t)ExportID::Done);
         registry.exportColumn<Ant, AntObservationComponent>(
             (uint32_t)ExportID::SelfObservation);
         registry.exportColumn<Ant, Lidar>(
             (uint32_t)ExportID::Lidar);
         registry.exportSingleton<StepsRemaining>(
             (uint32_t)ExportID::StepsRemaining);
-        registry.exportSingleton<HiveReward>(
-            (uint32_t)ExportID::Reward);
-        registry.exportSingleton<HiveDone>(
-            (uint32_t)ExportID::Done);
+        
+        // Note: We removed PartnerObservations, RoomEntityObservations, and DoorObservation exports
+        // as they are not needed in the hive simulation
     }
 
     static inline void cleanupWorld(Engine &ctx)
@@ -100,40 +103,53 @@ namespace madEscape
     }
 
     static inline void initWorld(Engine &ctx)
-    {
-        phys::PhysicsSystem::reset(ctx);
+{
+    phys::PhysicsSystem::reset(ctx);
 
-        // Assign a new episode ID
-        ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
-                                           ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
+    // Assign a new episode ID and update RNG
+    ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
+                                       ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
 
-        // Initialize level state and singletons
-        LevelState &level = ctx.singleton<LevelState>();
-        level.macguffin = Entity::none();
-        level.goal = Entity::none();
-        level.num_current_movable_objects = 0;
-        level.num_current_walls = 0;
+    // Initialize level state and singletons
+    LevelState &level = ctx.singleton<LevelState>();
+    level.macguffin = Entity::none();
+    level.goal = Entity::none();
+    level.num_current_movable_objects = 0;
+    level.num_current_walls = 0;
 
-        // Initialize hive reward and done state
-        ctx.singleton<HiveReward>().v = 0.0f;
-        ctx.singleton<HiveDone>().v = 0;
+    // Initialize hive reward and done state
+    ctx.singleton<HiveReward>().v = 0.0f;
+    ctx.singleton<HiveDone>().v = 0;
 
-        // Set steps remaining to max episode length
-        ctx.singleton<StepsRemaining>().t = consts::maxEpisodeSteps;
+    // Set steps remaining to max episode length
+    ctx.singleton<StepsRemaining>().t = consts::episodeLen;
 
-        // Determine number of objects based on curriculum difficulty
-        int currentDifficulty = ctx.data().curriculumDifficulty;
-        CountT numMovableObjects = std::min(
-            consts::defaultMovableObjects + currentDifficulty / 2,
-            (int)consts::maxMovableObjects);
+    // Determine number of entities based on curriculum difficulty
+    int currentDifficulty = ctx.data().curriculumDifficulty;
+    
+    // Calculate number of ants based on difficulty
+    ctx.data().currentNumAnts = std::min(
+        consts::defaultAnts + currentDifficulty * 5,
+        (int)consts::maxAnts);
+    
+    // Calculate number of movable objects based on difficulty
+    ctx.data().currentNumMovableObjects = std::min(
+        consts::defaultMovableObjects + currentDifficulty / 2,
+        (int)consts::maxMovableObjects);
 
-        CountT numWalls = std::min(
-            consts::defaultWalls + currentDifficulty / 3,
-            (int)consts::maxWalls);
+    // Calculate number of interior walls based on difficulty
+    ctx.data().currentNumInteriorWalls = std::min(
+        consts::defaultWalls + currentDifficulty / 3,
+        (int)consts::maxInteriorWalls);
 
-        // Defined in src/level_gen.hpp / src/level_gen.cpp
-        // This will generate the world using the parameters we've set
-        generateWorld(ctx, numMovableObjects, numWalls);
+    // Defined in src/level_gen.hpp / src/level_gen.cpp
+    // This will generate the world using the parameters we've set
+    generateWorld(ctx);
+    
+    // Every 10 episodes, increase the curriculum difficulty
+    if (ctx.data().curWorldEpisode % 10 == 0 && ctx.data().curWorldEpisode > 0) {
+        ctx.data().curriculumDifficulty++;
+    }
     }
 
     // This system runs each frame and checks if the current episode is complete
@@ -707,32 +723,48 @@ Sim::Sim(Engine &ctx,
     // entities that will be stored in the BVH. We plan to fix this in
     // a future release.
     constexpr CountT max_total_entities = consts::maxAnts +
-                                          consts::maxMovableObjects + consts::maxWalls +
+                                          consts::maxMovableObjects + consts::maxInteriorWalls +
                                           7; // 4 border walls + floor + macguffin + goal
 
+    // Initialize physics system with gravity that only applies to the XY plane (no Z)
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
-                              consts::deltaT, consts::numPhysicsSubsteps, -9.8f * math::up,
+                              consts::deltaT, consts::numPhysicsSubsteps, {0.f, 0.f, 0.f},
                               max_total_entities);
 
     initRandKey = cfg.initRandKey;
     autoReset = cfg.autoReset;
-
     enableRender = cfg.renderBridge != nullptr;
+    
+    // Initialize curriculum difficulty to start at 0 (easiest level)
+    curriculumDifficulty = 0;
+    
+    // Initialize ant count based on config or default
+    currentNumAnts = cfg.numAnts > 0 ? cfg.numAnts : consts::defaultAnts;
+    currentNumMovableObjects = cfg.numMovableObjects;
+    currentNumInteriorWalls = cfg.numWalls;
 
     if (enableRender)
     {
         RenderingSystem::init(ctx, cfg.renderBridge);
     }
 
-    // Start with a random number of ants between min and max
-    numAnts = ctx.data().rng.uniformInt(consts::minAnts, consts::maxAnts);
-
-    // Allocate dynamic array for ant entities
-    ants = new Entity[numAnts];
-
+    // Initialize episode counter
     curWorldEpisode = 0;
+    
+    // Initialize ant, object, and wall arrays to Entity::none()
+    for (CountT i = 0; i < consts::maxAnts; i++) {
+        ants[i] = Entity::none();
+    }
+    
+    for (CountT i = 0; i < consts::maxMovableObjects; i++) {
+        movableObjects[i] = Entity::none();
+    }
+    
+    for (CountT i = 0; i < consts::maxInteriorWalls; i++) {
+        interiorWalls[i] = Entity::none();
+    }
 
-    // Creates persistent entities (floor, border walls, ants)
+    // Create the persistent entities (borders, floor, etc).
     createPersistentEntities(ctx);
 
     // Generate initial world state with macguffin, goal, etc.

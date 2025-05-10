@@ -26,10 +26,8 @@ enum class ExportID : uint32_t {
     Reward,
     Done,
     SelfObservation,
-    PartnerObservations,
-    RoomEntityObservations,
-    DoorObservation,
     Lidar,
+    TaskObservation,  // Macguffin and goal relative positions
     StepsRemaining,
     NumExports,
 };
@@ -37,12 +35,12 @@ enum class ExportID : uint32_t {
 // Stores values for the ObjectID component that links entities to
 // render / physics assets.
 enum class SimObject : uint32_t {
-    Cube,
+    Ant,
+    Macguffin,
+    Goal,  // Visual representation of the goal
     Wall,
-    Door,
-    Agent,
-    Button,
     Plane,
+    MovableObject,
     NumObjects,
 };
 
@@ -59,6 +57,11 @@ struct Sim : public madrona::WorldBase {
         RandKey initRandKey;
         madrona::phys::ObjectManager *rigidBodyObjMgr;
         const madrona::render::RenderECSBridge *renderBridge;
+        // Curriculum learning parameters
+        uint32_t minAntsRand;
+        uint32_t maxAntsRand; // for randomly determining the number of ants on each episode
+        uint32_t numMovableObjects;
+        uint32_t numWalls;
     };
 
     // This class would allow per-world custom data to be passed into
@@ -103,11 +106,9 @@ struct Sim : public madrona::WorldBase {
 
     // Border wall entities: 3 walls to the left, up and down that define
     // play area. These are constant across all episodes.
-    Entity borders[3];
+    Entity borders[4];
 
-    // Agent entity references. This entities live across all episodes
-    // and are just reset to the start of the level on reset.
-    Entity agents[consts::numAgents];
+    uint32_t numAnts;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {
