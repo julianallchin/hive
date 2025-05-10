@@ -80,6 +80,28 @@ Let $d_t = \| \text{object}_t - \text{goal} \|_2$ be object-goal distance.
 - world state
   - whatever's needed to link these and track overall state and model
 
+
+## Understanding Codebase
+
+Singletons (one per world):
+
+- WorldReset
+- LevelState
+- HiveReward
+- HiveDone
+- StepsRemaining
+
+Archetypes (collections of entities):
+
+- Ant
+- Macguffin
+- Goal
+- Wall
+- MovableObject
+
 Any additional state should be tracked for the world, communiation, lidar, etc.
 
-There are no buttons or doors.
+
+There are no buttons or doors. You can remove escape room specific functionality if it does not apply to our project.
+
+Make sure to separate the model functionality (python) from the simulation functionality (madrona). For example, madrona will export the ant observations/lidar and import actions, but it does not need to import/export hivemind messages. The only interfacing between python and madrona that is requried for the reinforcement learning functionality is the observations/lidar and actions.
