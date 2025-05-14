@@ -50,18 +50,18 @@ namespace madEscape
         // Export interfaces for Python training code
         registry.exportSingleton<WorldReset>(
             (uint32_t)ExportID::Reset);
-        registry.exportColumn<Ant, AntAction>(
-            (uint32_t)ExportID::Action);
         registry.exportSingleton<HiveReward>(
             (uint32_t)ExportID::Reward);
         registry.exportSingleton<HiveDone>(
             (uint32_t)ExportID::Done);
+        registry.exportSingleton<StepsRemaining>(
+            (uint32_t)ExportID::StepsRemaining);
+        registry.exportColumn<Ant, AntAction>(
+            (uint32_t)ExportID::Action);
         registry.exportColumn<Ant, AntObservationComponent>(
             (uint32_t)ExportID::SelfObservation);
         registry.exportColumn<Ant, Lidar>(
             (uint32_t)ExportID::Lidar);
-        registry.exportSingleton<StepsRemaining>(
-            (uint32_t)ExportID::StepsRemaining);
         
         // Note: We removed PartnerObservations, RoomEntityObservations, and DoorObservation exports
         // as they are not needed in the hive simulation
@@ -124,32 +124,24 @@ namespace madEscape
     // Set steps remaining to max episode length
     ctx.singleton<StepsRemaining>().t = consts::episodeLen;
 
-    // Determine number of entities based on curriculum difficulty
-    int currentDifficulty = ctx.data().curriculumDifficulty;
+    // Randomly determine the number of ants for this episode - using the values from Sim struct
+    // These values were stored from the Config in the Sim constructor
+    ctx.data().currentNumAnts = ctx.data().rng.uniformInt(
+        ctx.data().minAntsRand, 
+        ctx.data().maxAntsRand);
     
-    // Calculate number of ants based on difficulty
-    ctx.data().currentNumAnts = std::min(
-        consts::defaultAnts + currentDifficulty * 5,
-        (int)consts::maxAnts);
+    // Randomly determine the number of movable objects for this episode
+    ctx.data().currentNumMovableObjects = ctx.data().rng.uniformInt(
+        ctx.data().minMovableObjectsRand, 
+        ctx.data().maxMovableObjectsRand);
     
-    // Calculate number of movable objects based on difficulty
-    ctx.data().currentNumMovableObjects = std::min(
-        consts::defaultMovableObjects + currentDifficulty / 2,
-        (int)consts::maxMovableObjects);
+    // Randomly determine the number of interior walls for this episode
+    ctx.data().currentNumInteriorWalls = ctx.data().rng.uniformInt(
+        ctx.data().minWallsRand, 
+        ctx.data().maxWallsRand);
 
-    // Calculate number of interior walls based on difficulty
-    ctx.data().currentNumInteriorWalls = std::min(
-        consts::defaultWalls + currentDifficulty / 3,
-        (int)consts::maxInteriorWalls);
-
-    // Defined in src/level_gen.hpp / src/level_gen.cpp
-    // This will generate the world using the parameters we've set
+    // Generate the world with the randomly determined entity counts
     generateWorld(ctx);
-    
-    // Every 10 episodes, increase the curriculum difficulty
-    if (ctx.data().curWorldEpisode % 10 == 0 && ctx.data().curWorldEpisode > 0) {
-        ctx.data().curriculumDifficulty++;
-    }
     }
 
     // This system runs each frame and checks if the current episode is complete
@@ -340,8 +332,6 @@ inline void hiveRewardSystem(Engine &ctx)
     if (prev_dist < 0)
     {
         prev_dist = dist;
-        reward.v = 0.0f;
-        return;
     }
 
     // Step reward based on distance reduction
@@ -510,68 +500,12 @@ inline void lidarSystem(Engine &ctx,
 #endif
 }
 
-// Computes reward for each agent and keeps track of the max distance achieved
-// so far through the challenge. Continuous reward is provided for any new
-// distance achieved.
-inline void rewardSystem(Engine &,
-                         Position pos,
-                         Progress &progress,
-                         Reward &out_reward)
-{
-    // Just in case agents do something crazy, clamp total reward
-    float reward_pos = fminf(pos.y, consts::worldLength * 2);
-
-    float old_max_y = progress.maxY;
-
-    float new_progress = reward_pos - old_max_y;
-
-    float reward;
-    if (new_progress > 0)
-    {
-        reward = new_progress * consts::rewardPerDist;
-        progress.maxY = reward_pos;
-    }
-    else
-    {
-        reward = consts::slackReward;
-    }
-
-    out_reward.v = reward;
-}
-
-// Each agent gets a small bonus to it's reward if the other agent has
-// progressed a similar distance, to encourage them to cooperate.
-// This system reads the values of the Progress component written by
-// rewardSystem for other agents, so it must run after.
-inline void bonusRewardSystem(Engine &ctx,
-                              OtherAgents &others,
-                              Progress &progress,
-                              Reward &reward)
-{
-    bool partners_close = true;
-    for (CountT i = 0; i < consts::numAgents - 1; i++)
-    {
-        Entity other = others.e[i];
-        Progress other_progress = ctx.get<Progress>(other);
-
-        if (fabsf(other_progress.maxY - progress.maxY) > 2.f)
-        {
-            partners_close = false;
-        }
-    }
-
-    if (partners_close && reward.v > 0.f)
-    {
-        reward.v *= 1.25f;
-    }
-}
-
 // Keep track of the number of steps remaining in the episode and
 // notify training that an episode has completed by
 // setting done = 1 on the final step of the episode
 inline void stepTrackerSystem(Engine &,
                               StepsRemaining &steps_remaining,
-                              Done &done)
+                              HiveDone &done)
 {
     int32_t num_remaining = --steps_remaining.t;
     if (num_remaining == consts::episodeLen - 1)
@@ -646,12 +580,20 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
     // Compute hive reward based on macguffin position relative to goal
     auto hive_reward_sys = builder.addToGraph<SingletonNode<Engine,
-                                                            hiveRewardSystem>>({phys_done});
+                                                            hiveRewardSystem
+                                                            >>({phys_done});
 
+    // Check if the episode is over
+    auto done_sys = builder.addToGraph<ParallelForNode<Engine,
+        stepTrackerSystem,
+            StepsRemaining,
+            HiveDone
+        >>({hive_reward_sys});
+    
     // Conditionally reset the world if the episode is over
     auto reset_sys = builder.addToGraph<ParallelForNode<Engine,
                                                         resetSystem,
-                                                        WorldReset>>({hive_reward_sys});
+                                                        WorldReset>>({done_sys});
 
     auto clear_tmp = builder.addToGraph<ResetTmpAllocNode>({reset_sys});
     (void)clear_tmp;
@@ -726,7 +668,7 @@ Sim::Sim(Engine &ctx,
                                           consts::maxMovableObjects + consts::maxInteriorWalls +
                                           7; // 4 border walls + floor + macguffin + goal
 
-    // Initialize physics system with gravity that only applies to the XY plane (no Z)
+    // Initialize physics system with no gravity
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
                               consts::deltaT, consts::numPhysicsSubsteps, {0.f, 0.f, 0.f},
                               max_total_entities);
@@ -735,36 +677,15 @@ Sim::Sim(Engine &ctx,
     autoReset = cfg.autoReset;
     enableRender = cfg.renderBridge != nullptr;
     
-    // Initialize curriculum difficulty to start at 0 (easiest level)
-    curriculumDifficulty = 0;
-    
-    // Initialize ant count based on config or default
-    currentNumAnts = cfg.numAnts > 0 ? cfg.numAnts : consts::defaultAnts;
-    currentNumMovableObjects = cfg.numMovableObjects;
-    currentNumInteriorWalls = cfg.numWalls;
-
     if (enableRender)
     {
         RenderingSystem::init(ctx, cfg.renderBridge);
     }
+    
 
-    // Initialize episode counter
     curWorldEpisode = 0;
     
-    // Initialize ant, object, and wall arrays to Entity::none()
-    for (CountT i = 0; i < consts::maxAnts; i++) {
-        ants[i] = Entity::none();
-    }
-    
-    for (CountT i = 0; i < consts::maxMovableObjects; i++) {
-        movableObjects[i] = Entity::none();
-    }
-    
-    for (CountT i = 0; i < consts::maxInteriorWalls; i++) {
-        interiorWalls[i] = Entity::none();
-    }
-
-    // Create the persistent entities (borders, floor, etc).
+    // Creates persistent entities (floor, border walls, ants)
     createPersistentEntities(ctx);
 
     // Generate initial world state with macguffin, goal, etc.

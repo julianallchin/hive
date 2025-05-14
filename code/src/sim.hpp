@@ -57,11 +57,13 @@ struct Sim : public madrona::WorldBase {
         RandKey initRandKey;
         madrona::phys::ObjectManager *rigidBodyObjMgr;
         const madrona::render::RenderECSBridge *renderBridge;
-        // Curriculum learning parameters
+        // Entity count randomization parameters
         uint32_t minAntsRand;
-        uint32_t maxAntsRand; // for randomly determining the number of ants on each episode
-        uint32_t numMovableObjects;
-        uint32_t numWalls;
+        uint32_t maxAntsRand;
+        uint32_t minMovableObjectsRand;
+        uint32_t maxMovableObjectsRand;
+        uint32_t minWallsRand;
+        uint32_t maxWallsRand;
     };
 
     // This class would allow per-world custom data to be passed into
@@ -100,6 +102,14 @@ struct Sim : public madrona::WorldBase {
     uint32_t curWorldEpisode;
     // Random number generator state
     madrona::RNG rng;
+    
+    // Randomization parameters for entity counts
+    uint32_t minAntsRand;
+    uint32_t maxAntsRand;
+    uint32_t minMovableObjectsRand;
+    uint32_t maxMovableObjectsRand;
+    uint32_t minWallsRand;
+    uint32_t maxWallsRand;
 
     // Floor plane entity, constant across all episodes.
     Entity floorPlane;
