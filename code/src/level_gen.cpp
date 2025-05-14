@@ -475,7 +475,7 @@ namespace madEscape
     }
 
     // Generate the hive simulation world
-    void generateWorld(Engine &ctx, CountT numMovableObjects, CountT numWalls)
+    void generateWorld(Engine &ctx)
     {
         resetPersistentEntities(ctx);
 
@@ -487,17 +487,14 @@ namespace madEscape
         // Then place macguffin
         level.macguffin = placeMacguffin(ctx);
 
-        // Place movable objects
-        placeMovableObjects(ctx, numMovableObjects);
+        // Place movable objects - using the random count from Sim
+        placeMovableObjects(ctx, ctx.data().currentNumMovableObjects);
 
-        // Place additional walls
-        placeWalls(ctx, numWalls);
+        // Place additional walls - using the random count from Sim
+        placeWalls(ctx, ctx.data().currentNumInteriorWalls);
 
-        // Randomly determine number of ants within the specified range
-        CountT numAnts = ctx.data().rng.sampleI32(consts::minAnts, consts::maxAnts + 1);
-
-        // Place ants
-        placeAnts(ctx, numAnts);
+        // Place ants - using the random count from Sim
+        placeAnts(ctx, ctx.data().currentNumAnts);
     }
 
 }

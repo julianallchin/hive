@@ -118,6 +118,12 @@ namespace madEscape
     {
         uint32_t t;
     };
+    
+    // Singleton component for tracking the number of active ants per world
+    struct AntCount
+    {
+        uint32_t count;
+    };
 
     // Singleton component storing the state of the current level.
     struct LevelState

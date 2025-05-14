@@ -9,11 +9,13 @@ namespace consts {
 inline constexpr madrona::CountT minAnts = 1;     // Minimum number of ants
 inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
 
-// Maximum number of movable obstacles in the environment
-inline constexpr madrona::CountT maxMovableObjects = 10;
+// Movable objects constraints
+inline constexpr madrona::CountT minMovableObjects = 0;  // Minimum number of movable objects
+inline constexpr madrona::CountT maxMovableObjects = 10; // Maximum number of movable objects
 
-// Maximum number of interior walls in the environment
-inline constexpr madrona::CountT maxInteriorWalls = 5;
+// Interior walls constraints
+inline constexpr madrona::CountT minInteriorWalls = 0;   // Minimum number of interior walls
+inline constexpr madrona::CountT maxInteriorWalls = 5;   // Maximum number of interior walls
 
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
@@ -33,7 +35,6 @@ inline constexpr float existentialPenalty = -1.0f;
 
 // Steps per episode
 inline constexpr int32_t episodeLen = 300;  // Longer episodes for the hive task
-inline constexpr int32_t maxEpisodeSteps = episodeLen;  // Alias for compatibility
 
 // Default values for curriculum learning
 inline constexpr uint32_t defaultAnts = 20;             // Start with fewer ants

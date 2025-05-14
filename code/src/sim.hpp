@@ -25,9 +25,9 @@ enum class ExportID : uint32_t {
     Action,
     Reward,
     Done,
-    SelfObservation,
+    AntObservation,
     Lidar,
-    TaskObservation,  // Macguffin and goal relative positions
+    AntCount,
     StepsRemaining,
     NumExports,
 };

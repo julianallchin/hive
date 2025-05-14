@@ -427,6 +427,13 @@ namespace madEscape
         Sim::Config sim_cfg;
         sim_cfg.autoReset = mgr_cfg.autoReset;
         sim_cfg.initRandKey = rand::initKey(mgr_cfg.randSeed);
+        // Pass randomization parameters
+        sim_cfg.minAntsRand = mgr_cfg.minAntsRand;
+        sim_cfg.maxAntsRand = mgr_cfg.maxAntsRand;
+        sim_cfg.minMovableObjectsRand = mgr_cfg.minMovableObjectsRand;
+        sim_cfg.maxMovableObjectsRand = mgr_cfg.maxMovableObjectsRand;
+        sim_cfg.minWallsRand = mgr_cfg.minWallsRand;
+        sim_cfg.maxWallsRand = mgr_cfg.maxWallsRand;
 
         switch (mgr_cfg.execMode)
         {
@@ -609,7 +616,7 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAnts,
+                                       consts::maxAnts
                                        4,
                                    });
     }
@@ -643,41 +650,16 @@ namespace madEscape
                                    });
     }
 
-    // Tensor Manager::macguffinObservationTensor() const
-    // {
-    //     // Note: this is actually derived from the observation data
-    //     // which is already part of the self observation tensor
-    //     // Adding as a separate tensor for convenience in the Python code
-    //     // This is not directly exported from ECS but computed on the Python side
-    //     return Tensor(nullptr, TensorElementType::Float32, {
-    //         impl_->cfg.numWorlds,
-    //         4, // position (x,y) and velocity (vx,vy)
-    //     }, impl_->cfg.execMode == ExecMode::CUDA ? impl_->cfg.gpuID :
-    //                                              Optional<int>::none());
-    // }
-
-    // Tensor Manager::goalObservationTensor() const
-    // {
-    //     // Note: goal position is actually part of the ant observations
-    //     // Adding as a separate tensor for convenience in the Python code
-    //     // This is not directly exported from ECS but computed on the Python side
-    //     return Tensor(nullptr, TensorElementType::Float32, {
-    //         impl_->cfg.numWorlds,
-    //         2, // position (x,y)
-    //     }, impl_->cfg.execMode == ExecMode::CUDA ? impl_->cfg.gpuID :
-    //                                              Optional<int>::none());
-    // }
-
     Tensor Manager::antCountTensor() const
     {
-        // This would need to be added as a new export ID in the ExportID enum
-        // For now, we'll return a dummy tensor and rely on the Python code
-        // to track ant counts
-        return Tensor(nullptr, TensorElementType::Int32, {
-                                                             impl_->cfg.numWorlds,
-                                                             1,
-                                                         },
-                      impl_->cfg.execMode == ExecMode::CUDA ? impl_->cfg.gpuID : Optional<int>::none());
+        // Return information about how many ants are active in each world
+        // This is used by the Python code to mask observations/actions for inactive ants
+        return impl_->exportTensor(ExportID::AntCount,
+                                  TensorElementType::UInt32,
+                                  {
+                                      impl_->cfg.numWorlds,
+                                      1,
+                                  });
     }
 
     Tensor Manager::lidarTensor() const

@@ -39,6 +39,7 @@ namespace madEscape
         registry.registerSingleton<HiveReward>();
         registry.registerSingleton<HiveDone>();
         registry.registerSingleton<StepsRemaining>();
+        registry.registerSingleton<AntCount>();
 
         // Register archetypes
         registry.registerArchetype<Ant>();
@@ -50,21 +51,20 @@ namespace madEscape
         // Export interfaces for Python training code
         registry.exportSingleton<WorldReset>(
             (uint32_t)ExportID::Reset);
+        registry.exportColumn<Ant, AntAction>(
+            (uint32_t)ExportID::Action);
         registry.exportSingleton<HiveReward>(
             (uint32_t)ExportID::Reward);
         registry.exportSingleton<HiveDone>(
             (uint32_t)ExportID::Done);
-        registry.exportSingleton<StepsRemaining>(
-            (uint32_t)ExportID::StepsRemaining);
-        registry.exportColumn<Ant, AntAction>(
-            (uint32_t)ExportID::Action);
         registry.exportColumn<Ant, AntObservationComponent>(
-            (uint32_t)ExportID::SelfObservation);
+            (uint32_t)ExportID::AntObservation);
         registry.exportColumn<Ant, Lidar>(
             (uint32_t)ExportID::Lidar);
-        
-        // Note: We removed PartnerObservations, RoomEntityObservations, and DoorObservation exports
-        // as they are not needed in the hive simulation
+        registry.exportSingleton<AntCount>(
+            (uint32_t)ExportID::AntCount);
+        registry.exportSingleton<StepsRemaining>(
+            (uint32_t)ExportID::StepsRemaining);
     }
 
     static inline void cleanupWorld(Engine &ctx)
@@ -122,13 +122,16 @@ namespace madEscape
     ctx.singleton<HiveDone>().v = 0;
 
     // Set steps remaining to max episode length
-    ctx.singleton<StepsRemaining>().t = consts::episodeLen;
+    ctx.singleton<StepsRemaining>().t = ctx.data().maxSteps;
 
     // Randomly determine the number of ants for this episode - using the values from Sim struct
     // These values were stored from the Config in the Sim constructor
     ctx.data().currentNumAnts = ctx.data().rng.uniformInt(
         ctx.data().minAntsRand, 
         ctx.data().maxAntsRand);
+    
+    // Initialize AntCount singleton for export to Python
+    ctx.singleton<AntCount>().count = ctx.data().currentNumAnts;
     
     // Randomly determine the number of movable objects for this episode
     ctx.data().currentNumMovableObjects = ctx.data().rng.uniformInt(
@@ -508,7 +511,7 @@ inline void stepTrackerSystem(Engine &,
                               HiveDone &done)
 {
     int32_t num_remaining = --steps_remaining.t;
-    if (num_remaining == consts::episodeLen - 1)
+    if (num_remaining ==  - 1)
     {
         done.v = 0;
     }
