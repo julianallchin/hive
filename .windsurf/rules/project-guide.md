@@ -12,7 +12,7 @@ During each world episode, ants (100 or so) are spawned in a room (top down, no 
 
 We are trying to modify the existing codebase to match our project. The project is a hive simulation where ants try to move a macguffin to a goal. We want to keep the core physics and raycasting the same as the origional. We want to keep the types mostly the same, but we are tracking slightly different state and RL model.
 
-We want a range to randomize the number of ants (100 or so) and movable objects (10 or so) and walls (2 or so). But we want curriculum learning so it starts with no movable objects and walls and increases the number of movable objects and walls over time.
+We want a range to randomize the number of ants (100 or so) and movable objects (10 or so) and walls (2 or so).
 
 Remove excape room stuff, get rid of z cords. this is 2d only.
 
@@ -99,7 +99,13 @@ Archetypes (collections of entities):
 - Wall
 - MovableObject
 
-Any additional state should be tracked for the world, communiation, lidar, etc.
+Persistent Entities
+- 4 surrounding walls
+- base/floor plane
+
+Additional state should be tracked for the world, communiation, lidar, etc.
+
+## Miscellaneous
 
 
 There are no buttons or doors. You can remove escape room specific functionality if it does not apply to our project.
