@@ -52,7 +52,7 @@ public:
     madrona::py::Tensor lidarTensor() const; // Raycast/lidar observations
     
     // World state
-    madrona::py::Tensor antCountTensor() const; // Number of ants per world (varies due to randomization)
+    madrona::py::Tensor numAntsTensor() const; // Number of ants per world (varies due to randomization)
     madrona::py::Tensor stepsRemainingTensor() const;
     
     // Optional visualization tensors for debugging

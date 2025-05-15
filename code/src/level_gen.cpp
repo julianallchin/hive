@@ -188,6 +188,7 @@ namespace madEscape
                 consts::macguffinRadius * 2});
         registerRigidBodyEntity(ctx, macguffin, SimObject::Macguffin);
 
+        ctx.data().macguffin = macguffin;
         return macguffin;
     }
 
@@ -206,6 +207,7 @@ namespace madEscape
         ctx.get<ObjectID>(goal) = ObjectID{(int32_t)SimObject::Goal};
         ctx.get<EntityType>(goal) = EntityType::Goal;
 
+        ctx.data().goal = goal;
         return goal;
     }
 
@@ -281,7 +283,7 @@ namespace madEscape
             y = randInRangeCentered(ctx, halfWidth);
             break;
         }
-
+        
         return createGoal(ctx, x, y);
     }
 
@@ -290,8 +292,7 @@ namespace madEscape
     {
         // Place macguffin opposite of the goal
         // Get goal position
-        LevelState &level = ctx.singleton<LevelState>();
-        Vector3 goalPos = ctx.get<Position>(level.goal);
+        Vector3 goalPos = ctx.get<Position>(ctx.data().goal);
 
         // Place macguffin on opposite side, with some randomness
         float angle = atan2f(goalPos.y, goalPos.x) + math::pi +
@@ -309,11 +310,9 @@ namespace madEscape
     // Place movable objects in the world
     static void placeMovableObjects(Engine &ctx, CountT numObjects)
     {
-        LevelState &level = ctx.singleton<LevelState>();
-
         // Get positions of goal and macguffin to avoid placing objects too close
-        Vector3 goalPos = ctx.get<Position>(level.goal);
-        Vector3 macguffinPos = ctx.get<Position>(level.macguffin);
+        Vector3 goalPos = ctx.get<Position>(ctx.data().goal);
+        Vector3 macguffinPos = ctx.get<Position>(ctx.data().macguffin);
 
         float minDistance = consts::worldWidth * 0.15f; // Minimum distance from goal/macguffin
         float maxAttempts = 30;                         // Max attempts to place an object
@@ -348,26 +347,24 @@ namespace madEscape
                 // Random size variation
                 float scale = randBetween(ctx, 0.8f, 1.2f);
                 Entity obj = createMovableObject(ctx, x, y, scale);
-                level.movable_objects[i] = obj;
+                ctx.data().movable_objects[i] = obj;
             }
             else
             {
                 // If we can't find a valid position, don't create the object
-                level.movable_objects[i] = Entity::none();
+                ctx.data().movable_objects[i] = Entity::none();
             }
         }
 
-        level.num_current_movable_objects = numObjects;
+        ctx.data().num_current_movable_objects = numObjects;
     }
 
     // Place additional walls in the world
     static void placeWalls(Engine &ctx, CountT numWalls)
     {
-        LevelState &level = ctx.singleton<LevelState>();
-
         // Get positions of goal and macguffin to avoid blocking paths
-        Vector3 goalPos = ctx.get<Position>(level.goal);
-        Vector3 macguffinPos = ctx.get<Position>(level.macguffin);
+        Vector3 goalPos = ctx.get<Position>(ctx.data().goal);
+        Vector3 macguffinPos = ctx.get<Position>(ctx.data().macguffin);
 
         // Calculate vector from macguffin to goal
         float dx = goalPos.x - macguffinPos.x;
@@ -413,21 +410,15 @@ namespace madEscape
             }
 
             Entity wall = createWall(ctx, centerX, centerY, width, height);
-            level.walls[i] = wall;
+            ctx.data().walls[i] = wall;
         }
 
-        level.num_current_walls = numWalls;
+        ctx.data().num_current_walls = numWalls;
     }
 
     // Place random number of ants in the world
     static void placeAnts(Engine &ctx, CountT numAnts)
     {
-        LevelState &level = ctx.singleton<LevelState>();
-
-        // Store the current number of ants
-        ctx.data().numAnts = numAnts;
-        level.num_current_ants = numAnts;
-
         float worldHalfWidth = consts::worldWidth / 2.f - consts::antRadius * 2.f;
 
         // Create and place ants
@@ -465,13 +456,12 @@ namespace madEscape
                 consts::antRadius * 2,
                 consts::antRadius * 2};
             ctx.get<GrabState>(ant).constraintEntity = Entity::none();
-            ctx.get<GrabState>(ant).grabTarget = Entity::none();
 
             registerRigidBodyEntity(ctx, ant, SimObject::Ant);
 
-            // Store ant entity in level state
-            level.ants[i] = ant;
+            ctx.data().ants[i] = ant;
         }
+        ctx.singleton<NumAnts>().count = numAnts;
     }
 
     // Generate the hive simulation world
@@ -479,13 +469,11 @@ namespace madEscape
     {
         resetPersistentEntities(ctx);
 
-        LevelState &level = ctx.singleton<LevelState>();
-
         // Create goal first to establish a target location
-        level.goal = placeGoal(ctx);
+        placeGoal(ctx);
 
         // Then place macguffin
-        level.macguffin = placeMacguffin(ctx);
+        placeMacguffin(ctx);
 
         // Place movable objects - using the random count from Sim
         placeMovableObjects(ctx, ctx.data().currentNumMovableObjects);
@@ -494,7 +482,7 @@ namespace madEscape
         placeWalls(ctx, ctx.data().currentNumInteriorWalls);
 
         // Place ants - using the random count from Sim
-        placeAnts(ctx, ctx.data().currentNumAnts);
+        placeAnts(ctx, ctx.singleton<NumAnts>().count);
     }
 
 }

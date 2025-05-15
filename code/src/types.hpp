@@ -86,7 +86,7 @@ namespace madEscape
     // Tracks if an ant is currently grabbing another entity
     struct GrabState
     {
-        Entity constraint_entity; // Entity::none() if not grabbing
+        Entity constraintEntity; // Entity::none() if not grabbing
     };
 
     // Enum for various entity types in the simulation
@@ -120,24 +120,17 @@ namespace madEscape
     };
     
     // Singleton component for tracking the number of active ants per world
-    struct AntCount
+    struct NumAnts
     {
         uint32_t count;
     };
 
-    // Singleton component storing the state of the current level.
-    struct LevelState
-    {
-        Entity macguffin;
-        Entity goal;
-
-        CountT num_current_movable_objects;
-        Entity movable_objects[consts::maxMovableObjects];
-
-        CountT num_current_walls;
-        Entity walls[consts::maxWalls];
-        // In future, might include curriculum learning parameters here
-    };
+    // // Singleton component storing the state of the current level.
+    // // could later be used for curriculum learning
+    // struct LevelState
+    // {
+        
+    // };
 
     /* ECS Archetypes */
 

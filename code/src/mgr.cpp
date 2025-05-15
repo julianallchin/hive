@@ -650,11 +650,11 @@ namespace madEscape
                                    });
     }
 
-    Tensor Manager::antCountTensor() const
+    Tensor Manager::numAntsTensor() const
     {
         // Return information about how many ants are active in each world
         // This is used by the Python code to mask observations/actions for inactive ants
-        return impl_->exportTensor(ExportID::AntCount,
+        return impl_->exportTensor(ExportID::NumAnts,
                                   TensorElementType::UInt32,
                                   {
                                       impl_->cfg.numWorlds,

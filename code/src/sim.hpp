@@ -27,7 +27,7 @@ enum class ExportID : uint32_t {
     Done,
     AntObservation,
     Lidar,
-    AntCount,
+    NumAnts,
     StepsRemaining,
     NumExports,
 };
@@ -112,13 +112,29 @@ struct Sim : public madrona::WorldBase {
     uint32_t maxWallsRand;
 
     // Floor plane entity, constant across all episodes.
-    Entity floorPlane;
+    Entity floorPlane; // persistent
 
     // Border wall entities: 3 walls to the left, up and down that define
     // play area. These are constant across all episodes.
-    Entity borders[4];
+    Entity borders[4]; // persistent
 
-    uint32_t numAnts;
+    // Macguffin entity
+    Entity macguffin;
+
+    // Goal entity
+    Entity goal;
+
+    // Ant entities
+    Entity ants[consts::maxAnts];
+    // CountT numAnts; // this is instead stored as a singleton
+
+    // Movable object entities
+    Entity movableObjects[consts::maxMovableObjects];
+    CountT numMovableObjects;
+
+    // Wall entities
+    Entity walls[consts::maxWalls];
+    CountT numWalls;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {

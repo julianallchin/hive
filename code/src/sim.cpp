@@ -35,11 +35,10 @@ namespace madEscape
 
         // Register singleton components
         registry.registerSingleton<WorldReset>();
-        registry.registerSingleton<LevelState>();
         registry.registerSingleton<HiveReward>();
         registry.registerSingleton<HiveDone>();
         registry.registerSingleton<StepsRemaining>();
-        registry.registerSingleton<AntCount>();
+        registry.registerSingleton<NumAnts>();
 
         // Register archetypes
         registry.registerArchetype<Ant>();
@@ -61,44 +60,51 @@ namespace madEscape
             (uint32_t)ExportID::AntObservation);
         registry.exportColumn<Ant, Lidar>(
             (uint32_t)ExportID::Lidar);
-        registry.exportSingleton<AntCount>(
-            (uint32_t)ExportID::AntCount);
+        registry.exportSingleton<NumAnts>(
+            (uint32_t)ExportID::NumAnts);
         registry.exportSingleton<StepsRemaining>(
             (uint32_t)ExportID::StepsRemaining);
     }
 
     static inline void cleanupWorld(Engine &ctx)
     {
-        // Destroy current level entities
-        LevelState &level = ctx.singleton<LevelState>();
+                // Clean up macguffin
+        if (ctx.data().macguffin != Entity::none())
+        {
+            ctx.destroyRenderableEntity(ctx.data().macguffin);
+        }
+
+        // Clean up goal
+        if (ctx.data().goal != Entity::none())
+        {
+            ctx.destroyRenderableEntity(ctx.data().goal);
+        }
+
+        // Clean up ants
+        for (CountT i = 0; i < ctx.data().numAnts; i++)
+        {
+            if (ctx.data().ants[i] != Entity::none())
+            {
+                ctx.destroyRenderableEntity(ctx.data().ants[i]);
+            }
+        }
 
         // Clean up movable objects
-        for (CountT i = 0; i < level.num_current_movable_objects; i++)
+        for (CountT i = 0; i < ctx.data().numMovableObjects; i++)
         {
-            if (level.movable_objects[i] != Entity::none())
+            if (ctx.data().movableObjects[i] != Entity::none())
             {
-                ctx.destroyRenderableEntity(level.movable_objects[i]);
+                ctx.destroyRenderableEntity(ctx.data().movableObjects[i]);
             }
         }
 
         // Clean up walls (except border walls which are persistent)
-        for (CountT i = 0; i < level.num_current_walls; i++)
+        for (CountT i = 0; i < ctx.data().numWalls; i++)
         {
-            if (level.walls[i] != Entity::none())
+            if (ctx.data().walls[i] != Entity::none())
             {
-                ctx.destroyRenderableEntity(level.walls[i]);
+                ctx.destroyRenderableEntity(ctx.data().walls[i]);
             }
-        }
-
-        // Clean up macguffin and goal
-        if (level.macguffin != Entity::none())
-        {
-            ctx.destroyRenderableEntity(level.macguffin);
-        }
-
-        if (level.goal != Entity::none())
-        {
-            ctx.destroyRenderableEntity(level.goal);
         }
     }
 
@@ -110,12 +116,12 @@ namespace madEscape
     ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
                                        ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
 
-    // Initialize level state and singletons
-    LevelState &level = ctx.singleton<LevelState>();
-    level.macguffin = Entity::none();
-    level.goal = Entity::none();
-    level.num_current_movable_objects = 0;
-    level.num_current_walls = 0;
+    // Initialize singletons
+    ctx.data().macguffin = Entity::none();
+    ctx.data().goal = Entity::none();
+    ctx.data().numMoveableObjects = 0;
+    ctx.data().numWalls = 0;
+    ctx.data().numAnts = 0;
 
     // Initialize hive reward and done state
     ctx.singleton<HiveReward>().v = 0.0f;
@@ -126,12 +132,9 @@ namespace madEscape
 
     // Randomly determine the number of ants for this episode - using the values from Sim struct
     // These values were stored from the Config in the Sim constructor
-    ctx.data().currentNumAnts = ctx.data().rng.uniformInt(
+    ctx.singleton<NumAnts>().count = ctx.data().rng.uniformInt(
         ctx.data().minAntsRand, 
         ctx.data().maxAntsRand);
-    
-    // Initialize AntCount singleton for export to Python
-    ctx.singleton<AntCount>().count = ctx.data().currentNumAnts;
     
     // Randomly determine the number of movable objects for this episode
     ctx.data().currentNumMovableObjects = ctx.data().rng.uniformInt(
@@ -308,7 +311,6 @@ static inline float globalPosObs(float v)
 // and goal achievement.
 inline void hiveRewardSystem(Engine &ctx)
 {
-    LevelState &level = ctx.singleton<LevelState>();
     HiveReward &reward = ctx.singleton<HiveReward>();
     HiveDone &done = ctx.singleton<HiveDone>();
     StepsRemaining &steps = ctx.singleton<StepsRemaining>();
@@ -320,8 +322,8 @@ inline void hiveRewardSystem(Engine &ctx)
     }
 
     // Get positions of macguffin and goal
-    Vector3 macguffin_pos = ctx.get<Position>(level.macguffin);
-    Vector3 goal_pos = ctx.get<Position>(level.goal);
+    Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
+    Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
 
     // Calculate 2D distance (ignore Z axis)
     Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
@@ -405,8 +407,6 @@ inline void collectAntObservationsSystem(Engine &ctx,
                                          const GrabState &grab,
                                          AntObservationComponent &ant_obs)
 {
-    // Get level state to access macguffin and goal entities
-    const LevelState &level = ctx.singleton<LevelState>();
 
     // Self state observations
     ant_obs.global_x = globalPosObs(pos.x);
@@ -415,8 +415,8 @@ inline void collectAntObservationsSystem(Engine &ctx,
     ant_obs.is_grabbing = grab.constraintEntity != Entity::none() ? 1.0f : 0.0f;
 
     // Get positions of important objects
-    Vector3 macguffin_pos = ctx.get<Position>(level.macguffin);
-    Vector3 goal_pos = ctx.get<Position>(level.goal);
+    Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
+    Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
 
     // Calculate vectors to important objects in world space
     Vector3 to_macguffin = macguffin_pos - pos;

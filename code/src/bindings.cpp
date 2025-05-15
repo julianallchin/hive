@@ -62,7 +62,7 @@ NB_MODULE(madrona_escape_room, m) {
         .def("done_tensor", &Manager::doneTensor)
         .def("observation_tensor", &Manager::observationTensor)
         .def("lidar_tensor", &Manager::lidarTensor)
-        .def("ant_count_tensor", &Manager::antCountTensor)
+        .def("num_ants_tensor", &Manager::numAntsTensor)
         .def("steps_remaining_tensor", &Manager::stepsRemainingTensor)
         .def("rgb_tensor", &Manager::rgbTensor)
         .def("depth_tensor", &Manager::depthTensor)
