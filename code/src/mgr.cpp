@@ -95,20 +95,20 @@ namespace madEscape
         Config cfg;
         PhysicsLoader physicsLoader;
         WorldReset *worldResetBuffer;
-        Action *agentActionsBuffer;
+        Action *actionsBuffer;
         Optional<RenderGPUState> renderGPUState;
         Optional<render::RenderManager> renderMgr;
 
         inline Impl(const Manager::Config &mgr_cfg,
                     PhysicsLoader &&phys_loader,
                     WorldReset *reset_buffer,
-                    Action *action_buffer,
+                    Action *actionsBuffer,
                     Optional<RenderGPUState> &&render_gpu_state,
                     Optional<render::RenderManager> &&render_mgr)
             : cfg(mgr_cfg),
               physicsLoader(std::move(phys_loader)),
               worldResetBuffer(reset_buffer),
-              agentActionsBuffer(action_buffer),
+              actionsBuffer(actionsBuffer),
               renderGPUState(std::move(render_gpu_state)),
               renderMgr(std::move(render_mgr))
         {
@@ -135,12 +135,12 @@ namespace madEscape
         inline CPUImpl(const Manager::Config &mgr_cfg,
                        PhysicsLoader &&phys_loader,
                        WorldReset *reset_buffer,
-                       Action *action_buffer,
+                       Action *actionsBuffer,
                        Optional<RenderGPUState> &&render_gpu_state,
                        Optional<render::RenderManager> &&render_mgr,
                        TaskGraphT &&cpu_exec)
             : Impl(mgr_cfg, std::move(phys_loader),
-                   reset_buffer, action_buffer,
+                   reset_buffer, actionsBuffer,
                    std::move(render_gpu_state), std::move(render_mgr)),
               cpuExec(std::move(cpu_exec))
         {
@@ -171,12 +171,12 @@ namespace madEscape
         inline CUDAImpl(const Manager::Config &mgr_cfg,
                         PhysicsLoader &&phys_loader,
                         WorldReset *reset_buffer,
-                        Action *action_buffer,
+                        Action *actionsBuffer,
                         Optional<RenderGPUState> &&render_gpu_state,
                         Optional<render::RenderManager> &&render_mgr,
                         MWCudaExecutor &&gpu_exec)
             : Impl(mgr_cfg, std::move(phys_loader),
-                   reset_buffer, action_buffer,
+                   reset_buffer, actionsBuffer,
                    std::move(render_gpu_state), std::move(render_mgr)),
               gpuExec(std::move(gpu_exec)),
               stepGraph(gpuExec.buildLaunchGraphAllTaskGraphs())
@@ -616,7 +616,7 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAnts
+                                       consts::maxAnts,
                                        4,
                                    });
     }
@@ -639,9 +639,9 @@ namespace madEscape
                                    });
     }
 
-    Tensor Manager::antObservationTensor() const
+    Tensor Manager::observationTensor() const
     {
-        return impl_->exportTensor(ExportID::SelfObservation,
+        return impl_->exportTensor(ExportID::Observation,
                                    TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
@@ -655,7 +655,7 @@ namespace madEscape
         // Return information about how many ants are active in each world
         // This is used by the Python code to mask observations/actions for inactive ants
         return impl_->exportTensor(ExportID::NumAnts,
-                                  TensorElementType::UInt32,
+                                  TensorElementType::Int32,
                                   {
                                       impl_->cfg.numWorlds,
                                       1,
@@ -747,7 +747,7 @@ namespace madEscape
             .grab = grab,
         };
 
-        auto *action_ptr = impl_->agentActionsBuffer +
+        auto *action_ptr = impl_->actionsBuffer +
                            world_idx * consts::maxAnts + agent_idx;
 
         if (impl_->cfg.execMode == ExecMode::CUDA)

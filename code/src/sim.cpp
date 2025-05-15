@@ -24,8 +24,8 @@ namespace madEscape
         RenderingSystem::registerTypes(registry, cfg.renderBridge);
 
         // Register individual components
-        registry.registerComponent<AntAction>();
-        registry.registerComponent<AntObservationComponent>();
+        registry.registerComponent<Action>();
+        registry.registerComponent<Observation>();
         registry.registerComponent<HiveReward>();
         registry.registerComponent<HiveDone>();
         registry.registerComponent<GrabState>();
@@ -50,14 +50,14 @@ namespace madEscape
         // Export interfaces for Python training code
         registry.exportSingleton<WorldReset>(
             (uint32_t)ExportID::Reset);
-        registry.exportColumn<Ant, AntAction>(
+        registry.exportColumn<Ant, Action>(
             (uint32_t)ExportID::Action);
         registry.exportSingleton<HiveReward>(
             (uint32_t)ExportID::Reward);
         registry.exportSingleton<HiveDone>(
             (uint32_t)ExportID::Done);
-        registry.exportColumn<Ant, AntObservationComponent>(
-            (uint32_t)ExportID::AntObservation);
+        registry.exportColumn<Ant, Observation>(
+            (uint32_t)ExportID::Observation);
         registry.exportColumn<Ant, Lidar>(
             (uint32_t)ExportID::Lidar);
         registry.exportSingleton<NumAnts>(
@@ -177,10 +177,10 @@ namespace madEscape
         }
     }
 
-// Translates discrete actions from the AntAction component to forces
+// Translates discrete actions from the Action component to forces
 // used by the physics simulation.
 inline void antMovementSystem(Engine &_,
-                              AntAction &action,
+                              Action &action,
                               Rotation &rot,
                               ExternalForce &external_force,
                               ExternalTorque &external_torque)
@@ -190,13 +190,13 @@ inline void antMovementSystem(Engine &_,
 
     Quat cur_rot = rot;
 
-    float move_amount = action.move_amount_idx *
+    float move_amount = action.moveAmount *
                         (move_max / (consts::numMoveAmountBuckets - 1));
 
     constexpr float move_angle_per_bucket =
         2.f * math::pi / float(consts::numMoveAngleBuckets);
 
-    float move_angle = float(action.move_angle_idx) * move_angle_per_bucket;
+    float move_angle = float(action.moveAngle) * move_angle_per_bucket;
 
     float f_x = move_amount * sinf(move_angle);
     float f_y = move_amount * cosf(move_angle);
@@ -204,7 +204,7 @@ inline void antMovementSystem(Engine &_,
     constexpr float turn_delta_per_bucket =
         turn_max / (consts::numTurnBuckets / 2);
     float t_z =
-        turn_delta_per_bucket * (action.rotate_idx - consts::numTurnBuckets / 2);
+        turn_delta_per_bucket * (action.rotate - consts::numTurnBuckets / 2);
 
     external_force = cur_rot.rotateVec({f_x, f_y, 0});
     external_torque = Vector3{0, 0, t_z};
@@ -216,10 +216,10 @@ inline void antGrabSystem(Engine &ctx,
                           Entity e,
                           Position pos,
                           Rotation rot,
-                          AntAction action,
+                          Action action,
                           GrabState &grab)
 {
-    if (action.grab_action == 0)
+    if (action.grab == 0)
     {
         return;
     }
@@ -287,7 +287,7 @@ inline void antGrabSystem(Engine &ctx,
 // after each step.
 inline void antZeroVelSystem(Engine &,
                              Velocity &vel,
-                             AntAction &)
+                             Action &)
 {
     vel.linear.x = 0;
     vel.linear.y = 0;
@@ -400,7 +400,7 @@ inline void collectAntObservationsSystem(Engine &ctx,
                                          Position pos,
                                          Rotation rot,
                                          const GrabState &grab,
-                                         AntObservationComponent &ant_obs)
+                                         Observation &ant_obs)
 {
 
     // Self state observations
@@ -550,7 +550,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     // Turn policy actions into movement
     auto move_sys = builder.addToGraph<ParallelForNode<Engine,
                                                        antMovementSystem,
-                                                       AntAction,
+                                                       Action,
                                                        Rotation,
                                                        ExternalForce,
                                                        ExternalTorque>>({});
@@ -565,7 +565,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
                                                        Entity,
                                                        Position,
                                                        Rotation,
-                                                       AntAction,
+                                                       Action,
                                                        GrabState>>({broadphase_setup_sys});
 
     // Physics collision detection and solver
@@ -575,7 +575,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     // Improve controllability of ants by setting their velocity to 0
     // after physics is done.
     auto ant_zero_vel = builder.addToGraph<ParallelForNode<Engine,
-                                                           antZeroVelSystem, Velocity, AntAction>>(
+                                                           antZeroVelSystem, Velocity, Action>>(
         {substep_sys});
 
     // Finalize physics subsystem work
@@ -624,7 +624,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
                                                               Position,
                                                               Rotation,
                                                               GrabState,
-                                                              AntObservationComponent>>({post_reset_broadphase});
+                                                              Observation>>({post_reset_broadphase});
 
     // The lidar system
 #ifdef MADRONA_GPU_MODE

@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     using namespace madEscape;
 
     // Dynamic number of ants, but start with a reasonable number for viewer
-    constexpr int64_t default_num_ants = 8;
+    constexpr int64_t default_num_ants = 10;
 
     // Read command line arguments
     uint32_t num_worlds = 1;
@@ -80,6 +80,14 @@ int main(int argc, char *argv[])
         .numWorlds = num_worlds,
         .randSeed = 5,
         .autoReset = replay_log.has_value(),
+
+        .minAntsRand = 10, // note: if this is changed, headless.cpp should probably be updated?
+        .maxAntsRand = 10,
+        .minMovableObjectsRand = 0,
+        .maxMovableObjectsRand = 0,
+        .minWallsRand = 0,
+        .maxWallsRand = 0,
+
         .enableBatchRenderer = enable_batch_renderer,
         .extRenderAPI = wm.gpuAPIManager().backend(),
         .extRenderDev = render_gpu.device(),
@@ -113,7 +121,7 @@ int main(int argc, char *argv[])
 
         for (uint32_t i = 0; i < num_worlds; i++) {
             // Get the actual number of ants in this world from the ant count tensor
-            int32_t* ant_counts = (int32_t*)mgr.antCountTensor().raw();
+            int32_t* ant_counts = (int32_t*)mgr.numAntsTensor().raw();
             int32_t num_ants = ant_counts[i];
             if (num_ants <= 0) num_ants = default_num_ants; // Fallback if tensor not initialized
             
@@ -139,8 +147,8 @@ int main(int argc, char *argv[])
     };
 
     // Printers for ant colony simulation
-    auto ant_printer = mgr.antObservationTensor().makePrinter();
-    auto ant_count_printer = mgr.antCountTensor().makePrinter();
+    auto ant_printer = mgr.observationTensor().makePrinter();
+    auto ant_count_printer = mgr.numAntsTensor().makePrinter();
     auto lidar_printer = mgr.lidarTensor().makePrinter();
     auto steps_remaining_printer = mgr.stepsRemainingTensor().makePrinter();
     auto reward_printer = mgr.rewardTensor().makePrinter();

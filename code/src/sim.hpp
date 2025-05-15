@@ -25,7 +25,7 @@ enum class ExportID : uint32_t {
     Action,
     Reward,
     Done,
-    AntObservation,
+    Observation,
     Lidar,
     NumAnts,
     StepsRemaining,
@@ -131,11 +131,11 @@ struct Sim : public madrona::WorldBase {
 
     // Movable object entities
     Entity movableObjects[consts::maxMovableObjects];
-    CountT numMovableObjects;
+    int32_t numMovableObjects;
 
     // Wall entities
     Entity walls[consts::maxWalls];
-    CountT numWalls;
+    int32_t numWalls;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {

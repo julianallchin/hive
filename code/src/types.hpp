@@ -44,17 +44,17 @@ namespace madEscape
 
     // Defines the physical actions an ant can take.
     // This is an input to the simulation from the policy.
-    struct AntAction
+    struct Action
     {
-        int32_t move_amount_idx; // Discrete bucket index for movement force
-        int32_t move_angle_idx;  // Discrete bucket index for movement direction (egocentric)
-        int32_t rotate_idx;      // Discrete bucket index for rotation torque
-        int32_t grab_action;     // 0 = no-op, 1 = attempt to grab / release
+        int32_t moveAmount; // Discrete bucket index for movement force
+        int32_t moveAngle;  // Discrete bucket index for movement direction (egocentric)
+        int32_t rotate;      // Discrete bucket index for rotation torque
+        int32_t grab;     // 0 = no-op, 1 = attempt to grab / release
     };
 
     // Observation data for a single ant, excluding Lidar.
     // This is an output from the simulation to the policy.
-    struct AntObservationComponent
+    struct Observation
     {
         // Self state
         float global_x;          // Ant's global X position (normalized)
@@ -116,13 +116,13 @@ namespace madEscape
     // Singleton component tracking steps remaining in the global episode.
     struct StepsRemaining
     {
-        uint32_t t;
+        int32_t t;
     };
     
     // Singleton component for tracking the number of active ants per world
     struct NumAnts
     {
-        uint32_t count;
+        int32_t count;
     };
 
     /* ECS Archetypes */
@@ -136,9 +136,9 @@ namespace madEscape
                      // Ant-specific state
                      GrabState,
                      Lidar,                   // Output to policy
-                     AntObservationComponent, // Output to policy
+                     Observation, // Output to policy
                      
-                     AntAction,               // Input from policy
+                     Action,               // Input from policy
 
                      // Rendering
                      madrona::render::Renderable
@@ -185,14 +185,14 @@ namespace madEscape
     // Static asserts for component sizes if they are to be exported directly as fixed-size tensors
     // Note: Madrona handles padding, but good for sanity checking total data expected by Python.
 
-    // Size of AntObservationComponent (8 floats)
-    static_assert(sizeof(AntObservationComponent) == sizeof(float) * 8);
+    // Size of Observation (8 floats)
+    static_assert(sizeof(Observation) == sizeof(float) * 8);
 
     // Size of Lidar data (numLidarSamples * 2 floats per sample)
     static_assert(sizeof(Lidar) == sizeof(LidarSample) * consts::numLidarSamples);
     static_assert(sizeof(LidarSample) == sizeof(float) * 2);
 
-    // Size of AntAction (4 int32_t values)
-    static_assert(sizeof(AntAction) == sizeof(int32_t) * 4);
+    // Size of Action (4 int32_t values)
+    static_assert(sizeof(Action) == sizeof(int32_t) * 4);
 
 } // namespace madEscape
