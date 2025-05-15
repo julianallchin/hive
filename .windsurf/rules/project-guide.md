@@ -1,5 +1,5 @@
 ---
-trigger: always_on
+trigger: manual
 ---
 
 # Summary
@@ -62,7 +62,7 @@ Let $d_t = \| \text{object}_t - \text{goal} \|_2$ be object-goal distance.
     - raycast obs
     - task state (relative polar to macguffin, relative polar to goal)
   - actions:
-    - same output as existing (movemtn and grab)
+    - same output as existing (movement and grab)
 - macguffin
   - position state
   - whatever needed for physics (basically a movable obstacle)
@@ -79,31 +79,6 @@ Let $d_t = \| \text{object}_t - \text{goal} \|_2$ be object-goal distance.
   - whatever needed for physics (basically a movable obstacle)
 - world state
   - whatever's needed to link these and track overall state and model
-
-
-## Understanding Codebase
-
-Singletons (one per world):
-
-- WorldReset
-- LevelState
-- HiveReward
-- HiveDone
-- StepsRemaining
-
-Archetypes (collections of entities):
-
-- Ant
-- Macguffin
-- Goal
-- Wall
-- MovableObject
-
-Persistent Entities
-- 4 surrounding walls
-- base/floor plane
-
-Additional state should be tracked for the world, communiation, lidar, etc.
 
 ## Miscellaneous
 
