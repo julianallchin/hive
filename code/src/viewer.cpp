@@ -30,9 +30,6 @@ int main(int argc, char *argv[])
 {
     using namespace madEscape;
 
-    // Dynamic number of ants, but start with a reasonable number for viewer
-    constexpr int64_t default_num_ants = 10;
-
     // Read command line arguments
     uint32_t num_worlds = 1;
     if (argc >= 2) {
@@ -70,7 +67,7 @@ int main(int argc, char *argv[])
 #endif
 
     WindowManager wm {};
-    WindowHandle window = wm.makeWindow("Ant Colony Simulation", 2730, 1536);
+    WindowHandle window = wm.makeWindow("Hive", 2730, 1536);
     render::GPUHandle render_gpu = wm.initGPU(0, { window.get() });
 
     // Create the simulation manager
@@ -95,7 +92,7 @@ int main(int argc, char *argv[])
 
     float camera_move_speed = 10.f;
 
-    math::Vector3 initial_camera_position = { 0, 0, 40 };
+    math::Vector3 initial_camera_position = { 0, consts::worldLength / 2.f, 30 };
 
     // Top-down view for the ant colony
     math::Quat initial_camera_rotation =
@@ -105,7 +102,7 @@ int main(int argc, char *argv[])
     // Create the viewer viewer
     viz::Viewer viewer(mgr.getRenderManager(), window.get(), {
         .numWorlds = num_worlds,
-        .simTickRate = 30,
+        .simTickRate = 20,
         .cameraMoveSpeed = camera_move_speed,
         .cameraPosition = initial_camera_position,
         .cameraRotation = initial_camera_rotation,
@@ -118,12 +115,14 @@ int main(int argc, char *argv[])
         }
 
         printf("Step: %u\n", cur_replay_step);
-
+        
         for (uint32_t i = 0; i < num_worlds; i++) {
             // Get the actual number of ants in this world from the ant count tensor
-            int32_t* ant_counts = (int32_t*)mgr.numAntsTensor().raw();
-            int32_t num_ants = ant_counts[i];
-            if (num_ants <= 0) num_ants = default_num_ants; // Fallback if tensor not initialized
+            mgr.numAntsTensor().makePrinter().print();
+            int32_t num_ants = 10;
+            assert(false && "get the correct number of ants in viewer.cpp\n"); // TODO: fix this
+            
+            assert(num_ants > 0);
             
             for (uint32_t j = 0; j < (uint32_t)num_ants; j++) {
                 uint32_t base_idx = 0;
