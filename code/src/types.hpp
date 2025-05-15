@@ -125,13 +125,6 @@ namespace madEscape
         uint32_t count;
     };
 
-    // // Singleton component storing the state of the current level.
-    // // could later be used for curriculum learning
-    // struct LevelState
-    // {
-        
-    // };
-
     /* ECS Archetypes */
 
     // Archetype for Ants

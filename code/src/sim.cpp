@@ -308,12 +308,8 @@ static inline float globalPosObs(float v)
 
 // Computes the collective reward for the hive based on macguffin movement toward goal
 // and goal achievement.
-inline void hiveRewardSystem(Engine &ctx)
+inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, StepsRemaining &steps)
 {
-    HiveReward &reward = ctx.singleton<HiveReward>();
-    HiveDone &done = ctx.singleton<HiveDone>();
-    StepsRemaining &steps = ctx.singleton<StepsRemaining>();
-
     // If done, don't update reward
     if (done.v == 1)
     {
@@ -588,7 +584,10 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
     // Compute hive reward based on macguffin position relative to goal
     auto hive_reward_sys = builder.addToGraph<ParallelForNode<Engine,
-                                                            hiveRewardSystem
+                                                            hiveRewardSystem,
+                                                            HiveReward,
+                                                            HiveDone,
+                                                            StepsRemaining
                                                             >>({phys_done});
 
     // Check if the episode is over
