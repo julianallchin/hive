@@ -427,7 +427,21 @@ namespace madEscape
         Sim::Config sim_cfg;
         sim_cfg.autoReset = mgr_cfg.autoReset;
         sim_cfg.initRandKey = rand::initKey(mgr_cfg.randSeed);
+
         // Pass randomization parameters
+        // validate ant params
+        assert(mgr_cfg.minAntsRand <= mgr_cfg.maxAntsRand);
+        assert(mgr_cfg.minAntsRand >= consts::minAnts);
+        assert(mgr_cfg.maxAntsRand <= consts::maxAnts);
+        // validate movable object params
+        assert(mgr_cfg.minMovableObjectsRand <= mgr_cfg.maxMovableObjectsRand);
+        assert(mgr_cfg.minMovableObjectsRand >= consts::minMovableObjects);
+        assert(mgr_cfg.maxMovableObjectsRand <= consts::maxMovableObjects);
+        // validate wall params
+        assert(mgr_cfg.minWallsRand <= mgr_cfg.maxWallsRand);
+        assert(mgr_cfg.minWallsRand >= consts::minWalls);
+        assert(mgr_cfg.maxWallsRand <= consts::maxWalls);
+        // pass to sim
         sim_cfg.minAntsRand = mgr_cfg.minAntsRand;
         sim_cfg.maxAntsRand = mgr_cfg.maxAntsRand;
         sim_cfg.minMovableObjectsRand = mgr_cfg.minMovableObjectsRand;
