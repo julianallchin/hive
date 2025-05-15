@@ -468,19 +468,25 @@ inline void lidarSystem(Engine &ctx,
 
         if (hit_entity == Entity::none())
         {
-            lidar.samples[idx] = {
-                .depth = 0.f,
-                .encodedType = encodeType(EntityType::None),
-            };
+            // lidar.samples[idx] = {
+            //     .depth = 0.f,
+            //     .encodedType = encodeType(EntityType::None),
+            // };
+            LidarSample &sample = lidar.samples[idx];
+            sample.depth = 0.f;
+            sample.encodedType = encodeType(EntityType::None);
         }
         else
         {
             EntityType entity_type = ctx.get<EntityType>(hit_entity);
 
-            lidar.samples[idx] = {
-                .depth = distObs(hit_t),
-                .encodedType = encodeType(entity_type),
-            };
+            // lidar.samples[idx] = {
+            //     .depth = distObs(hit_t),
+            //     .encodedType = encodeType(entity_type),
+            // };
+            LidarSample &sample = lidar.samples[idx];
+            sample.depth = distObs(hit_t);
+            sample.encodedType = encodeType(entity_type);
         }
     };
 

@@ -73,7 +73,7 @@ namespace madEscape
     struct LidarSample
     {
         float depth;        // Distance to hit, normalized
-        float encoded_type; // Encoded type of the entity hit
+        float encodedType; // Encoded type of the entity hit
     };
 
     // Lidar sensor data for an ant.
