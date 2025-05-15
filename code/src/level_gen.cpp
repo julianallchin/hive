@@ -64,16 +64,6 @@ namespace madEscape
     // These entities persist across all episodes.
     void createPersistentEntities(Engine &ctx)
     {
-        // Create the floor entity, just a simple static plane.
-        ctx.data().floorPlane = ctx.makeRenderableEntity<Plane>();
-        setupRigidBodyEntity(
-            ctx,
-            ctx.data().floorPlane,
-            Vector3{0, 0, 0},
-            Quat{1, 0, 0, 0},
-            SimObject::Plane,
-            EntityType::None, // Floor plane type should never be queried
-            ResponseType::Static);
 
         // Create the outer wall entities
         // Bottom wall
@@ -347,16 +337,16 @@ namespace madEscape
                 // Random size variation
                 float scale = randBetween(ctx, 0.8f, 1.2f);
                 Entity obj = createMovableObject(ctx, x, y, scale);
-                ctx.data().movable_objects[i] = obj;
+                ctx.data().movableObjects[i] = obj;
             }
             else
             {
                 // If we can't find a valid position, don't create the object
-                ctx.data().movable_objects[i] = Entity::none();
+                ctx.data().movableObjects[i] = Entity::none();
             }
         }
 
-        ctx.data().num_current_movable_objects = numObjects;
+        ctx.data().numMovableObjects = numObjects;
     }
 
     // Place additional walls in the world
@@ -413,7 +403,7 @@ namespace madEscape
             ctx.data().walls[i] = wall;
         }
 
-        ctx.data().num_current_walls = numWalls;
+        ctx.data().numWalls = numWalls;
     }
 
     // Place random number of ants in the world
@@ -476,10 +466,10 @@ namespace madEscape
         placeMacguffin(ctx);
 
         // Place movable objects - using the random count from Sim
-        placeMovableObjects(ctx, ctx.data().currentNumMovableObjects);
+        placeMovableObjects(ctx, ctx.data().numMovableObjects);
 
         // Place additional walls - using the random count from Sim
-        placeWalls(ctx, ctx.data().currentNumInteriorWalls);
+        placeWalls(ctx, ctx.data().numWalls);
 
         // Place ants - using the random count from Sim
         placeAnts(ctx, ctx.singleton<NumAnts>().count);

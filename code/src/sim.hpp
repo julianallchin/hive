@@ -110,6 +110,7 @@ struct Sim : public madrona::WorldBase {
     uint32_t maxMovableObjectsRand;
     uint32_t minWallsRand;
     uint32_t maxWallsRand;
+    uint32_t maxSteps;
 
     // Floor plane entity, constant across all episodes.
     Entity floorPlane; // persistent

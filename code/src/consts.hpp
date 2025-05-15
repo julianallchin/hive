@@ -11,11 +11,11 @@ inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
 
 // Movable objects constraints
 inline constexpr madrona::CountT minMovableObjects = 0;  // Minimum number of movable objects
-inline constexpr madrona::CountT maxMovableObjects = 0; // Maximum number of movable objects
+inline constexpr madrona::CountT maxMovableObjects = 1; // Maximum number of movable objects
 
 // Interior walls constraints
 inline constexpr madrona::CountT minWalls = 0;   // Minimum number of interior walls
-inline constexpr madrona::CountT maxWalls = 0;   // Maximum number of interior walls
+inline constexpr madrona::CountT maxWalls = 1;   // Maximum number of interior walls
 
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;

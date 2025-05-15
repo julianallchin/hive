@@ -81,7 +81,7 @@ namespace madEscape
         }
 
         // Clean up ants
-        for (CountT i = 0; i < ctx.data().numAnts; i++)
+        for (CountT i = 0; i < ctx.singleton<NumAnts>().count; i++)
         {
             if (ctx.data().ants[i] != Entity::none())
             {
@@ -108,46 +108,46 @@ namespace madEscape
         }
     }
 
+    static inline int32_t uniformInt(Engine &ctx, int32_t min, int32_t max)
+    {
+        return static_cast<int32_t>(ctx.data().rng.sampleUniform() * (max + 1 - min) + min);
+    }
+    
     static inline void initWorld(Engine &ctx)
-{
-    phys::PhysicsSystem::reset(ctx);
+    {
+        phys::PhysicsSystem::reset(ctx);
 
-    // Assign a new episode ID and update RNG
-    ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
-                                       ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
+        // Assign a new episode ID and update RNG
+        ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
+                                        ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
 
-    // Initialize singletons
-    ctx.data().macguffin = Entity::none();
-    ctx.data().goal = Entity::none();
-    ctx.data().numMoveableObjects = 0;
-    ctx.data().numWalls = 0;
-    ctx.data().numAnts = 0;
+        // Initialize singletons
+        ctx.data().macguffin = Entity::none();
+        ctx.data().goal = Entity::none();
+        ctx.data().numMovableObjects = 0;
+        ctx.data().numWalls = 0;
+        ctx.singleton<NumAnts>().count = 0;
+        ctx.data().maxSteps = consts::episodeLen;
 
-    // Initialize hive reward and done state
-    ctx.singleton<HiveReward>().v = 0.0f;
-    ctx.singleton<HiveDone>().v = 0;
+        // Initialize hive reward and done state
+        ctx.singleton<HiveReward>().v = 0.0f;
+        ctx.singleton<HiveDone>().v = 0;
 
-    // Set steps remaining to max episode length
-    ctx.singleton<StepsRemaining>().t = ctx.data().maxSteps;
+        // Set steps remaining to max episode length
+        ctx.singleton<StepsRemaining>().t = ctx.data().maxSteps;
 
-    // Randomly determine the number of ants for this episode - using the values from Sim struct
-    // These values were stored from the Config in the Sim constructor
-    ctx.singleton<NumAnts>().count = ctx.data().rng.uniformInt(
-        ctx.data().minAntsRand, 
-        ctx.data().maxAntsRand);
-    
-    // Randomly determine the number of movable objects for this episode
-    ctx.data().currentNumMovableObjects = ctx.data().rng.uniformInt(
-        ctx.data().minMovableObjectsRand, 
-        ctx.data().maxMovableObjectsRand);
-    
-    // Randomly determine the number of interior walls for this episode
-    ctx.data().currentNumInteriorWalls = ctx.data().rng.uniformInt(
-        ctx.data().minWallsRand, 
-        ctx.data().maxWallsRand);
+        // Randomly determine the number of ants for this episode - using the values from Sim struct
+        // These values were stored from the Config in the Sim constructor
+        ctx.singleton<NumAnts>().count = static_cast<int32_t>(uniformInt(ctx, ctx.data().minAntsRand, ctx.data().maxAntsRand));
+        
+        // Randomly determine the number of movable objects for this episode
+        ctx.data().numMovableObjects = static_cast<int32_t>(uniformInt(ctx, ctx.data().minMovableObjectsRand, ctx.data().maxMovableObjectsRand));
+        
+        // Randomly determine the number of interior walls for this episode
+        ctx.data().numWalls = static_cast<int32_t>(uniformInt(ctx, ctx.data().minWallsRand, ctx.data().maxWallsRand));
 
-    // Generate the world with the randomly determined entity counts
-    generateWorld(ctx);
+        // Generate the world with the randomly determined entity counts
+        generateWorld(ctx);
     }
 
     // This system runs each frame and checks if the current episode is complete
@@ -167,20 +167,19 @@ namespace madEscape
                 should_reset = 1;
             }
         }
-    }
 
-    if (should_reset != 0)
-    {
-        reset.reset = 0;
+        if (should_reset != 0)
+        {
+            reset.reset = 0;
 
-        cleanupWorld(ctx);
-        initWorld(ctx);
+            cleanupWorld(ctx);
+            initWorld(ctx);
+        }
     }
-}
 
 // Translates discrete actions from the AntAction component to forces
 // used by the physics simulation.
-inline void antMovementSystem(Engine &,
+inline void antMovementSystem(Engine &_,
                               AntAction &action,
                               Rotation &rot,
                               ExternalForce &external_force,
@@ -582,7 +581,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         builder, {ant_zero_vel});
 
     // Compute hive reward based on macguffin position relative to goal
-    auto hive_reward_sys = builder.addToGraph<SingletonNode<Engine,
+    auto hive_reward_sys = builder.addToGraph<ParallelForNode<Engine,
                                                             hiveRewardSystem
                                                             >>({phys_done});
 
@@ -668,7 +667,7 @@ Sim::Sim(Engine &ctx,
     // entities that will be stored in the BVH. We plan to fix this in
     // a future release.
     constexpr CountT max_total_entities = consts::maxAnts +
-                                          consts::maxMovableObjects + consts::maxInteriorWalls +
+                                          consts::maxMovableObjects + consts::maxWalls +
                                           7; // 4 border walls + floor + macguffin + goal
 
     // Initialize physics system with no gravity
