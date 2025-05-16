@@ -1,3 +1,6 @@
+// This is a test comment added by the AI assistant
+// This change is being made directly to the file
+
 #include "mgr.hpp"
 #include "sim.hpp"
 
@@ -317,8 +320,11 @@ namespace madEscape
 
         if (!imported_src_hulls.has_value())
         {
+            printf("Failed to import source hulls: %s\n", import_err_buffer);
             FATAL("%s", import_err_buffer);
         }
+        
+        printf("Successfully imported %zu source hulls\n", imported_src_hulls->objects.size());
 
         DynArray<imp::SourceMesh> src_convex_hulls(
             imported_src_hulls->objects.size());
@@ -326,7 +332,7 @@ namespace madEscape
         DynArray<DynArray<SourceCollisionPrimitive>> prim_arrays(0);
         HeapArray<SourceCollisionObject> src_objs(
             (CountT)SimObject::NumObjects);
-
+        
         auto setupHull = [&](SimObject obj_id,
                              float inv_mass,
                              RigidBodyFrictionData friction)
