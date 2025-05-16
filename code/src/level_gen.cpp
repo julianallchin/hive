@@ -1,5 +1,7 @@
 #include "level_gen.hpp"
 
+#include <algorithm>
+
 namespace madEscape
 {
 
