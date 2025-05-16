@@ -44,7 +44,7 @@ namespace madEscape
         registry.registerArchetype<Ant>();
         registry.registerArchetype<Macguffin>();
         registry.registerArchetype<Goal>();
-        registry.registerArchetype<Wall>();
+        registry.registerArchetype<PhysicsEntity>();
         registry.registerArchetype<MovableObject>();
 
         // Export interfaces for Python training code
@@ -647,7 +647,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         builder, {sort_ants});
     auto sort_movable = queueSortByWorld<MovableObject>(
         builder, {sort_macguffin});
-    auto sort_walls = queueSortByWorld<Wall>(
+    auto sort_walls = queueSortByWorld<PhysicsEntity>(
         builder, {sort_movable});
     (void)sort_walls;
 #else

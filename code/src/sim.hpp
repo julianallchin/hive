@@ -133,7 +133,7 @@ struct Sim : public madrona::WorldBase {
     Entity movableObjects[consts::maxMovableObjects];
     int32_t numMovableObjects;
 
-    // Wall entities
+    // PhysicsEntity entities
     Entity walls[consts::maxWalls];
     int32_t numWalls;
 
