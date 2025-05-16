@@ -66,10 +66,20 @@ namespace madEscape
     // These entities persist across all episodes.
     void createPersistentEntities(Engine &ctx)
     {
+        // Create the floor entity, just a simple static plane.
+        ctx.data().floorPlane = ctx.makeRenderableEntity<PhysicsEntity>();
+        setupRigidBodyEntity(
+            ctx,
+            ctx.data().floorPlane,
+            Vector3 { 0, 0, 0 },
+            Quat { 1, 0, 0, 0 },
+            SimObject::Plane,
+            EntityType::None, // Floor plane type should never be queried
+            ResponseType::Static);
 
         // Create the outer wall entities
         // Bottom wall
-        ctx.data().borders[0] = ctx.makeRenderableEntity<Wall>();
+        ctx.data().borders[0] = ctx.makeRenderableEntity<PhysicsEntity>();
         setupRigidBodyEntity(
             ctx,
             ctx.data().borders[0],
@@ -80,7 +90,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
                 consts::worldWidth,
@@ -89,7 +99,7 @@ namespace madEscape
             });
 
         // Right wall
-        ctx.data().borders[1] = ctx.makeRenderableEntity<Wall>();
+        ctx.data().borders[1] = ctx.makeRenderableEntity<PhysicsEntity>();
         setupRigidBodyEntity(
             ctx,
             ctx.data().borders[1],
@@ -100,7 +110,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
                 consts::wallWidth,
@@ -109,7 +119,7 @@ namespace madEscape
             });
 
         // Top wall
-        ctx.data().borders[2] = ctx.makeRenderableEntity<Wall>();
+        ctx.data().borders[2] = ctx.makeRenderableEntity<PhysicsEntity>();
         setupRigidBodyEntity(
             ctx,
             ctx.data().borders[2],
@@ -120,7 +130,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
                 consts::worldWidth,
@@ -129,7 +139,7 @@ namespace madEscape
             });
 
         // Left wall
-        ctx.data().borders[3] = ctx.makeRenderableEntity<Wall>();
+        ctx.data().borders[3] = ctx.makeRenderableEntity<PhysicsEntity>();
         setupRigidBodyEntity(
             ctx,
             ctx.data().borders[3],
@@ -140,7 +150,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
                 consts::wallWidth,
@@ -227,14 +237,14 @@ namespace madEscape
     // Creates an additional wall obstacle
     static Entity createWall(Engine &ctx, float x, float y, float width, float height)
     {
-        Entity wall = ctx.makeRenderableEntity<Wall>();
+        Entity wall = ctx.makeRenderableEntity<PhysicsEntity>();
         setupRigidBodyEntity(
             ctx,
             wall,
             Vector3{x, y, 0},
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
                 width,

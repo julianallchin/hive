@@ -295,8 +295,8 @@ namespace madEscape
         // We need to map our SimObject enum to the appropriate collision meshes
         // Original mapping:
         // - Cube -> MovableObject
-        // - Wall -> Wall
-        // - Door -> Wall (using wall collision)
+        // - Wall -> PhysicsEntity
+        // - Door -> PhysicsEntity (using wall collision)
         // - Agent -> Ant
         // - Button -> Macguffin
         // - Plane -> Plane (handled separately)

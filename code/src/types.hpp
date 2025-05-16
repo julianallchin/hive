@@ -96,7 +96,7 @@ namespace madEscape
         Ant,
         Macguffin,
         Goal,          // Non-physical target
-        Wall,          // Static obstacle
+        PhysicsEntity,          // Static obstacle
         MovableObject, // Dynamic obstacle
         NumTypes,
     };
@@ -166,8 +166,8 @@ namespace madEscape
     {
     };
 
-    // Archetype for Walls (static obstacles)
-    struct Wall : public madrona::Archetype<
+    // Archetype for entities that need physics but don't have logic (read: fixed walls and the floor)
+    struct PhysicsEntity : public madrona::Archetype<
                       RigidBody, // Will be set to ResponseType::Static
                       EntityType,
                       madrona::render::Renderable>
