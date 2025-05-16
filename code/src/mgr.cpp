@@ -331,11 +331,7 @@ namespace madEscape
         imp::AssetImporter importer;
         char import_err_buffer[4096];
         
-        printf("About to import %zu assets...\n", asset_paths.size());
-        for (size_t i = 0; i < asset_paths.size(); i++) {
-            printf("  [%zu] %s\n", i, asset_paths[i].c_str());
-        }
-        
+
         auto imported_src_hulls = importer.importFromDisk(
             asset_cstrs, import_err_buffer, true);
 
@@ -343,8 +339,6 @@ namespace madEscape
             printf("Failed to import source hulls: %s\n", import_err_buffer);
             FATAL("%s", import_err_buffer);
         }
-        
-        printf("Successfully imported %zu objects\n", imported_src_hulls->objects.size());
 
         DynArray<imp::SourceMesh> src_convex_hulls(
             imported_src_hulls->objects.size());
