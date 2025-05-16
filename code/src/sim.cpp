@@ -122,12 +122,8 @@ namespace madEscape
                                         ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
 
         // Initialize singletons
-        ctx.data().macguffin = Entity::none();
-        ctx.data().goal = Entity::none();
-        ctx.data().numMovableObjects = 0;
-        ctx.data().numWalls = 0;
-        ctx.singleton<NumAnts>().count = 0;
         ctx.data().maxSteps = consts::episodeLen;
+        ctx.data().prevDist = -1.0f; // negative to indicate needs initialization; done below in hiveRewardSystem
 
         // Initialize hive reward and done state
         ctx.singleton<HiveReward>().v = 0.0f;
@@ -325,17 +321,14 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
     Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
     float dist = (goal_pos_2d - macguffin_pos_2d).length();
 
-    // Static variable to store previous distance
-    static thread_local float prev_dist = -1.0f;
-
     // First time initialization
-    if (prev_dist < 0)
+    if (ctx.data().prevDist < 0)
     {
-        prev_dist = dist;
+        ctx.data().prevDist = dist;
     }
 
     // Step reward based on distance reduction
-    float step_reward = consts::distanceRewardScale * (prev_dist - dist);
+    float step_reward = consts::distanceRewardScale * (ctx.data().prevDist - dist);
 
     // Goal reward if close enough
     float goal_reward = 0.0f;
@@ -358,7 +351,7 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
     }
 
     // Store current distance for next step
-    prev_dist = dist;
+    ctx.data().prevDist = dist;
 }
 
 static inline float angleObs(float v)

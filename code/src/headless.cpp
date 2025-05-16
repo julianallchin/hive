@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
         .numWorlds = (uint32_t)num_worlds,
         .randSeed = 5,
         .autoReset = false,
-        .enableBatchRenderer = false,
 
         .minAntsRand = 10, // note: if this is changed, viewer.cpp should probably be updated?
         .maxAntsRand = 10,
@@ -70,6 +69,8 @@ int main(int argc, char *argv[])
         .maxMovableObjectsRand = 0,
         .minWallsRand = 0,
         .maxWallsRand = 0,
+
+        .enableBatchRenderer = false,
     });
 
     std::random_device rd;

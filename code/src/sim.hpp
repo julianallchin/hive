@@ -136,6 +136,8 @@ struct Sim : public madrona::WorldBase {
     // Wall entities
     Entity walls[consts::maxWalls];
     int32_t numWalls;
+
+    float prevDist;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {

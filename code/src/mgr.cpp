@@ -1,6 +1,3 @@
-// This is a test comment added by the AI assistant
-// This change is being made directly to the file
-
 #include "mgr.hpp"
 #include "sim.hpp"
 
