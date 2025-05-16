@@ -6,6 +6,8 @@ trigger: manual
 
 We are modifying this codebase to create our own environment and model. Instead of escape room, we are creating a hive simulation where ants try to move a macguffin to a goal. We want to keep the core physics and raycasting the same as the origional. We want to keep the types mostly the same, but we are tracking slightly different state and RL model. A single hivemind controls all the ants, and the hivemind is trying to move the "macguffin" to the goal.
 
+There is a copy of the original project in ~/original_madrona_escape_room. Do not modify it! Just use it as a reference for a working madrona project
+
 # World:
 
 During each world episode, ants (100 or so) are spawned in a room (top down, no z axis movement, altho rendered in 3d) and the macguffin and goal are in the same room. there can be movable objects and walls in the room as well. The reward function rewards the ants for moving the macguffin to the goal. The ants can communicate with each other via a global message space.
