@@ -291,37 +291,60 @@ namespace madEscape
 
     static void loadPhysicsObjects(PhysicsLoader &loader)
     {
-        std::array<std::string, (size_t)SimObject::NumObjects - 1> asset_paths;
-        asset_paths[(size_t)SimObject::MovableObject] =
-            (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
-        asset_paths[(size_t)SimObject::Wall] =
-            (std::filesystem::path(DATA_DIR) / "wall_collision.obj").string();
-        asset_paths[(size_t)SimObject::Macguffin] =
-            (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
-        asset_paths[(size_t)SimObject::Ant] =
-            (std::filesystem::path(DATA_DIR) / "agent_collision_simplified.obj").string();
-        asset_paths[(size_t)SimObject::Goal] =
-            (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
-
-        std::array<const char *, (size_t)SimObject::NumObjects - 1> asset_cstrs;
-        for (size_t i = 0; i < asset_paths.size(); i++)
-        {
-            asset_cstrs[i] = asset_paths[i].c_str();
+        // Set up asset paths for each SimObject
+        // We need to map our SimObject enum to the appropriate collision meshes
+        // Original mapping:
+        // - Cube -> MovableObject
+        // - Wall -> Wall
+        // - Door -> Wall (using wall collision)
+        // - Agent -> Ant
+        // - Button -> Macguffin
+        // - Plane -> Plane (handled separately)
+        
+        // We'll use a vector to store only the paths we need
+        std::vector<std::string> asset_paths;
+        std::vector<SimObject> path_mapping;
+        
+        // Define the mapping from SimObject to asset paths
+        // The order here determines the order in the asset_paths array
+        std::vector<std::pair<SimObject, std::string>> object_paths = {
+            {SimObject::Ant, "agent_collision_simplified.obj"},
+            {SimObject::MovableObject, "cube_collision.obj"},
+            {SimObject::Wall, "wall_collision.obj"},
+            {SimObject::Macguffin, "cube_collision.obj"},
+            {SimObject::Goal, "cube_collision.obj"}
+        };
+        
+        // Initialize the mapping and paths
+        for (const auto &[obj, path] : object_paths) {
+            path_mapping.push_back(obj);
+            asset_paths.push_back((std::filesystem::path(DATA_DIR) / path).string());
         }
 
-        imp::AssetImporter importer;
+        // Convert paths to C strings for the importer
+        std::vector<const char *> asset_cstrs;
+        for (const auto &path : asset_paths) {
+            asset_cstrs.push_back(path.c_str());
+        }
 
+        // Import the collision meshes
+        imp::AssetImporter importer;
         char import_err_buffer[4096];
+        
+        printf("About to import %zu assets...\n", asset_paths.size());
+        for (size_t i = 0; i < asset_paths.size(); i++) {
+            printf("  [%zu] %s\n", i, asset_paths[i].c_str());
+        }
+        
         auto imported_src_hulls = importer.importFromDisk(
             asset_cstrs, import_err_buffer, true);
 
-        if (!imported_src_hulls.has_value())
-        {
+        if (!imported_src_hulls.has_value()) {
             printf("Failed to import source hulls: %s\n", import_err_buffer);
             FATAL("%s", import_err_buffer);
         }
         
-        printf("Successfully imported %zu source hulls\n", imported_src_hulls->objects.size());
+        printf("Successfully imported %zu objects\n", imported_src_hulls->objects.size());
 
         DynArray<imp::SourceMesh> src_convex_hulls(
             imported_src_hulls->objects.size());
@@ -329,16 +352,27 @@ namespace madEscape
         DynArray<DynArray<SourceCollisionPrimitive>> prim_arrays(0);
         HeapArray<SourceCollisionObject> src_objs(
             (CountT)SimObject::NumObjects);
-        
+
+        // Create a mapping from SimObject to imported object index
+        std::unordered_map<SimObject, size_t> obj_to_import_idx;
+        for (size_t i = 0; i < path_mapping.size(); i++) {
+            obj_to_import_idx[path_mapping[i]] = i;
+        }
+
         auto setupHull = [&](SimObject obj_id,
                              float inv_mass,
-                             RigidBodyFrictionData friction)
-        {
-            auto meshes = imported_src_hulls->objects[(CountT)obj_id].meshes;
+                             RigidBodyFrictionData friction) {
+            // Skip if this object type doesn't have a corresponding imported mesh
+            if (obj_to_import_idx.find(obj_id) == obj_to_import_idx.end()) {
+                printf("Warning: No mesh for SimObject %d\n", (int)obj_id);
+                return;
+            }
+
+            size_t import_idx = obj_to_import_idx[obj_id];
+            auto meshes = imported_src_hulls->objects[import_idx].meshes;
             DynArray<SourceCollisionPrimitive> prims(meshes.size());
 
-            for (const imp::SourceMesh &mesh : meshes)
-            {
+            for (const imp::SourceMesh &mesh : meshes) {
                 src_convex_hulls.push_back(mesh);
                 prims.push_back({
                     .type = CollisionPrimitive::Type::Hull,
@@ -363,26 +397,25 @@ namespace madEscape
                                                   });
 
         setupHull(SimObject::Wall, 0.f, {
-                                            .muS = 0.5f,
-                                            .muD = 0.5f,
-                                        });
+            .muS = 0.5f,
+            .muD = 0.5f,
+        });
 
         setupHull(SimObject::Macguffin, 0.03f, {
                                                    // Macguffin is harder to move, meant for multiple ants
                                                    .muS = 0.6f,
                                                    .muD = 0.7f,
-                                               });
+        });
 
         setupHull(SimObject::Ant, 1.f, {
-                                           .muS = 0.5f,
-                                           .muD = 0.5f,
-                                       });
+            .muS = 0.5f,
+            .muD = 0.5f,
+        });
 
         setupHull(SimObject::Goal, 0.f, {
-                                            // Goal has no mass, it's just visual
-                                            .muS = 0.0f,
-                                            .muD = 0.0f,
-                                        });
+                                            // Goal has no mass, it's just visual            .muS = 0.0f,
+            .muD = 0.0f,
+        });
 
         SourceCollisionPrimitive plane_prim{
             .type = CollisionPrimitive::Type::Plane,
