@@ -68,7 +68,7 @@ namespace madEscape
 
     static inline void cleanupWorld(Engine &ctx)
     {
-                // Clean up macguffin
+        // Clean up macguffin
         if (ctx.data().macguffin != Entity::none())
         {
             ctx.destroyRenderableEntity(ctx.data().macguffin);
@@ -85,6 +85,11 @@ namespace madEscape
         {
             if (ctx.data().ants[i] != Entity::none())
             {
+                // remove grab constraints
+                if (ctx.get<GrabState>(ctx.data().ants[i]).constraintEntity != Entity::none())
+                {
+                    ctx.destroyEntity(ctx.get<GrabState>(ctx.data().ants[i]).constraintEntity);
+                }
                 ctx.destroyRenderableEntity(ctx.data().ants[i]);
             }
         }
@@ -167,7 +172,6 @@ namespace madEscape
         if (should_reset != 0)
         {
             reset.reset = 0;
-
             cleanupWorld(ctx);
             initWorld(ctx);
         }
@@ -661,6 +665,14 @@ Sim::Sim(Engine &ctx,
          const WorldInit &)
     : WorldBase(ctx)
 {
+    // Initialize randomization parameters
+    minAntsRand = cfg.minAntsRand;
+    maxAntsRand = cfg.maxAntsRand;
+    minMovableObjectsRand = cfg.minMovableObjectsRand;
+    maxMovableObjectsRand = cfg.maxMovableObjectsRand;
+    minWallsRand = cfg.minWallsRand;
+    maxWallsRand = cfg.maxWallsRand;
+    
     // Currently the physics system needs an upper bound on the number of
     // entities that will be stored in the BVH. We plan to fix this in
     // a future release.
@@ -671,7 +683,7 @@ Sim::Sim(Engine &ctx,
     // Initialize physics system with no gravity
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
                               consts::deltaT, consts::numPhysicsSubsteps, {0.f, 0.f, 0.f},
-                              max_total_entities);
+                            max_total_entities);
 
     initRandKey = cfg.initRandKey;
     autoReset = cfg.autoReset;

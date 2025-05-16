@@ -308,6 +308,14 @@ namespace madEscape
     // Place movable objects in the world
     static void placeMovableObjects(Engine &ctx, CountT numObjects)
     {
+        // Ensure we don't exceed the maximum number of movable objects
+        if (numObjects > consts::maxMovableObjects) {
+            printf("Warning: Requested %d movable objects, but max allowed is %d.\n",
+                   (int)numObjects, (int)consts::maxMovableObjects);
+            numObjects = consts::maxMovableObjects;
+        }
+        CountT numToCreate = std::min(numObjects, (CountT)consts::maxMovableObjects);
+
         // Get positions of goal and macguffin to avoid placing objects too close
         Vector3 goalPos = ctx.get<Position>(ctx.data().goal);
         Vector3 macguffinPos = ctx.get<Position>(ctx.data().macguffin);
@@ -315,7 +323,7 @@ namespace madEscape
         float minDistance = consts::worldWidth * 0.15f; // Minimum distance from goal/macguffin
         float maxAttempts = 30;                         // Max attempts to place an object
 
-        for (CountT i = 0; i < numObjects; i++)
+        for (CountT i = 0; i < numToCreate; i++)
         {
             float x, y;
             bool validPosition = false;
@@ -354,12 +362,17 @@ namespace madEscape
             }
         }
 
-        ctx.data().numMovableObjects = numObjects;
+        // Store the actual number of objects created
+        ctx.data().numMovableObjects = numToCreate;
     }
 
     // Place additional walls in the world
     static void placeWalls(Engine &ctx, CountT numWalls)
     {
+        if (numWalls == 0) {
+            return;
+        }
+        
         // Get positions of goal and macguffin to avoid blocking paths
         Vector3 goalPos = ctx.get<Position>(ctx.data().goal);
         Vector3 macguffinPos = ctx.get<Position>(ctx.data().macguffin);
@@ -410,8 +423,6 @@ namespace madEscape
             Entity wall = createWall(ctx, centerX, centerY, width, height);
             ctx.data().walls[i] = wall;
         }
-
-        ctx.data().numWalls = numWalls;
     }
 
     // Place random number of ants in the world
