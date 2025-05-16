@@ -290,12 +290,8 @@ namespace madEscape
     }
 
     // Place the macguffin in a random position
-    static Entity placeMacguffin(Engine &ctx)
+    static Entity placeMacguffin(Engine &ctx, Vector3 goalPos)
     {
-        // Place macguffin opposite of the goal
-        // Get goal position
-        Vector3 goalPos = ctx.get<Position>(ctx.data().goal);
-
         // Place macguffin on opposite side, with some randomness
         float angle = atan2f(goalPos.y, goalPos.x) + math::pi +
                       randInRangeCentered(ctx, math::pi / 4.0f);
@@ -475,7 +471,7 @@ namespace madEscape
         placeGoal(ctx);
 
         // Then place macguffin
-        placeMacguffin(ctx);
+        placeMacguffin(ctx, ctx.get<Position>(ctx.data().goal));
 
         // Place movable objects - using the random count from Sim
         placeMovableObjects(ctx, ctx.data().numMovableObjects);
