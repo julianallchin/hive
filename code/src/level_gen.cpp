@@ -62,7 +62,7 @@ namespace madEscape
             PhysicsSystem::registerEntity(ctx, e, obj_id);
     }
 
-    // Creates floor and outer walls entities.
+    // Creates floor and borders
     // These entities persist across all episodes.
     void createPersistentEntities(Engine &ctx)
     {
@@ -159,16 +159,16 @@ namespace madEscape
             });
     }
 
-    // Persistent entities (walls) need to be re-registered with the broadphase system.
+    // Persistent entities need to be re-registered with the broadphase system.
     void resetPersistentEntities(Engine &ctx)
     {
-        // Register the floor and all border walls
+        // Register the floor
         registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
 
+        // Register the borders
         for (CountT i = 0; i < 4; i++)
         {
-            Entity wall_entity = ctx.data().borders[i];
-            registerRigidBodyEntity(ctx, wall_entity, SimObject::Wall);
+            registerRigidBodyEntity(ctx, ctx.data().borders[i], SimObject::Plane);
         }
     }
 
