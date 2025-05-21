@@ -311,6 +311,14 @@ namespace madEscape
     Entity createAnt(Engine &ctx, const AntPlacement &placement, CountT index)
     {
         Entity ant = ctx.makeRenderableEntity<Ant>();
+        if (ctx.data().enableRender) {
+            render::RenderingSystem::attachEntityToView(ctx,
+                                                       ant,
+                                                       100.f, 0.001f,
+                                                       0.5f * math::up);
+        }
+
+        // rigidbody including: pos, rot, scale, obj_id, vel, response_type, force, torque, entity_type
         setupRigidBodyEntity(
             ctx,
             ant,
@@ -324,18 +332,15 @@ namespace madEscape
                 consts::antRadius * 2,
                 consts::antRadius * 2 }
         );
-            
-        // Create a render view for the ant if rendering is enabled
-        if (ctx.data().enableRender) {
-            render::RenderingSystem::attachEntityToView(ctx,
-                                                       ant,
-                                                       100.f, 0.001f,
-                                                       0.5f * math::up);
-        }
-
-        ctx.get<GrabState>(ant).constraintEntity = Entity::none();
         
-        // TODO: initialize actions & observations
+        ctx.get<GrabState>(ant).constraintEntity = Entity::none();
+        // no need to init Lidar or Observation; they're set during simulation
+        ctx.get<Action>(ant) = Action {
+            .moveAmount = 0,
+            .moveAngle = 0,
+            .rotate = consts::numTurnBuckets / 2,
+            .grab = 0,
+        };
         
         registerRigidBodyEntity(ctx, ant, SimObject::Ant);
         ctx.data().ants[index] = ant;

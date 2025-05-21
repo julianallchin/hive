@@ -135,14 +135,13 @@ namespace madEscape
 
                      // Ant-specific state
                      GrabState,
-                     Lidar,                   // Output to policy
-                     Observation, // Output to policy
-                     
-                     Action,               // Input from policy
+                     Lidar,
+                     Observation,
+                     Action,
 
                      // Rendering
                      madrona::render::Renderable
-                     // madrona::render::RenderCamera, // Optional: if wanting per-ant camera views
+                    //  madrona::render::RenderCamera, // Optional: if wanting per-ant camera views
                      >
     {
     };
