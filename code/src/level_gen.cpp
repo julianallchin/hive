@@ -1,6 +1,8 @@
 #include "level_gen.hpp"
 
 #include <algorithm>
+#include <vector>
+#include <cmath>
 
 namespace madEscape
 {
@@ -255,54 +257,65 @@ namespace madEscape
         return wall;
     }
 
-    // Place the goal at a random location along the perimeter of the room
-    static Entity placeGoal(Engine &ctx)
-    {
-        // Choose a side of the room (0=top, 1=right, 2=bottom, 3=left)
-        int side = ctx.data().rng.sampleI32(0, 4);
-        float padding = consts::goalRadius * 2.0f;
-        float halfWidth = consts::worldWidth / 2.0f - padding;
+    // Determine a suitable position for the goal along the perimeter of the room
+    static Vector3 determineGoalPos(Engine &ctx) {
+        // Place goal along one of the walls, but not in a corner
+        float wallChoice = ctx.data().rng.sampleUniform();
+        float x, y;
 
-        float x = 0.0f;
-        float y = 0.0f;
-
-        switch (side)
-        {
-        case 0: // Top
-            x = randInRangeCentered(ctx, halfWidth);
-            y = halfWidth;
-            break;
-        case 1: // Right
-            x = halfWidth;
-            y = randInRangeCentered(ctx, halfWidth);
-            break;
-        case 2: // Bottom
-            x = randInRangeCentered(ctx, halfWidth);
-            y = -halfWidth;
-            break;
-        case 3: // Left
-            x = -halfWidth;
-            y = randInRangeCentered(ctx, halfWidth);
-            break;
+        if (wallChoice < 0.25f) {
+            // Bottom wall
+            x = randInRangeCentered(ctx, consts::worldWidth * 0.5f);
+            y = -consts::worldWidth / 2.f + consts::wallWidth * 1.5f; // Slightly inside the wall
+        } else if (wallChoice < 0.5f) {
+            // Right wall
+            x = consts::worldWidth / 2.f - consts::wallWidth * 1.5f; // Slightly inside the wall
+            y = randInRangeCentered(ctx, consts::worldWidth * 0.5f);
+        } else if (wallChoice < 0.75f) {
+            // Top wall
+            x = randInRangeCentered(ctx, consts::worldWidth * 0.5f);
+            y = consts::worldWidth / 2.f - consts::wallWidth * 1.5f; // Slightly inside the wall
+        } else {
+            // Left wall
+            x = -consts::worldWidth / 2.f + consts::wallWidth * 1.5f; // Slightly inside the wall
+            y = randInRangeCentered(ctx, consts::worldWidth * 0.5f);
         }
-        
-        return createGoal(ctx, x, y);
+
+        return Vector3(x, y, 0.0f);
     }
 
-    // Place the macguffin in a random position
-    static Entity placeMacguffin(Engine &ctx, Vector3 goalPos)
+    // Place the goal at a position determined by determineGoalPos
+    static Entity placeGoal(Engine &ctx)
     {
+        Vector3 goalPos = determineGoalPos(ctx);
+        Entity goal = createGoal(ctx, goalPos.x, goalPos.y);
+        return goal;
+    }
+
+    // Determine a suitable position for the macguffin based on goal position
+    static Vector3 determineMacguffinPos(Engine &ctx, const Vector3 &goalPos) {
         // Place macguffin on opposite side, with some randomness
         float angle = atan2f(goalPos.y, goalPos.x) + math::pi +
-                      randInRangeCentered(ctx, math::pi / 4.0f);
-
-        // Distance should be a good portion of world size
-        float dist = consts::worldWidth * 0.3f * ctx.data().rng.sampleUniform();
+                       randInRangeCentered(ctx, math::pi / 4.0f);
+        float dist = consts::worldWidth * 0.3f;
 
         float x = cosf(angle) * dist;
         float y = sinf(angle) * dist;
-
-        return createMacguffin(ctx, x, y);
+        
+        // Ensure within world bounds
+        float safetyMargin = consts::macguffinRadius * 2.0f;
+        float worldEdge = consts::worldWidth / 2.0f - safetyMargin;
+        x = std::max(std::min(x, worldEdge), -worldEdge);
+        y = std::max(std::min(y, worldEdge), -worldEdge);
+        
+        return Vector3(x, y, consts::macguffinRadius);
+    }
+    
+    // Place the macguffin using the position determined by determineMacguffinPos
+    static Entity placeMacguffin(Engine &ctx, Vector3 goalPos)
+    {
+        Vector3 macguffinPos = determineMacguffinPos(ctx, goalPos);
+        return createMacguffin(ctx, macguffinPos.x, macguffinPos.y);
     }
 
     // Checks if a position is within world bounds with a safety margin
@@ -318,73 +331,534 @@ namespace madEscape
                        (pos.y - targetPos.y) * (pos.y - targetPos.y);
         return distSq > minDistance * minDistance;
     }
-
-    // Place movable objects in the world
-    static void placeMovableObjects(Engine &ctx, CountT numObjects)
-    {
-        // Ensure we don't exceed the maximum number of movable objects
-        if (numObjects > consts::maxMovableObjects) {
-            printf("Warning: Requested %d movable objects, but max allowed is %d.\n",
-                   (int)numObjects, (int)consts::maxMovableObjects);
-            numObjects = consts::maxMovableObjects;
+    
+    // Structure to hold wall placement information
+    struct WallPlacement {
+        float x;
+        float y;
+        float width;
+        float height;
+    };
+    
+    // Structure to hold positions for all entities
+    struct LevelPositions {
+        Vector3 macguffinPos;
+        Vector3 goalPos;
+        std::vector<Vector3> movableObjectPositions;
+        std::vector<WallPlacement> wallPlacements;
+        std::vector<Vector3> antPositions;
+    };
+    
+    // Generate deterministic failsafe position for an entity type based on its index
+    static Vector3 generateDeterministicFailsafePosition(Engine &ctx, EntityType entityType, int index) {
+        // Define fixed parameters for the deterministic pattern
+        const float worldHalfWidth = consts::worldWidth / 2.f * 0.7f; // Use 70% of world size for safety
+        const float baseZ = 0.0f;
+        
+        // Define starting angles for different entity types to keep them separated
+        float baseAngle = 0.0f;
+        float radiusFactor = 0.7f; // Default radius factor
+        
+        switch (entityType) {
+            case EntityType::Macguffin:
+                baseAngle = 0.0f;
+                radiusFactor = 0.8f; // Macguffin closer to edge
+                break;
+            case EntityType::Goal:
+                baseAngle = math::pi; // Opposite of macguffin
+                radiusFactor = 0.8f;
+                break;
+            case EntityType::MovableObject:
+                baseAngle = math::pi / 4.0f;
+                radiusFactor = 0.5f; // Movable objects more in the middle
+                break;
+            case EntityType::Wall:
+                baseAngle = 3.0f * math::pi / 4.0f;
+                radiusFactor = 0.6f;
+                break;
+            case EntityType::Ant:
+                baseAngle = 5.0f * math::pi / 4.0f;
+                radiusFactor = 0.4f; // Ants closer to the center
+                break;
+            default:
+                baseAngle = 0.0f;
+                break;
         }
-        CountT numToCreate = std::min(numObjects, (CountT)consts::maxMovableObjects);
+        
+        // Create a spiral pattern based on index
+        // Use golden angle to create an even distribution
+        const float goldenAngle = math::pi * (3.0f - sqrtf(5.0f)); // ~2.4 radians
+        float angle = baseAngle + index * goldenAngle;
+        
+        // Radius increases with index for spacing
+        float radius = worldHalfWidth * radiusFactor * (0.2f + 0.1f * sqrtf((float)index));
+        if (radius > worldHalfWidth * radiusFactor) {
+            radius = worldHalfWidth * radiusFactor;
+        }
+        
+        // Calculate position using polar coordinates
+        float x = radius * cosf(angle);
+        float y = radius * sinf(angle);
+        
+        return Vector3(x, y, baseZ);
+    }
 
-        if (numToCreate == 0) return;
-
-        // Get positions of goal and macguffin to avoid placing objects too close
-        Vector3 goalPos = ctx.get<Position>(ctx.data().goal);
-        Vector3 macguffinPos = ctx.get<Position>(ctx.data().macguffin);
-
-        float minDistance = consts::worldWidth * 0.15f;
-        float maxAttempts = 30;
-
-        // Divide the world into a grid
-        const int gridSize = std::ceil(sqrtf((float)numToCreate)) + 1; // +1 for extra buffer
-        float cellWidth = consts::worldWidth * 0.8f / gridSize;
-        float worldStart = -consts::worldWidth * 0.4f;
-
-        CountT objectsCreated = 0;
-        for (int gridY = 0; gridY < gridSize && objectsCreated < numToCreate; gridY++) {
-            for (int gridX = 0; gridX < gridSize && objectsCreated < numToCreate; gridX++) {
-                float baseX = worldStart + gridX * cellWidth + cellWidth * 0.5f;
-                float baseY = worldStart + gridY * cellWidth + cellWidth * 0.5f;
-
-                float x, y;
-                bool validPosition = false;
-                CountT attempts = 0;
-
-                // Try to find a valid position within this grid cell
-                while (!validPosition && attempts < maxAttempts) {
-                    // Add some jitter within the cell
-                    x = baseX + randInRangeCentered(ctx, cellWidth * 0.5f);
-                    y = baseY + randInRangeCentered(ctx, cellWidth * 0.5f);
-
-                    // Ensure within world bounds
-                    if (!isWithinWorldBounds(x, y, consts::movableObjectRadius)) {
-                        attempts++;
-                        continue;
+    // Determine all placement positions for entities in the level together
+    static LevelPositions determinePlacementPositions(Engine &ctx, CountT numMovableObjects, CountT numWalls, CountT numAnts) {
+        LevelPositions positions;
+        
+        // Calculate world bounds
+        float worldHalfWidth = consts::worldWidth / 2.f - consts::movableObjectRadius;
+        float minDistance = consts::movableObjectRadius * 4.0f; // Minimum distance between objects
+        
+        // 1. First, determine macguffin position - it should be near a wall
+        // Try to place near a wall, with failsafe available
+        bool foundValidMacguffinPos = false;
+        
+        // Try to find a position near the wall
+        for (int attempt = 0; attempt < 20 && !foundValidMacguffinPos; attempt++) {
+            // Select a random wall (top, right, bottom, left)
+            int wallIdx = ctx.data().rng.sampleUniformInt(0, 3);
+            float wallX = 0.0f, wallY = 0.0f;
+            
+            switch (wallIdx) {
+                case 0: // Top wall
+                    wallX = randInRange(ctx, -worldHalfWidth, worldHalfWidth);
+                    wallY = worldHalfWidth;
+                    break;
+                case 1: // Right wall
+                    wallX = worldHalfWidth;
+                    wallY = randInRange(ctx, -worldHalfWidth, worldHalfWidth);
+                    break;
+                case 2: // Bottom wall
+                    wallX = randInRange(ctx, -worldHalfWidth, worldHalfWidth);
+                    wallY = -worldHalfWidth;
+                    break;
+                case 3: // Left wall
+                    wallX = -worldHalfWidth;
+                    wallY = randInRange(ctx, -worldHalfWidth, worldHalfWidth);
+                    break;
+            }
+            
+            // Move slightly inward from the wall
+            const float inwardOffset = consts::movableObjectRadius * 2.0f;
+            if (wallIdx == 0) wallY -= inwardOffset;
+            else if (wallIdx == 1) wallX -= inwardOffset;
+            else if (wallIdx == 2) wallY += inwardOffset;
+            else if (wallIdx == 3) wallX += inwardOffset;
+            
+            positions.macguffinPos = Vector3(wallX, wallY, 0.0f);
+            foundValidMacguffinPos = true; // We can assume this is valid since it's our first placement
+        }
+        
+        // If we couldn't find a valid position, use deterministic failsafe
+        if (!foundValidMacguffinPos) {
+            positions.macguffinPos = generateDeterministicFailsafePosition(ctx, EntityType::Macguffin, 0);
+            if (ctx.data().printDebugOutput) {
+                printf("Using failsafe position for macguffin: (%f, %f)\n", 
+                       positions.macguffinPos.x, positions.macguffinPos.y);
+            }
+        }
+        positions.macguffinPos.z = consts::macguffinRadius;
+        
+        // 2. Place goal away from macguffin
+        float minGoalDistance = consts::worldWidth * 0.4f; // Minimum distance from macguffin
+        int attempts = 0;
+        const int maxAttempts = 50;
+        
+        do {
+            // Choose a random position
+            positions.goalPos.x = randInRangeCentered(ctx, consts::worldWidth * 0.7f);
+            positions.goalPos.y = randInRangeCentered(ctx, consts::worldWidth * 0.7f);
+            float angle = atan2f(positions.macguffinPos.y, positions.macguffinPos.x) + math::pi;
+            float distance = randInRange(ctx, worldHalfWidth * 0.5f, worldHalfWidth * 0.9f);
+            
+            float goalX = distance * cosf(angle);
+            float goalY = distance * sinf(angle);
+            
+            Vector3 potentialGoalPos = Vector3(goalX, goalY, 0.0f);
+            
+            // Goal needs to be far enough from macguffin but doesn't need to avoid other objects
+            if ((potentialGoalPos - positions.macguffinPos).length2D() > worldHalfWidth * 0.6f) {
+                positions.goalPos = potentialGoalPos;
+                foundValidGoalPos = true;
+            }
+        }
+        
+        // If we couldn't find a valid position, use deterministic failsafe
+        if (!foundValidGoalPos) {
+            positions.goalPos = generateDeterministicFailsafePosition(ctx, EntityType::Goal, 0);
+            if (ctx.data().printDebugOutput) {
+                printf("Using failsafe position for goal: (%f, %f)\n", 
+                       positions.goalPos.x, positions.goalPos.y);
+            }
+        }
+        
+        positions.goalPos.z = consts::goalRadius;
+        
+        // Make sure goal is within bounds
+        float safetyMargin = 1.0f; // Goal doesn't have collision but still needs to be inside visually
+        float goalEdge = worldHalfWidth - safetyMargin;
+        positions.goalPos.x = std::max(std::min(positions.goalPos.x, goalEdge), -goalEdge);
+        positions.goalPos.y = std::max(std::min(positions.goalPos.y, goalEdge), -goalEdge);
+        
+        // 3. Determine positions for movable objects
+        positions.movableObjectPositions.reserve(numMovableObjects);
+        if (numMovableObjects > 0) {
+            // Create a grid for even distribution
+            int gridSize = (int)std::ceil(sqrtf((float)numMovableObjects)) + 1;
+            float cellSize = consts::worldWidth * 0.8f / gridSize;
+            float startOffset = -consts::worldWidth * 0.4f;
+            
+            // Minimum distance from important objects
+            float minObjDistance = consts::worldWidth * 0.12f;
+            
+            for (CountT i = 0; i < numMovableObjects; i++) {
+                // Calculate grid position
+                int gridX = i % gridSize;
+                int gridY = i / gridSize;
+                
+                // Base position in grid
+                float baseX = startOffset + gridX * cellSize + cellSize * 0.5f;
+                float baseY = startOffset + gridY * cellSize + cellSize * 0.5f;
+                
+                // Add some randomness within the cell
+                float x = baseX + randInRangeCentered(ctx, cellSize * 0.4f);
+                float y = baseY + randInRangeCentered(ctx, cellSize * 0.4f);
+                Vector3 objPos(x, y, 0.0f);
+                
+                // Check if far enough from goal and macguffin
+                bool validPosition = isWithinWorldBounds(x, y, consts::movableObjectRadius) &&
+                                    isFarEnoughFrom(objPos, positions.goalPos, minObjDistance) &&
+                                    isFarEnoughFrom(objPos, positions.macguffinPos, minObjDistance);
+                
+                // If not valid after grid placement, try with deterministic attempts
+                if (!validPosition) {
+                    // Try a few systematic positions with increasing angles around a circle
+                    for (int attempt = 0; attempt < 8 && !validPosition; attempt++) {
+                        // Use evenly distributed angles around a circle at different distances
+                        float angle = math::pi / 4.0f * attempt;
+                        float distance = worldHalfWidth * (0.4f + 0.1f * (attempt % 3));
+                        
+                        x = distance * cosf(angle);
+                        y = distance * sinf(angle);
+                        objPos = Vector3(x, y, 0.0f);
+                        
+                        validPosition = isWithinWorldBounds(x, y, consts::movableObjectRadius) &&
+                                        isFarEnoughFrom(objPos, positions.goalPos, minObjDistance) &&
+                                        isFarEnoughFrom(objPos, positions.macguffinPos, minObjDistance);
                     }
-
-                    // Check if far enough from goal and macguffin
-                    Vector3 objPos(x, y, 0.0f);
-                    if (!isFarEnoughFrom(objPos, goalPos, minDistance) ||
-                        !isFarEnoughFrom(objPos, macguffinPos, minDistance)) {
-                        attempts++;
-                        continue;
+                    
+                    // If still not valid, use deterministic failsafe
+                    if (!validPosition) {
+                        objPos = generateDeterministicFailsafePosition(ctx, EntityType::MovableObject, i);
+                        if (ctx.data().printDebugOutput) {
+                            printf("Using failsafe position for movable object %d: (%f, %f)\n", 
+                                   i, objPos.x, objPos.y);
+                        }
                     }
-
-                    validPosition = true;
-                    attempts++;
                 }
-
-                if (validPosition) {
-                    // Random size variation
-                    float scale = randBetween(ctx, 0.8f, 1.2f);
-                    Entity obj = createMovableObject(ctx, x, y, scale);
-                    ctx.data().movableObjects[objectsCreated] = obj;
-                    objectsCreated++;
+                
+                // Ensure within bounds
+                float objSafetyMargin = consts::movableObjectRadius * 2.0f;
+                float objEdge = worldHalfWidth - objSafetyMargin;
+                x = std::max(std::min(x, objEdge), -objEdge);
+                y = std::max(std::min(y, objEdge), -objEdge);
+                
+                // Create the position
+                Vector3 finalObjPos(x, y, consts::movableObjectRadius);
+                
+                // Check if too close to goal or macguffin
+                if (!isFarEnoughFrom(finalObjPos, positions.macguffinPos, minObjDistance) || 
+                    !isFarEnoughFrom(finalObjPos, positions.goalPos, minObjDistance)) {
+                    // Try to shift away from the closest object
+                    Vector3 awayDir;
+                    float distToMacguffin = (finalObjPos - positions.macguffinPos).length2D();
+                    float distToGoal = (finalObjPos - positions.goalPos).length2D();
+                    
+                    if (distToMacguffin < distToGoal) {
+                        awayDir = finalObjPos - positions.macguffinPos;
+                    } else {
+                        awayDir = finalObjPos - positions.goalPos;
+                    }
+                    
+                    if (awayDir.length2D() > 0.001f) {
+                        awayDir = awayDir.normalized2D() * minObjDistance * 0.6f;
+                        x += awayDir.x;
+                        y += awayDir.y;
+                        
+                        // Re-ensure within bounds
+                        x = std::max(std::min(x, objEdge), -objEdge);
+                        y = std::max(std::min(y, objEdge), -objEdge);
+                        
+                        objPos = Vector3(x, y, consts::movableObjectRadius);
+                    }
                 }
+                
+                positions.movableObjectPositions.push_back(objPos);
+            }
+        }
+        
+        // 4. Determine positions for walls
+        positions.wallPlacements.reserve(numWalls);
+        if (numWalls > 0) {
+            // Calculate vector from macguffin to goal
+            float dx = positions.goalPos.x - positions.macguffinPos.x;
+            float dy = positions.goalPos.y - positions.macguffinPos.y;
+            float pathAngle = atan2f(dy, dx);
+            float pathLength = sqrtf(dx*dx + dy*dy);
+            
+            // Minimum distance from path
+            float pathMinDistance = consts::worldWidth * 0.1f;
+            
+            for (CountT i = 0; i < numWalls; i++) {
+                // Distribute along path
+                float t = (i + 1.0f) / (numWalls + 1.0f); 
+                
+                // Use deterministic angle and offset instead of random
+                float deterministic_value = (float)i / numWalls; // Value between 0 and almost 1.0 based on index
+                float wallAngle = pathAngle + math::pi/2.0f + (deterministic_value - 0.5f) * math::pi/3.0f;
+                float pathOffset = pathMinDistance + consts::worldWidth * 0.1f * (0.5f + deterministic_value * 0.5f);
+                
+                // Position along path
+                float centerX = positions.macguffinPos.x + dx * t + cosf(wallAngle) * pathOffset;
+                float centerY = positions.macguffinPos.y + dy * t + sinf(wallAngle) * pathOffset;
+                
+                // Check if position is valid (within world bounds)
+                if (!isWithinWorldBounds(centerX, centerY, wallLength * 0.5f)) {
+                    // If not valid, use deterministic failsafe
+                    Vector3 failsafePos = generateDeterministicFailsafePosition(ctx, EntityType::Wall, i);
+                    centerX = failsafePos.x;
+                    centerY = failsafePos.y;
+                    
+                    if (ctx.data().printDebugOutput) {
+                        printf("Using failsafe position for wall %d: (%f, %f)\n", (int)i, centerX, centerY);
+                    }
+                }
+                
+                // Wall dimensions
+                float wallLength = consts::worldWidth * (0.1f + (i % 3) * 0.05f);
+                float wallWidth = consts::wallWidth;
+                
+                // Determine orientation based on angle
+                float width, height;
+                if (fabsf(fmodf(wallAngle, math::pi)) < math::pi/4.0f || 
+                    fabsf(fmodf(wallAngle, math::pi)) > 3.0f*math::pi/4.0f) {
+                    // More horizontal
+                    width = wallLength;
+                    height = wallWidth;
+                } else {
+                    // More vertical
+                    width = wallWidth;
+                    height = wallLength;
+                }
+                
+                // Ensure wall is within bounds
+                float wallSafetyMargin = std::max(width, height) * 0.5f + wallThickness;
+                float wallEdge = worldHalfWidth - wallSafetyMargin;
+                centerX = std::max(std::min(centerX, wallEdge), -wallEdge);
+                centerY = std::max(std::min(centerY, wallEdge), -wallEdge);
+                
+                // Add to placements
+                WallPlacement wall;
+                wall.x = centerX;
+                wall.y = centerY;
+                wall.width = width;
+                wall.height = height;
+                positions.wallPlacements.push_back(wall);
+            }
+        }
+        
+        // 5. Determine positions for ants
+        positions.antPositions.reserve(numAnts);
+        if (numAnts > 0) {
+            // Create a larger grid for even distribution of ants
+            int gridSize = (int)std::ceil(sqrtf((float)numAnts * 1.5f)); // More cells than ants for spacing
+            float cellSize = consts::worldWidth * 0.8f / gridSize;
+            float worldStart = -consts::worldWidth * 0.4f;
+            float minDistanceToObjects = consts::worldWidth * 0.08f; // Smaller than for movable objects
+            
+            for (CountT i = 0; i < numAnts; i++) {
+                // Calculate grid cell for this ant
+                int gridX = i % gridSize;
+                int gridY = i / gridSize;
+                
+                // Base position in the cell
+                float baseX = worldStart + gridX * cellSize + cellSize * 0.5f;
+                float baseY = worldStart + gridY * cellSize + cellSize * 0.5f;
+                
+                // Use deterministic offsets instead of randomization
+                // This uses the ant index to create a predictable offset pattern within each cell
+                float deterministicOffsetX = ((float)(i % 3) / 2.0f - 0.5f) * cellSize * 0.6f;
+                float deterministicOffsetY = ((float)((i / 3) % 3) / 2.0f - 0.5f) * cellSize * 0.6f;
+                float x = baseX + deterministicOffsetX;
+                float y = baseY + deterministicOffsetY;
+                
+                // Ensure within bounds
+                float antSafetyMargin = consts::antRadius * 2.0f;
+                float antEdge = worldHalfWidth - antSafetyMargin;
+                x = std::max(std::min(x, antEdge), -antEdge);
+                y = std::max(std::min(y, antEdge), -antEdge);
+                
+                // Create position
+                Vector3 antPos(x, y, consts::antRadius);
+                
+                // Check if too close to important objects
+                bool validPosition = isWithinWorldBounds(x, y, consts::antRadius) &&
+                                   isFarEnoughFrom(antPos, positions.macguffinPos, minDistanceToObjects) &&
+                                   isFarEnoughFrom(antPos, positions.goalPos, minDistanceToObjects);
+                
+                // If not valid, use a deterministic failsafe position
+                if (!validPosition) {
+                    Vector3 failsafePos = generateDeterministicFailsafePosition(ctx, EntityType::Ant, i);
+                    antPos = Vector3(failsafePos.x, failsafePos.y, consts::antRadius);
+                    
+                    if (ctx.data().printDebugOutput) {
+                        printf("Using failsafe position for ant %d: (%f, %f)\n", 
+                               (int)i, failsafePos.x, failsafePos.y);
+                    }
+                }
+                
+                positions.antPositions.push_back(antPos);
+            }
+        }
+        
+        return positions;
+    }
+    
+    // Generate the hive simulation world using the unified positioning system
+    void generateWorld(Engine &ctx)
+    {
+        resetPersistentEntities(ctx);
+        
+        // Determine all entity positions together
+        CountT numMovableObjects = ctx.data().numMovableObjects;
+        CountT numWalls = ctx.data().numWalls;
+        CountT numAnts = ctx.singleton<NumAnts>().count;
+        
+        // Calculate all positions in one pass to ensure no overlaps
+        LevelPositions positions = determinePlacementPositions(
+            ctx, numMovableObjects, numWalls, numAnts);
+        
+        // Create entities using the calculated positions
+        placeMacguffin(ctx, positions.macguffinPos);
+        placeGoal(ctx, positions.goalPos);
+        placeMovableObjects(ctx, positions.movableObjectPositions);
+        placeWalls(ctx, positions.wallPlacements);
+        placeAnts(ctx, positions.antPositions);
+    }
+
+    // Place the macguffin based on the provided position
+    static Entity placeMacguffin(Engine &ctx, const Vector3 &position)
+    {
+        Entity macguffin = createMacguffin(ctx, position.x, position.y);
+        ctx.data().macguffin = macguffin;
+        return macguffin;
+    }
+    
+    // Place the goal based on the provided position
+    static Entity placeGoal(Engine &ctx, const Vector3 &position)
+    {
+        Entity goal = createGoal(ctx, position.x, position.y);
+        ctx.data().goal = goal;
+        return goal;
+    }
+    
+    // Place movable objects at the provided positions
+    static void placeMovableObjects(Engine &ctx, const std::vector<Vector3> &positions)
+    {
+        CountT numObjects = std::min(positions.size(), (size_t)consts::maxMovableObjects);
+        
+        if (numObjects == 0) return;
+        
+        // Create each object at its position
+        for (CountT i = 0; i < numObjects; i++) {
+            const Vector3 &pos = positions[i];
+            Entity object = createMovableObject(ctx, pos.x, pos.y);
+            
+            // Store reference to the entity
+            ctx.data().movableObjects[i] = object;
+        }
+        
+        // Reset any unused slots
+        for (CountT i = numObjects; i < consts::maxMovableObjects; i++) {
+            ctx.data().movableObjects[i] = Entity::none();
+        }
+        
+        // Store the actual number of objects created
+        ctx.data().numMovableObjects = numObjects;
+    }
+    // Place walls at the provided positions
+    static void placeWalls(Engine &ctx, const std::vector<WallPlacement> &wallPlacements)
+    {
+        CountT numWalls = wallPlacements.size();
+        
+        if (numWalls == 0) return;
+        
+        // Create each wall at its position with specified dimensions
+        for (CountT i = 0; i < numWalls; i++) {
+            const WallPlacement &wall = wallPlacements[i];
+            Entity wallEntity = createWall(ctx, wall.x, wall.y, wall.width, wall.height);
+            
+            if (ctx.data().printDebugOutput) {
+                printf("Created wall %d at (%f, %f) with dimensions %f x %f\n",
+                       (int)i, wall.x, wall.y, wall.width, wall.height);
+            }
+        }
+    }
+    // Place ants at the provided positions
+    static void placeAnts(Engine &ctx, const std::vector<Vector3> &antPositions)
+    {
+        CountT numAnts = antPositions.size();
+        
+        if (numAnts == 0) return;
+        
+        // Create each ant at its position
+        for (CountT i = 0; i < numAnts; ++i) {
+            const Vector3 &pos = antPositions[i];
+            
+            // Create ant entity
+            Entity ant = ctx.makeRenderableEntity<Ant>();
+            
+            // Random rotation for the ant
+            float angle = ctx.data().rng.sampleUniform() * 2.f * math::pi;
+            Quat rot = Quat::angleAxis(angle, math::up);
+            
+            // Setup the ant entity
+            setupRigidBodyEntity(
+                ctx,
+                ant,
+                Vector3{pos.x, pos.y, consts::antRadius},
+                rot,
+                SimObject::Ant,
+                EntityType::Ant);
+                
+            // Create a render view for few ants if rendering is enabled
+            if (ctx.data().enableRender) {
+                render::RenderingSystem::attachEntityToView(ctx,
+                                                           ant,
+                                                           100.f, 0.001f,
+                                                           0.5f * math::up);
+            }
+            
+            ctx.get<Scale>(ant) = Diag3x3{
+                consts::antRadius * 2,
+                consts::antRadius * 2,
+                consts::antRadius * 2};
+            ctx.get<GrabState>(ant).constraintEntity = Entity::none();
+            
+            registerRigidBodyEntity(ctx, ant, SimObject::Ant);
+            
+            ctx.data().ants[i] = ant;
+            
+            if (ctx.data().printDebugOutput) {
+                printf("Created ant %d at (%f, %f)\n", (int)i, pos.x, pos.y);
+            }
+        }
+        
+        // Update the ant count
+        ctx.singleton<NumAnts>().count = numAnts;
+    }
             }
         }
 
@@ -516,8 +990,7 @@ namespace madEscape
     static void placeAnts(Engine &ctx, CountT numAnts)
     {
         if (numAnts == 0) {
-            ctx.singleton<NumAnts>().count = 0;
-            return;
+            throw std::runtime_error("Trying to place 0 ants! numAnts must be greater than 0");
         }
 
         // Account for the ant radius in our calculations to keep ants in bounds
@@ -595,7 +1068,7 @@ namespace madEscape
                 SimObject::Ant,
                 EntityType::Ant);
 
-            // Create a render view for a few ants, not for all (performance reasons)
+            // Create a render view for few ants
             if (ctx.data().enableRender) {
                 render::RenderingSystem::attachEntityToView(ctx,
                                                             ant,
