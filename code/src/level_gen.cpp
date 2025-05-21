@@ -771,19 +771,19 @@ namespace madEscape
 
         // walls
         const auto &wallPlacements = determineWallPlacements(ctx, macguffinPlacement, goalPlacement);
-        for (CountT i = 0; i < ctx.data().numWalls; i++) {
+        for (size_t i = 0; i < ctx.data().numWalls; i++) {
             createWall(ctx, wallPlacements[i], i);
         }
 
         // movable objects
         const auto &movableObjectPlacements = determineMovableObjectPlacements(ctx, macguffinPlacement, goalPlacement, wallPlacements);
-        for (CountT i = 0; i < ctx.data().numMovableObjects; i++) {
+        for (size_t i = 0; i < ctx.data().numMovableObjects; i++) {
             createMovableObject(ctx, movableObjectPlacements[i], i);
         }
 
         // ants
         const auto &antPlacements = determineAntPlacements(ctx, macguffinPlacement, goalPlacement, wallPlacements, movableObjectPlacements);
-        for (CountT i = 0; i < ctx.singleton<NumAnts>().count; ++i) {
+        for (int32_t i = 0; i < ctx.singleton<NumAnts>().count; ++i) {
             createAnt(ctx, antPlacements[i], i);
         }
     }

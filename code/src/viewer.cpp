@@ -78,8 +78,8 @@ int main(int argc, char *argv[])
         .randSeed = 5,
         .autoReset = replay_log.has_value(),
 
-        .minAntsRand = 10, // note: if this is changed, headless.cpp should probably be updated?
-        .maxAntsRand = 10,
+        .minAntsRand = 0, // note: if this is changed, headless.cpp should probably be updated?
+        .maxAntsRand = 0,
         .minMovableObjectsRand = 0,
         .maxMovableObjectsRand = 0,
         .minWallsRand = 0,
