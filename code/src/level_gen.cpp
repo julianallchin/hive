@@ -452,7 +452,7 @@ namespace madEscape
                 EntityType::Ant);
 
             // Create a render view for a few ants, not for all (performance reasons)
-            if (ctx.data().enableRender && i % 10 == 0)
+            if (ctx.data().enableRender)
             {
                 render::RenderingSystem::attachEntityToView(ctx,
                                                             ant,

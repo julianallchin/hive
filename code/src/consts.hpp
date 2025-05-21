@@ -19,12 +19,12 @@ inline constexpr madrona::CountT maxWalls = 1;   // Maximum number of interior w
 
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
-inline constexpr float worldWidth = 40.f;  // Making it square since we don't have separate rooms
+inline constexpr float worldWidth = 40.f;
 inline constexpr float wallWidth = 1.f;
-inline constexpr float antRadius = 0.5f;    // Smaller than original agents
+inline constexpr float antRadius = 0.1f;
 inline constexpr float macguffinRadius = 1.f;
 inline constexpr float movableObjectRadius = 1.f;
-inline constexpr float goalRadius = 1.5f;   // Visual indicator of goal position
+inline constexpr float goalRadius = 1.5f;
 
 // Reward for decreasing distance between macguffin and goal
 inline constexpr float distanceRewardScale = 0.1f;
