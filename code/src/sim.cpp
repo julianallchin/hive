@@ -81,7 +81,7 @@ namespace madEscape
         }
 
         // Clean up ants
-        for (CountT i = 0; i < ctx.singleton<NumAnts>().count; i++)
+        for (int32_t i = 0; i < ctx.singleton<NumAnts>().count; i++)
         {
             if (ctx.data().ants[i] != Entity::none())
             {
@@ -95,7 +95,7 @@ namespace madEscape
         }
 
         // Clean up movable objects
-        for (CountT i = 0; i < ctx.data().numMovableObjects; i++)
+        for (size_t i = 0; i < ctx.data().numMovableObjects; i++)
         {
             if (ctx.data().movableObjects[i] != Entity::none())
             {
@@ -104,7 +104,7 @@ namespace madEscape
         }
 
         // Clean up walls (except border walls which are persistent)
-        for (CountT i = 0; i < ctx.data().numWalls; i++)
+        for (size_t i = 0; i < ctx.data().numWalls; i++)
         {
             if (ctx.data().walls[i] != Entity::none())
             {
