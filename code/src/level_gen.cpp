@@ -347,12 +347,85 @@ namespace madEscape
 
     // Determine a suitable position for the macguffin
     static MacguffinPlacement determineMacguffinPlacement(Engine &ctx) {
+        // Choose a border randomly
+        Border border = static_cast<Border>(randIntBetween(ctx, 0, 3));
         
+        // Buffer from the wall to ensure the macguffin doesn't clip into the border
+        // (Add a small margin to macguffin radius for safety)
+        float buffer = consts::macguffinRadius + consts::wallWidth + 0.5f;
+        
+        // Room boundaries accounting for the border walls
+        float minX = -consts::worldWidth / 2.0f + buffer;
+        float maxX = consts::worldWidth / 2.0f - buffer;
+        float minY = -consts::worldLength / 2.0f + buffer;
+        float maxY = consts::worldLength / 2.0f - buffer;
+        
+        // Starting position
+        float x = 0.0f;
+        float y = 0.0f;
+        
+        // Place the macguffin near the chosen border
+        switch (border) {
+            case Border::Top: // Top border
+                x = randBetween(ctx, minX, maxX);
+                y = maxY - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                break;
+            case Border::Right: // Right border
+                x = maxX - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = randBetween(ctx, minY, maxY);
+                break;
+            case Border::Bottom: // Bottom border
+                x = randBetween(ctx, minX, maxX);
+                y = minY + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                break;
+            case Border::Left: // Left border
+                x = minX + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = randBetween(ctx, minY, maxY);
+                break;
+        }
+        
+        return MacguffinPlacement{x, y, border};
     }
 
     // Determine a suitable position for the goal along the perimeter of the room
     static GoalPlacement determineGoalPlacement(Engine &ctx, const MacguffinPlacement &macguffinPlacement) {
+        // Place goal on the opposite wall
+        Border goalWall = static_cast<Border>((static_cast<int>(macguffinPlacement.wall) + 2) % 4);
         
+        // Buffer from the wall to ensure the goal doesn't clip into the border
+        float buffer = consts::goalRadius + consts::wallWidth + 0.5f;
+        
+        // Room boundaries accounting for the border walls
+        float minX = -consts::worldWidth / 2.0f + buffer;
+        float maxX = consts::worldWidth / 2.0f - buffer;
+        float minY = -consts::worldLength / 2.0f + buffer;
+        float maxY = consts::worldLength / 2.0f - buffer;
+        
+        // Starting position
+        float x = 0.0f;
+        float y = 0.0f;
+        
+        // Place the goal near the chosen border
+        switch (goalWall) {
+            case Border::Top: // Top border
+                x = randBetween(ctx, minX, maxX);
+                y = maxY - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                break;
+            case Border::Right: // Right border
+                x = maxX - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = randBetween(ctx, minY, maxY);
+                break;
+            case Border::Bottom: // Bottom border
+                x = randBetween(ctx, minX, maxX);
+                y = minY + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                break;
+            case Border::Left: // Left border
+                x = minX + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = randBetween(ctx, minY, maxY);
+                break;
+        }
+        
+        return GoalPlacement{x, y, goalWall};
     }
 
     static std::vector<WallPlacement> determineWallPlacements(Engine &ctx, const MacguffinPlacement &macguffinPlacement, const GoalPlacement &goalPlacement) {
