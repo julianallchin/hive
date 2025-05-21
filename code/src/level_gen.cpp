@@ -317,7 +317,13 @@ namespace madEscape
             Vector3{placement.x, placement.y, consts::antRadius},
             Quat::angleAxis(placement.angle, math::up),
             SimObject::Ant,
-            EntityType::Ant);
+            EntityType::Ant,
+            ResponseType::Dynamic,
+            Diag3x3 {
+                consts::antRadius * 2,
+                consts::antRadius * 2,
+                consts::antRadius * 2 }
+        );
             
         // Create a render view for the ant if rendering is enabled
         if (ctx.data().enableRender) {
@@ -327,13 +333,9 @@ namespace madEscape
                                                        0.5f * math::up);
         }
 
-        // Set the scale of the ant
-        ctx.get<Scale>(ant) = Diag3x3{
-            consts::antRadius * 2,
-            consts::antRadius * 2,
-            consts::antRadius * 2};
-
         ctx.get<GrabState>(ant).constraintEntity = Entity::none();
+        
+        // TODO: initialize actions & observations
         
         registerRigidBodyEntity(ctx, ant, SimObject::Ant);
         ctx.data().ants[index] = ant;

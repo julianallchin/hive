@@ -32,24 +32,29 @@ int main(int argc, char *argv[])
     using namespace madEscape;
 
     // Read command line arguments
-    uint32_t num_worlds = 1;
+    uint32_t num_ants = 1;
     if (argc >= 2) {
-        num_worlds = (uint32_t)atoi(argv[1]);
+        num_ants = (uint32_t)atoi(argv[1]);
+    }
+    
+    uint32_t num_worlds = 1;
+    if (argc >= 3) {
+        num_worlds = (uint32_t)atoi(argv[2]);
     }
 
     ExecMode exec_mode = ExecMode::CPU;
-    if (argc >= 3) {
-        if (!strcmp("--cpu", argv[2])) {
+    if (argc >= 4) {
+        if (!strcmp("--cpu", argv[3])) {
             exec_mode = ExecMode::CPU;
-        } else if (!strcmp("--cuda", argv[2])) {
+        } else if (!strcmp("--cuda", argv[3])) {
             exec_mode = ExecMode::CUDA;
         }
     }
 
     // Setup replay log
     const char *replay_log_path = nullptr;
-    if (argc >= 4) {
-        replay_log_path = argv[3];
+    if (argc >= 5) {
+        replay_log_path = argv[4];
     }
 
     auto replay_log = Optional<HeapArray<int32_t>>::none();
@@ -79,8 +84,8 @@ int main(int argc, char *argv[])
         .randSeed = 5,
         .autoReset = replay_log.has_value(),
 
-        .minAntsRand = 0, // note: if this is changed, headless.cpp should probably be updated?
-        .maxAntsRand = 0,
+        .minAntsRand = num_ants,
+        .maxAntsRand = num_ants,
         .minMovableObjectsRand = 0,
         .maxMovableObjectsRand = 0,
         .minWallsRand = 0,
