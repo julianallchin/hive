@@ -12,11 +12,6 @@ namespace madEscape
 
     // Helper functions for random number generation
 
-    static inline float randInRangeCentered(Engine &ctx, float range)
-    {
-        return ctx.data().rng.sampleUniform() * range - range / 2.f;
-    }
-
     static inline float randBetween(Engine &ctx, float min, float max)
     {
         return ctx.data().rng.sampleUniform() * (max - min) + min;
@@ -429,16 +424,335 @@ namespace madEscape
     }
 
     static std::vector<WallPlacement> determineWallPlacements(Engine &ctx, const MacguffinPlacement &macguffinPlacement, const GoalPlacement &goalPlacement) {
+        std::vector<WallPlacement> wallPlacements;
         
+        // Return empty vector if no walls needed
+        if (ctx.data().numWalls <= 0) {
+            return wallPlacements;
+        }
+        
+        // Room boundaries
+        float minX = -consts::worldWidth / 2.0f;
+        float maxX = consts::worldWidth / 2.0f;
+        float minY = -consts::worldLength / 2.0f;
+        float maxY = consts::worldLength / 2.0f;
+        
+        // Buffer to keep objects from overlapping
+        float macguffinBuffer = consts::macguffinRadius + 1.0f;
+        float goalBuffer = consts::goalRadius + 1.0f;
+        
+        // Try up to the maximum number of attempts for wall placement
+        int attempt = 0;
+        
+        while (wallPlacements.size() < ctx.data().numWalls && attempt < consts::maxWallPlacementAttempts) {
+            attempt++;
+            
+            // Decide if wall will be horizontal or vertical
+            bool isHorizontal = randBetween(ctx, 0.0f, 1.0f) < 0.5f;
+            
+            // Wall size
+            float wallLength = randBetween(ctx, 5.0f, 15.0f);
+            float wallWidth = consts::wallWidth;
+            
+            // Determine wall position
+            float x = 0.0f;
+            float y = 0.0f;
+            float width = 0.0f;
+            float height = 0.0f;
+            
+            if (isHorizontal) {
+                // Horizontal wall
+                width = wallLength;
+                height = wallWidth;
+                
+                // Random position within room bounds
+                x = randBetween(ctx, minX + width/2, maxX - width/2);
+                y = randBetween(ctx, minY + height/2, maxY - height/2);
+            } else {
+                // Vertical wall
+                width = wallWidth;
+                height = wallLength;
+                
+                // Random position within room bounds
+                x = randBetween(ctx, minX + width/2, maxX - width/2);
+                y = randBetween(ctx, minY + height/2, maxY - height/2);
+            }
+            
+            // Check if wall overlaps with macguffin
+            float distToMacguffin = std::sqrt(
+                std::pow(x - macguffinPlacement.x, 2) + 
+                std::pow(y - macguffinPlacement.y, 2));
+            
+            if (distToMacguffin < macguffinBuffer + std::max(width, height) / 2) {
+                continue; // Skip this attempt
+            }
+            
+            // Check if wall overlaps with goal
+            float distToGoal = std::sqrt(
+                std::pow(x - goalPlacement.x, 2) + 
+                std::pow(y - goalPlacement.y, 2));
+            
+            if (distToGoal < goalBuffer + std::max(width, height) / 2) {
+                continue; // Skip this attempt
+            }
+            
+            // Check if wall overlaps with existing walls
+            bool overlapsWithWall = false;
+            for (const auto &existingWall : wallPlacements) {
+                // Simple overlap check (approximate)
+                if (std::abs(x - existingWall.x) < (width + existingWall.width) / 2 &&
+                    std::abs(y - existingWall.y) < (height + existingWall.height) / 2) {
+                    overlapsWithWall = true;
+                    break;
+                }
+            }
+            
+            if (!overlapsWithWall) {
+                // Wall is valid, add it
+                WallPlacement wall;
+                wall.x = x;
+                wall.y = y;
+                wall.width = width;
+                wall.height = height;
+                wallPlacements.push_back(wall);
+            }
+        }
+        // record the actual number of walls
+        ctx.data().numWalls = wallPlacements.size();
+        return wallPlacements;
     }
 
-    static std::vector<MovableObjectPlacement> determineMovableObjectPlacements(Engine &ctx, const ObjectPlacement &macguffinPlacement, const ObjectPlacement &goalPlacement, const std::vector<WallPlacement> &wallPlacements) {
+    static std::vector<MovableObjectPlacement> determineMovableObjectPlacements(Engine &ctx, const MacguffinPlacement &macguffinPlacement, const GoalPlacement &goalPlacement, const std::vector<WallPlacement> &wallPlacements) {
+        std::vector<MovableObjectPlacement> objectPlacements;
         
+        // Return empty vector if no movable objects needed
+        if (ctx.data().numMovableObjects <= 0) {
+            return objectPlacements;
+        }
+        
+        // Room boundaries
+        float minX = -consts::worldWidth / 2.0f;
+        float maxX = consts::worldWidth / 2.0f;
+        float minY = -consts::worldLength / 2.0f;
+        float maxY = consts::worldLength / 2.0f;
+        
+        // Buffers to keep objects from overlapping
+        float macguffinBuffer = consts::macguffinRadius + consts::movableObjectRadius + 1.0f;
+        float goalBuffer = consts::goalRadius + consts::movableObjectRadius + 1.0f;
+        float objectBuffer = consts::movableObjectRadius * 2.0f + 1.0f;
+        float wallBuffer = consts::wallWidth + consts::movableObjectRadius + 0.5f;
+        float borderBuffer = consts::wallWidth + consts::movableObjectRadius;
+        
+        // Adjusted room boundaries accounting for border walls
+        float adjustedMinX = minX + borderBuffer;
+        float adjustedMaxX = maxX - borderBuffer;
+        float adjustedMinY = minY + borderBuffer;
+        float adjustedMaxY = maxY - borderBuffer;
+        
+        // Try up to the maximum number of attempts for movable object placement
+        int attempt = 0;
+        
+        while (objectPlacements.size() < ctx.data().numMovableObjects && attempt < consts::maxMovableObjectPlacementAttempts) {
+            attempt++;
+            
+            // Random scale for the movable object (0.8 to 1.2 times base size)
+            float scale = randBetween(ctx, 0.8f, 1.2f);
+            
+            // Random position within adjusted room bounds
+            float x = randBetween(ctx, adjustedMinX, adjustedMaxX);
+            float y = randBetween(ctx, adjustedMinY, adjustedMaxY);
+            
+            // Check if object overlaps with macguffin
+            float distToMacguffin = std::sqrt(
+                std::pow(x - macguffinPlacement.x, 2) + 
+                std::pow(y - macguffinPlacement.y, 2));
+            
+            if (distToMacguffin < macguffinBuffer) {
+                continue; // Skip this attempt
+            }
+            
+            // Check if object overlaps with goal
+            float distToGoal = std::sqrt(
+                std::pow(x - goalPlacement.x, 2) + 
+                std::pow(y - goalPlacement.y, 2));
+            
+            if (distToGoal < goalBuffer) {
+                continue; // Skip this attempt
+            }
+            
+            // Check if object overlaps with walls
+            bool overlapsWithWall = false;
+            for (const auto &wall : wallPlacements) {
+                // Check if object is too close to a wall
+                // Simple box overlap check
+                if (std::abs(x - wall.x) < (consts::movableObjectRadius * scale + wall.width / 2 + wallBuffer) &&
+                    std::abs(y - wall.y) < (consts::movableObjectRadius * scale + wall.height / 2 + wallBuffer)) {
+                    overlapsWithWall = true;
+                    break;
+                }
+            }
+            
+            if (overlapsWithWall) {
+                continue; // Skip this attempt
+            }
+            
+            // Check if object overlaps with existing movable objects
+            bool overlapsWithObject = false;
+            for (const auto &existingObject : objectPlacements) {
+                float distToObject = std::sqrt(
+                    std::pow(x - existingObject.x, 2) + 
+                    std::pow(y - existingObject.y, 2));
+                
+                if (distToObject < objectBuffer) {
+                    overlapsWithObject = true;
+                    break;
+                }
+            }
+            
+            if (!overlapsWithObject) {
+                // Movable object is valid, add it
+                MovableObjectPlacement obj;
+                obj.x = x;
+                obj.y = y;
+                obj.scale = scale;
+                objectPlacements.push_back(obj);
+            }
+        }
+        
+        // Record the actual number of movable objects
+        ctx.data().numMovableObjects = objectPlacements.size();
+        return objectPlacements;
     }
     
     
-    static std::vector<AntPlacement> determineAntPlacements(Engine &ctx, const ObjectPlacement &macguffinPlacement, const ObjectPlacement &goalPlacement, const std::vector<WallPlacement> &wallPlacements, const std::vector<MovableObjectPlacement> &movableObjectPlacements) {
+    static std::vector<AntPlacement> determineAntPlacements(Engine &ctx, const MacguffinPlacement &macguffinPlacement, const GoalPlacement &goalPlacement, const std::vector<WallPlacement> &wallPlacements, const std::vector<MovableObjectPlacement> &movableObjectPlacements) {
+        std::vector<AntPlacement> antPlacements;
         
+        // Get how many ants we need to place
+        int numAnts = ctx.singleton<NumAnts>().count;
+        if (numAnts <= 0) {
+            return antPlacements;
+        }
+        
+        // Room boundaries
+        float minX = -consts::worldWidth / 2.0f;
+        float maxX = consts::worldWidth / 2.0f;
+        float minY = -consts::worldLength / 2.0f;
+        float maxY = consts::worldLength / 2.0f;
+        
+        // Buffers to keep ants from overlapping
+        float macguffinBuffer = consts::macguffinRadius + consts::antRadius + 0.5f;
+        float goalBuffer = consts::goalRadius + consts::antRadius + 0.5f;
+        float wallBuffer = consts::wallWidth + consts::antRadius + 0.2f;
+        float objectBuffer = consts::movableObjectRadius + consts::antRadius + 0.5f;
+        float antBuffer = consts::antRadius * 2.0f + 0.2f;
+        float borderBuffer = consts::wallWidth + consts::antRadius;
+        
+        // Adjusted room boundaries accounting for border walls
+        float adjustedMinX = minX + borderBuffer;
+        float adjustedMaxX = maxX - borderBuffer;
+        float adjustedMinY = minY + borderBuffer;
+        float adjustedMaxY = maxY - borderBuffer;
+        
+        // Try up to the maximum number of attempts per ant
+        
+        // Try to place each ant
+        for (int antIndex = 0; antIndex < numAnts; antIndex++) {
+            int attempts = 0;
+            bool placedSuccessfully = false;
+            
+            while (!placedSuccessfully && attempts < consts::maxAntPlacementAttemptsPerAnt) {
+                attempts++;
+                
+                // Random position within adjusted room bounds
+                float x = randBetween(ctx, adjustedMinX, adjustedMaxX);
+                float y = randBetween(ctx, adjustedMinY, adjustedMaxY);
+                
+                // Random angle (orientation)
+                float angle = randBetween(ctx, 0.0f, 2.0f * 3.14159f);  // 0 to 2π radians
+                
+                // Check if ant overlaps with macguffin
+                float distToMacguffin = std::sqrt(
+                    std::pow(x - macguffinPlacement.x, 2) + 
+                    std::pow(y - macguffinPlacement.y, 2));
+                
+                if (distToMacguffin < macguffinBuffer) {
+                    continue; // Skip this attempt
+                }
+                
+                // Check if ant overlaps with goal
+                float distToGoal = std::sqrt(
+                    std::pow(x - goalPlacement.x, 2) + 
+                    std::pow(y - goalPlacement.y, 2));
+                
+                if (distToGoal < goalBuffer) {
+                    continue; // Skip this attempt
+                }
+                
+                // Check if ant overlaps with walls
+                bool overlapsWithWall = false;
+                for (const auto &wall : wallPlacements) {
+                    // Simple box-based distance check
+                    if (std::abs(x - wall.x) < (consts::antRadius + wall.width / 2 + wallBuffer) &&
+                        std::abs(y - wall.y) < (consts::antRadius + wall.height / 2 + wallBuffer)) {
+                        overlapsWithWall = true;
+                        break;
+                    }
+                }
+                
+                if (overlapsWithWall) {
+                    continue; // Skip this attempt
+                }
+                
+                // Check if ant overlaps with movable objects
+                bool overlapsWithObject = false;
+                for (const auto &obj : movableObjectPlacements) {
+                    float distToObject = std::sqrt(
+                        std::pow(x - obj.x, 2) + 
+                        std::pow(y - obj.y, 2));
+                    
+                    // Account for object scale
+                    if (distToObject < objectBuffer * obj.scale) {
+                        overlapsWithObject = true;
+                        break;
+                    }
+                }
+                
+                if (overlapsWithObject) {
+                    continue; // Skip this attempt
+                }
+                
+                // Check if ant overlaps with already placed ants
+                bool overlapsWithAnt = false;
+                for (const auto &existingAnt : antPlacements) {
+                    float distToAnt = std::sqrt(
+                        std::pow(x - existingAnt.x, 2) + 
+                        std::pow(y - existingAnt.y, 2));
+                    
+                    if (distToAnt < antBuffer) {
+                        overlapsWithAnt = true;
+                        break;
+                    }
+                }
+                
+                if (!overlapsWithAnt) {
+                    // Ant position is valid, add it
+                    AntPlacement ant;
+                    ant.x = x;
+                    ant.y = y;
+                    ant.angle = angle;
+                    antPlacements.push_back(ant);
+                    placedSuccessfully = true;
+                }
+            }
+            
+            // If we couldn't place this ant after all attempts, stop trying to place more
+            if (!placedSuccessfully) {
+                break;
+            }
+        }
+        ctx.singleton<NumAnts>().count = antPlacements.size();
+        return antPlacements;
     }
 
 

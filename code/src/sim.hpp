@@ -131,11 +131,11 @@ struct Sim : public madrona::WorldBase {
 
     // Movable object entities
     Entity movableObjects[consts::maxMovableObjects];
-    int32_t numMovableObjects;
+    size_t numMovableObjects;
 
     // PhysicsEntity entities
     Entity walls[consts::maxWalls];
-    int32_t numWalls;
+    size_t numWalls;
 
     float prevDist;
 };

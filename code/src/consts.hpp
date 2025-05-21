@@ -58,6 +58,11 @@ inline constexpr float deltaT = 0.04f;
 // Number of physics substeps
 inline constexpr madrona::CountT numPhysicsSubsteps = 4.f;
 
+// Maximum number of attempts for random object placement
+inline constexpr int maxWallPlacementAttempts = 30;
+inline constexpr int maxMovableObjectPlacementAttempts = 30;
+inline constexpr int maxAntPlacementAttemptsPerAnt = 30;
+
 }
 
 }
