@@ -20,7 +20,9 @@ inline constexpr madrona::CountT maxWalls = 1;   // Maximum number of interior w
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
 inline constexpr float worldWidth = 40.f;
-inline constexpr float wallWidth = 1.f;
+inline constexpr float borderWidth = 1.f;
+inline constexpr float minBorderSpawnBuffer = 0.0f;
+inline constexpr float maxBorderSpawnBuffer = 3.0f;
 inline constexpr float antRadius = 0.1f;
 inline constexpr float macguffinRadius = 1.f;
 inline constexpr float movableObjectRadius = 1.f;

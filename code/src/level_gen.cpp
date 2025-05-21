@@ -88,7 +88,7 @@ namespace madEscape
             ctx.data().borders[0],
             Vector3{
                 0,
-                -consts::worldWidth / 2.f + consts::wallWidth / 2.f,
+                -consts::worldWidth / 2.f + consts::borderWidth / 2.f,
                 0,
             },
             Quat{1, 0, 0, 0},
@@ -97,7 +97,7 @@ namespace madEscape
             ResponseType::Static,
             Diag3x3{
                 consts::worldWidth,
-                consts::wallWidth,
+                consts::borderWidth,
                 2.f,
             });
 
@@ -107,7 +107,7 @@ namespace madEscape
             ctx,
             ctx.data().borders[1],
             Vector3{
-                consts::worldWidth / 2.f - consts::wallWidth / 2.f,
+                consts::worldWidth / 2.f - consts::borderWidth / 2.f,
                 0,
                 0,
             },
@@ -116,7 +116,7 @@ namespace madEscape
             EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
-                consts::wallWidth,
+                consts::borderWidth,
                 consts::worldWidth,
                 2.f,
             });
@@ -128,7 +128,7 @@ namespace madEscape
             ctx.data().borders[2],
             Vector3{
                 0,
-                consts::worldWidth / 2.f - consts::wallWidth / 2.f,
+                consts::worldWidth / 2.f - consts::borderWidth / 2.f,
                 0,
             },
             Quat{1, 0, 0, 0},
@@ -137,7 +137,7 @@ namespace madEscape
             ResponseType::Static,
             Diag3x3{
                 consts::worldWidth,
-                consts::wallWidth,
+                consts::borderWidth,
                 2.f,
             });
 
@@ -147,7 +147,7 @@ namespace madEscape
             ctx,
             ctx.data().borders[3],
             Vector3{
-                -consts::worldWidth / 2.f + consts::wallWidth / 2.f,
+                -consts::worldWidth / 2.f + consts::borderWidth / 2.f,
                 0,
                 0,
             },
@@ -156,7 +156,7 @@ namespace madEscape
             EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
-                consts::wallWidth,
+                consts::borderWidth,
                 consts::worldWidth,
                 2.f,
             });
@@ -211,7 +211,7 @@ namespace madEscape
         Border wall; // Which wall/border it's placed along
         
         Vector3 toVector3() const {
-            return Vector3{x, 0.0f, y};
+            return Vector3{x, y, 0.0f};
         }
     };
 
@@ -221,7 +221,7 @@ namespace madEscape
         Border wall; // Which wall/border it's placed along
         
         Vector3 toVector3() const {
-            return Vector3{x, 0.0f, y};
+            return Vector3{x, y, 0.0f};
         }
     };
 
@@ -347,7 +347,7 @@ namespace madEscape
         
         // Buffer from the wall to ensure the macguffin doesn't clip into the border
         // (Add a small margin to macguffin radius for safety)
-        float buffer = consts::macguffinRadius + consts::wallWidth + 0.5f;
+        float buffer = 2 * consts::macguffinRadius + consts::borderWidth;
         
         // Room boundaries accounting for the border walls
         float minX = -consts::worldWidth / 2.0f + buffer;
@@ -360,21 +360,22 @@ namespace madEscape
         float y = 0.0f;
         
         // Place the macguffin near the chosen border
+        float offset = randBetween(ctx, consts::minBorderSpawnBuffer, consts::maxBorderSpawnBuffer);
         switch (border) {
             case Border::Top: // Top border
                 x = randBetween(ctx, minX, maxX);
-                y = maxY - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = maxY - offset; // 0-3 units from the border
                 break;
             case Border::Right: // Right border
-                x = maxX - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                x = maxX - offset; // 0-3 units from the border
                 y = randBetween(ctx, minY, maxY);
                 break;
             case Border::Bottom: // Bottom border
                 x = randBetween(ctx, minX, maxX);
-                y = minY + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = minY + offset; // 0-3 units from the border
                 break;
             case Border::Left: // Left border
-                x = minX + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                x = minX + offset; // 0-3 units from the border
                 y = randBetween(ctx, minY, maxY);
                 break;
         }
@@ -388,7 +389,7 @@ namespace madEscape
         Border goalWall = static_cast<Border>((static_cast<int>(macguffinPlacement.wall) + 2) % 4);
         
         // Buffer from the wall to ensure the goal doesn't clip into the border
-        float buffer = consts::goalRadius + consts::wallWidth + 0.5f;
+        float buffer = 2 * consts::goalRadius + consts::borderWidth;
         
         // Room boundaries accounting for the border walls
         float minX = -consts::worldWidth / 2.0f + buffer;
@@ -401,21 +402,22 @@ namespace madEscape
         float y = 0.0f;
         
         // Place the goal near the chosen border
+        float offset = randBetween(ctx, consts::minBorderSpawnBuffer, consts::maxBorderSpawnBuffer);
         switch (goalWall) {
             case Border::Top: // Top border
                 x = randBetween(ctx, minX, maxX);
-                y = maxY - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = maxY - offset;
                 break;
             case Border::Right: // Right border
-                x = maxX - randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                x = maxX - offset;
                 y = randBetween(ctx, minY, maxY);
                 break;
             case Border::Bottom: // Bottom border
                 x = randBetween(ctx, minX, maxX);
-                y = minY + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                y = minY + offset;
                 break;
             case Border::Left: // Left border
-                x = minX + randBetween(ctx, 0.0f, 3.0f); // 0-3 units from the border
+                x = minX + offset;
                 y = randBetween(ctx, minY, maxY);
                 break;
         }
@@ -452,7 +454,7 @@ namespace madEscape
             
             // Wall size
             float wallLength = randBetween(ctx, 5.0f, 15.0f);
-            float wallWidth = consts::wallWidth;
+            float wallWidth = consts::borderWidth;
             
             // Determine wall position
             float x = 0.0f;
@@ -540,8 +542,8 @@ namespace madEscape
         float macguffinBuffer = consts::macguffinRadius + consts::movableObjectRadius + 1.0f;
         float goalBuffer = consts::goalRadius + consts::movableObjectRadius + 1.0f;
         float objectBuffer = consts::movableObjectRadius * 2.0f + 1.0f;
-        float wallBuffer = consts::wallWidth + consts::movableObjectRadius + 0.5f;
-        float borderBuffer = consts::wallWidth + consts::movableObjectRadius;
+        float wallBuffer = consts::borderWidth + consts::movableObjectRadius + 0.5f;
+        float borderBuffer = consts::borderWidth + consts::movableObjectRadius;
         
         // Adjusted room boundaries accounting for border walls
         float adjustedMinX = minX + borderBuffer;
@@ -643,10 +645,10 @@ namespace madEscape
         // Buffers to keep ants from overlapping
         float macguffinBuffer = consts::macguffinRadius + consts::antRadius + 0.5f;
         float goalBuffer = consts::goalRadius + consts::antRadius + 0.5f;
-        float wallBuffer = consts::wallWidth + consts::antRadius + 0.2f;
+        float wallBuffer = consts::borderWidth + consts::antRadius + 0.2f;
         float objectBuffer = consts::movableObjectRadius + consts::antRadius + 0.5f;
         float antBuffer = consts::antRadius * 2.0f + 0.2f;
-        float borderBuffer = consts::wallWidth + consts::antRadius;
+        float borderBuffer = consts::borderWidth + consts::antRadius;
         
         // Adjusted room boundaries accounting for border walls
         float adjustedMinX = minX + borderBuffer;

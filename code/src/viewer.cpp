@@ -5,6 +5,7 @@
 #include "sim.hpp"
 #include "mgr.hpp"
 #include "types.hpp"
+#include "consts.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -90,9 +91,9 @@ int main(int argc, char *argv[])
         .extRenderDev = render_gpu.device(),
     });
 
-    float camera_move_speed = 10.f;
-
-    math::Vector3 initial_camera_position = { 0, consts::worldLength / 2.f, 30 };
+    float camera_move_speed = 30.f;
+    float camera_height = fmax(consts::worldWidth, consts::worldLength);
+    math::Vector3 initial_camera_position = { 0, 0, camera_height};
 
     // Top-down view for the ant colony
     math::Quat initial_camera_rotation =

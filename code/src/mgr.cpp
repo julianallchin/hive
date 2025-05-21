@@ -408,7 +408,8 @@ namespace madEscape
 
         setupHull(SimObject::Goal, 0.f, {
                                             // Goal has no mass, it's just visual            .muS = 0.0f,
-            .muD = 0.0f,
+            .muS = 0.0f,
+            .muD = 0.0f
         });
 
         SourceCollisionPrimitive plane_prim{
