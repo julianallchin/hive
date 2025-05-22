@@ -123,10 +123,6 @@ int main(int argc, char *argv[])
         printf("Step: %u\n", cur_replay_step);
         
         for (uint32_t i = 0; i < num_worlds; i++) {
-            // Get the actual number of ants in this world from the ant count tensor
-            // TODO: fix this
-            // Keep hardcoded for now, but skip the assertion
-            int32_t num_ants = 10; // Hardcoded as in headless.cpp
             
             assert(num_ants > 0);
             
@@ -270,8 +266,8 @@ int main(int argc, char *argv[])
         mgr.step();
         
         // Uncomment to see ant observations and rewards during simulation
-        //printObs();
+        // printObs();
 
-        //printObs();
+        // printObs();
     }, []() {});
 }
