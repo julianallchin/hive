@@ -14,6 +14,8 @@
 #include <fstream>
 #include <string>
 
+#include <iostream>
+
 #ifdef MADRONA_CUDA_SUPPORT
 #include <madrona/mw_gpu.hpp>
 #include <madrona/cuda_utils.hpp>
@@ -589,6 +591,38 @@ namespace madEscape
 
             Action *agent_actions_buffer =
                 (Action *)cpu_exec.getExported((uint32_t)ExportID::Action);
+
+            std::cout << "Exported Pointers:" << std::endl;
+
+            // TODO: remove
+            auto exportIDToString = [](ExportID id) -> std::string {
+            switch (id) {
+                case ExportID::Reset:           return "Reset";
+                case ExportID::NumAnts:         return "NumAnts";
+                case ExportID::Action:          return "Action";
+                case ExportID::Reward:          return "Reward";
+                case ExportID::Done:            return "Done";
+                case ExportID::Observation:     return "Observation";
+                case ExportID::Lidar:           return "Lidar";
+                case ExportID::StepsRemaining:  return "StepsRemaining";
+                // NumExports is typically not an ID you'd request a pointer for.
+                case ExportID::NumExports:      return "NumExports (Count)";
+                default: {
+                    // Handle unknown or future additions if necessary
+                    return "UnknownExportID_" + std::to_string(static_cast<uint32_t>(id));
+                }
+            }
+        };
+            // Iterate through all ExportID values up to NumExports
+            // Note: NumExports itself is usually a count and not an ID to be exported.
+            // We iterate from 0 up to the integer value of NumExports.
+            for (uint32_t i = 0; i < static_cast<uint32_t>(ExportID::NumExports); ++i) {
+                ExportID current_id = static_cast<ExportID>(i);
+                void* exported_ptr = cpu_exec.getExported(static_cast<uint32_t>(current_id));
+
+                std::cout << "  " << exportIDToString(current_id) << " (" << i << "): "
+                        << exported_ptr << std::endl;
+            }            
 
             auto cpu_impl = new CPUImpl{
                 mgr_cfg,

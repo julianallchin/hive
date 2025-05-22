@@ -7,7 +7,7 @@ namespace madEscape {
 namespace consts {
 // Ant population constraints
 inline constexpr madrona::CountT minAnts = 0;     // Minimum number of ants
-inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
+inline constexpr madrona::CountT maxAnts = 1;    // Maximum number of ants
 
 // Movable objects constraints
 inline constexpr madrona::CountT minMovableObjects = 0;  // Minimum number of movable objects

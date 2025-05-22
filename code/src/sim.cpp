@@ -4,6 +4,7 @@
 #include "level_gen.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 using namespace madrona;
 using namespace madrona::math;
@@ -151,6 +152,7 @@ namespace madEscape
     // If a reset is needed, cleanup the existing world and generate a new one.
     inline void resetSystem(Engine &ctx, WorldReset &reset)
     {
+        std::cout << "resetSys: WorldReset: " << static_cast<void *>(&reset) << std::endl;
         int32_t should_reset = reset.reset;
         if (ctx.data().autoReset)
         {
@@ -179,6 +181,8 @@ inline void antMovementSystem(Engine &_,
                               ExternalForce &external_force,
                               ExternalTorque &external_torque)
 {
+    std::cout << "moveSys: Action: " << static_cast<void *>(&action) << std::endl;
+
     constexpr float move_max = 1000;
     constexpr float turn_max = 320;
 
@@ -281,8 +285,9 @@ inline void antGrabSystem(Engine &ctx,
 // after each step.
 inline void antZeroVelSystem(Engine &,
                              Velocity &vel,
-                             Action &)
+                             Action & action)
 {
+    std::cout << "zeroVelSys: Action: " << static_cast<void *>(&action) << std::endl;
     vel.linear.x = 0;
     vel.linear.y = 0;
     vel.linear.z = fminf(vel.linear.z, 0);
@@ -304,6 +309,9 @@ static inline float globalPosObs(float v)
 // and goal achievement.
 inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, StepsRemaining &steps)
 {
+    std::cout << "rewardSys: HiveReward: " << static_cast<void *>(&reward) << std::endl;
+    std::cout << "rewardSys: HiveDone: " << static_cast<void *>(&done) << std::endl;
+    std::cout << "rewardSys: StepsRemaining: " << static_cast<void *>(&steps) << std::endl;
     // If done, don't update reward
     if (done.v == 1)
     {
@@ -395,7 +403,7 @@ inline void collectAntObservationsSystem(Engine &ctx,
                                          const GrabState &grab,
                                          Observation &ant_obs)
 {
-
+    std::cout << "observationSys: Observation: " << static_cast<void *>(&ant_obs) << std::endl;
     // Self state observations
     ant_obs.global_x = globalPosObs(pos.x);
     ant_obs.global_y = globalPosObs(pos.y);
@@ -434,6 +442,7 @@ inline void lidarSystem(Engine &ctx,
                         Entity e,
                         Lidar &lidar)
 {
+    std::cout << "lidarSys: Lidar: " << static_cast<void *>(&lidar) << std::endl;
     Vector3 pos = ctx.get<Position>(e);
     Quat rot = ctx.get<Rotation>(e);
     auto &bvh = ctx.singleton<broadphase::BVH>();
@@ -504,6 +513,8 @@ inline void stepTrackerSystem(Engine &,
                               StepsRemaining &steps_remaining,
                               HiveDone &done)
 {
+    std::cout << "stepSys: StepsRemaining: " << static_cast<void *>(&steps_remaining) << std::endl;
+    std::cout << "stepSys: HiveDone: " << static_cast<void *>(&done) << std::endl;
     int32_t num_remaining = --steps_remaining.t;
     if (num_remaining ==  - 1)
     {
