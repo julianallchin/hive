@@ -311,12 +311,12 @@ namespace madEscape
     Entity createAnt(Engine &ctx, const AntPlacement &placement, CountT index)
     {
         Entity ant = ctx.makeRenderableEntity<Ant>();
-        // if (ctx.data().enableRender) {
-        //     render::RenderingSystem::attachEntityToView(ctx,
-        //                                                ant,
-        //                                                100.f, 0.001f,
-        //                                                0.5f * math::up);
-        // }
+        if (ctx.data().enableRender) {
+            render::RenderingSystem::attachEntityToView(ctx,
+                                                       ant,
+                                                       100.f, 0.001f,
+                                                       0.5f * math::up);
+        }
 
         // rigidbody including: pos, rot, scale, obj_id, vel, response_type, force, torque, entity_type
         setupRigidBodyEntity(

@@ -140,8 +140,8 @@ namespace madEscape
                      Action,
 
                      // Rendering
-                     madrona::render::Renderable
-                    //  madrona::render::RenderCamera, // Optional: if wanting per-ant camera views
+                     madrona::render::Renderable,
+                     madrona::render::RenderCamera // Optional: if wanting per-ant camera views
                      >
     {
     };
