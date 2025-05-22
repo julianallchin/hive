@@ -347,7 +347,7 @@ namespace madEscape
         ctx.get<GrabState>(ant).constraintEntity = Entity::none();
         // no need to init Lidar or Observation; they're set during simulation
         ctx.get<Action>(ant) = Action {
-            .moveAmount = 1,
+            .moveAmount = 0,
             .moveAngle = 0,
             .rotate = consts::numTurnBuckets / 2,
             .grab = 0,

@@ -4,7 +4,6 @@
 #include "level_gen.hpp"
 
 #include <algorithm>
-#include <iostream>
 
 using namespace madrona;
 using namespace madrona::math;
@@ -70,7 +69,6 @@ namespace madEscape
 
     static inline void cleanupWorld(Engine &ctx)
     {
-        std::cout << "Cleaning world!!!!!! Byebyebye!!!!!" << std::endl;
         // Clean up macguffin
         if (ctx.data().macguffin != Entity::none())
         {
@@ -156,7 +154,6 @@ namespace madEscape
     // If a reset is needed, cleanup the existing world and generate a new one.
     inline void resetSystem(Engine &ctx, WorldReset &reset)
     {
-        std::cout << "reset system!" << std::endl << std::endl;
         int32_t should_reset = reset.reset;
         if (ctx.data().autoReset)
         {
@@ -184,7 +181,6 @@ inline void antMovementSystem(Engine &_,
                               ExternalForce &external_force,
                               ExternalTorque &external_torque)
 {
-    std::cout << "move system!" << std::endl;
     constexpr float move_max = 1000;
     constexpr float turn_max = 320;
 
@@ -219,7 +215,6 @@ inline void antGrabSystem(Engine &ctx,
                           Action action,
                           GrabState &grab)
 {
-    std::cout << "grab system!" << std::endl;
     if (action.grab == 0)
     {
         return;
@@ -290,7 +285,6 @@ inline void antZeroVelSystem(Engine &,
                              Velocity &vel,
                              Action &)
 {
-    std::cout << "zeroVel system!" << std::endl;
     vel.linear.x = 0;
     vel.linear.y = 0;
     vel.linear.z = fminf(vel.linear.z, 0);
@@ -312,7 +306,6 @@ static inline float globalPosObs(float v)
 // and goal achievement.
 inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, StepsRemaining &steps)
 {
-    std::cout << "reward system!" << std::endl;
     // If done, don't update reward
     if (done.v == 1)
     {
@@ -352,16 +345,11 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
 
     // Total reward for this step
     reward.v = step_reward + goal_reward + exist_penalty;
-    std::cout << "Reward: " << reward.v << std::endl;
 
     // If steps remaining is zero, mark as done
     if (--steps.t <= 0)
     {
         done.v = 1;
-    }
-
-    if (done.v == 1) {
-        std::cout << "DONE DONE DONE DONE!!!!!!!!!!!!!!!" << std::endl;
     }
 
     // Store current distance for next step
@@ -518,7 +506,6 @@ inline void stepTrackerSystem(Engine &,
                               StepsRemaining &steps_remaining,
                               HiveDone &done)
 {
-    std::cout << "stepTracker system!" << std::endl;
     int32_t num_remaining = --steps_remaining.t;
     if (num_remaining ==  - 1)
     {
