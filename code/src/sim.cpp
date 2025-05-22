@@ -35,9 +35,6 @@ namespace madEscape
 
         // Register singleton components
         registry.registerSingleton<WorldReset>();
-        registry.registerSingleton<HiveReward>();
-        registry.registerSingleton<HiveDone>();
-        registry.registerSingleton<StepsRemaining>();
         registry.registerSingleton<NumAnts>();
 
         // Register archetypes
@@ -51,19 +48,19 @@ namespace madEscape
         // Export interfaces for Python training code
         registry.exportSingleton<WorldReset>(
             (uint32_t)ExportID::Reset);
+        registry.exportSingleton<NumAnts>(
+            (uint32_t)ExportID::NumAnts);
         registry.exportColumn<Ant, Action>(
             (uint32_t)ExportID::Action);
-        registry.exportSingleton<HiveReward>(
+        registry.exportColumn<LevelState, HiveReward>(
             (uint32_t)ExportID::Reward);
-        registry.exportSingleton<HiveDone>(
+        registry.exportColumn<LevelState, HiveDone>(
             (uint32_t)ExportID::Done);
         registry.exportColumn<Ant, Observation>(
             (uint32_t)ExportID::Observation);
         registry.exportColumn<Ant, Lidar>(
             (uint32_t)ExportID::Lidar);
-        registry.exportSingleton<NumAnts>(
-            (uint32_t)ExportID::NumAnts);
-        registry.exportSingleton<StepsRemaining>(
+        registry.exportColumn<LevelState, StepsRemaining>(
             (uint32_t)ExportID::StepsRemaining);
     }
 

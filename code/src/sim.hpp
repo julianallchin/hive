@@ -22,12 +22,12 @@ enum class TaskGraphID : uint32_t {
 // for each component exported to the training code.
 enum class ExportID : uint32_t {
     Reset,
+    NumAnts,
     Action,
     Reward,
     Done,
     Observation,
     Lidar,
-    NumAnts,
     StepsRemaining,
     NumExports,
 };

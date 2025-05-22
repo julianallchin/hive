@@ -101,25 +101,21 @@ namespace madEscape
         NumTypes,
     };
 
-    // Singleton component for the hive's collective reward.
     struct HiveReward
     {
         float v;
     };
 
-    // Singleton component indicating if the hive's episode is done.
     struct HiveDone
     {
         int32_t v; // 1 if done, 0 otherwise
     };
 
-    // Singleton component tracking steps remaining in the global episode.
     struct StepsRemaining
     {
         int32_t t;
     };
     
-    // Singleton component for tracking the number of active ants per world
     struct NumAnts
     {
         int32_t count;
