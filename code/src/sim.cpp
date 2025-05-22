@@ -693,7 +693,7 @@ Sim::Sim(Engine &ctx,
 
     // Initialize physics system with no gravity
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
-                              consts::deltaT, consts::numPhysicsSubsteps, {0.f, 0.f, 0.f},
+                              consts::deltaT, consts::numPhysicsSubsteps, -consts::gravity * math::up,
                             max_total_entities);
 
     initRandKey = cfg.initRandKey;

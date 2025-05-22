@@ -33,7 +33,7 @@ inline constexpr float distanceRewardScale = 0.1f;
 // Reward for successfully moving macguffin to goal
 inline constexpr float goalReward = 1.0f;
 // Small existential penalty per timestep
-inline constexpr float existentialPenalty = -0.01f;
+inline constexpr float existentialPenalty = -0.001f;
 
 // Steps per episode
 inline constexpr int32_t episodeLen = 300;  // Longer episodes for the hive task
@@ -59,6 +59,8 @@ inline constexpr float deltaT = 0.04f;
 
 // Number of physics substeps
 inline constexpr madrona::CountT numPhysicsSubsteps = 4.f;
+
+inline constexpr float gravity = 9.8f; // positive values give downward gravity
 
 // Maximum number of attempts for random object placement
 inline constexpr int maxWallPlacementAttempts = 30;
