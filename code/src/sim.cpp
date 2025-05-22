@@ -262,7 +262,7 @@ inline void antGrabSystem(Engine &ctx,
     Quat other_rot = ctx.get<Rotation>(grab_entity);
 
     // Use a shorter reach for ants
-    Vector3 r1 = 0.25f * math::fwd + 0.25f * math::up;
+    Vector3 r1 = consts::grabRange * math::fwd + consts::grabRange * math::up;
 
     Vector3 hit_pos = ray_o + ray_d * hit_t;
     Vector3 r2 =
