@@ -82,7 +82,8 @@ int main(int argc, char *argv[])
         .gpuID = 0,
         .numWorlds = num_worlds,
         .randSeed = 5,
-        .autoReset = replay_log.has_value(),
+        // .autoReset = replay_log.has_value(),
+        .autoReset = true,
 
         .minAntsRand = num_ants,
         .maxAntsRand = num_ants,

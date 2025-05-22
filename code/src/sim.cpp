@@ -158,7 +158,8 @@ namespace madEscape
         if (ctx.data().autoReset)
         {
             // Check if the hive's episode is done
-            HiveDone &done = ctx.singleton<HiveDone>();
+            HiveDone &done = ctx.get<HiveDone>(ctx.data().levelState);
+            // HiveDone &done = ctx.singleton<HiveDone>(); // This doesn't work for some reason!
             if (done.v == 1)
             {
                 should_reset = 1;
