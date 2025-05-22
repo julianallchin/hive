@@ -110,7 +110,6 @@ struct Sim : public madrona::WorldBase {
     uint32_t maxMovableObjectsRand;
     uint32_t minWallsRand;
     uint32_t maxWallsRand;
-    uint32_t maxSteps;
 
     // Floor plane entity, constant across all episodes.
     Entity floorPlane; // persistent
@@ -137,7 +136,9 @@ struct Sim : public madrona::WorldBase {
     Entity walls[consts::maxWalls];
     size_t numWalls;
 
-    float prevDist;
+    Entity levelState;
+    float prevDist; // used to calculate reward (distance between macguffin and goal)
+    float startingDist; // used to calculate reward (dist btwn macguff and goal)
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {

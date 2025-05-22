@@ -4,6 +4,7 @@
 #include "level_gen.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 using namespace madrona;
 using namespace madrona::math;
@@ -46,6 +47,7 @@ namespace madEscape
         registry.registerArchetype<Goal>();
         registry.registerArchetype<PhysicsEntity>();
         registry.registerArchetype<MovableObject>();
+        registry.registerArchetype<LevelState>();
 
         // Export interfaces for Python training code
         registry.exportSingleton<WorldReset>(
@@ -68,6 +70,7 @@ namespace madEscape
 
     static inline void cleanupWorld(Engine &ctx)
     {
+        std::cout << "Cleaning world!!!!!! Byebyebye!!!!!" << std::endl;
         // Clean up macguffin
         if (ctx.data().macguffin != Entity::none())
         {
@@ -111,6 +114,9 @@ namespace madEscape
                 ctx.destroyRenderableEntity(ctx.data().walls[i]);
             }
         }
+
+        // Clean up level state
+        ctx.destroyEntity(ctx.data().levelState); // not renderable, so don't use destroyRenderableEntity
     }
 
     static inline int32_t uniformInt(Engine &ctx, int32_t min, int32_t max)
@@ -126,16 +132,8 @@ namespace madEscape
         ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
                                         ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
 
-        // Initialize singletons
-        ctx.data().maxSteps = consts::episodeLen;
         ctx.data().prevDist = -1.0f; // negative to indicate needs initialization; done below in hiveRewardSystem
-
-        // Initialize hive reward and done state
-        ctx.singleton<HiveReward>().v = 0.0f;
-        ctx.singleton<HiveDone>().v = 0;
-
-        // Set steps remaining to max episode length
-        ctx.singleton<StepsRemaining>().t = ctx.data().maxSteps;
+        ctx.data().startingDist = -1.0f;
 
         // Randomly determine the number of ants for this episode - using the values from Sim struct
         // These values were stored from the Config in the Sim constructor
@@ -158,6 +156,7 @@ namespace madEscape
     // If a reset is needed, cleanup the existing world and generate a new one.
     inline void resetSystem(Engine &ctx, WorldReset &reset)
     {
+        std::cout << "reset system!" << std::endl << std::endl;
         int32_t should_reset = reset.reset;
         if (ctx.data().autoReset)
         {
@@ -185,6 +184,7 @@ inline void antMovementSystem(Engine &_,
                               ExternalForce &external_force,
                               ExternalTorque &external_torque)
 {
+    std::cout << "move system!" << std::endl;
     constexpr float move_max = 1000;
     constexpr float turn_max = 320;
 
@@ -219,6 +219,7 @@ inline void antGrabSystem(Engine &ctx,
                           Action action,
                           GrabState &grab)
 {
+    std::cout << "grab system!" << std::endl;
     if (action.grab == 0)
     {
         return;
@@ -289,6 +290,7 @@ inline void antZeroVelSystem(Engine &,
                              Velocity &vel,
                              Action &)
 {
+    std::cout << "zeroVel system!" << std::endl;
     vel.linear.x = 0;
     vel.linear.y = 0;
     vel.linear.z = fminf(vel.linear.z, 0);
@@ -310,6 +312,7 @@ static inline float globalPosObs(float v)
 // and goal achievement.
 inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, StepsRemaining &steps)
 {
+    std::cout << "reward system!" << std::endl;
     // If done, don't update reward
     if (done.v == 1)
     {
@@ -329,17 +332,19 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
     if (ctx.data().prevDist < 0)
     {
         ctx.data().prevDist = dist;
+        ctx.data().startingDist = dist;
     }
 
     // Step reward based on distance reduction
-    float step_reward = consts::distanceRewardScale * (ctx.data().prevDist - dist);
+    // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
+    float step_reward = consts::distanceRewardScale * (ctx.data().prevDist - dist) / ctx.data().startingDist;
 
     // Goal reward if close enough
     float goal_reward = 0.0f;
     if (dist <= consts::goalDistanceThreshold)
     {
         goal_reward = consts::goalReward;
-        done.v = 1; // Episode complete on goal achievement
+        done.v = 1; // Episode complete on goal achievement"
     }
 
     // Existential penalty per timestep
@@ -347,11 +352,16 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
 
     // Total reward for this step
     reward.v = step_reward + goal_reward + exist_penalty;
+    std::cout << "Reward: " << reward.v << std::endl;
 
     // If steps remaining is zero, mark as done
     if (--steps.t <= 0)
     {
         done.v = 1;
+    }
+
+    if (done.v == 1) {
+        std::cout << "DONE DONE DONE DONE!!!!!!!!!!!!!!!" << std::endl;
     }
 
     // Store current distance for next step
@@ -508,6 +518,7 @@ inline void stepTrackerSystem(Engine &,
                               StepsRemaining &steps_remaining,
                               HiveDone &done)
 {
+    std::cout << "stepTracker system!" << std::endl;
     int32_t num_remaining = --steps_remaining.t;
     if (num_remaining ==  - 1)
     {

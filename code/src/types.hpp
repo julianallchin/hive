@@ -127,6 +127,13 @@ namespace madEscape
 
     /* ECS Archetypes */
 
+    struct LevelState : public madrona::Archetype<
+                    HiveReward,
+                    HiveDone,
+                    StepsRemaining>
+    {
+    };
+
     // Archetype for Ants
     struct Ant : public madrona::Archetype<
                      // Physics components

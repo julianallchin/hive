@@ -33,7 +33,7 @@ inline constexpr float distanceRewardScale = 0.1f;
 // Reward for successfully moving macguffin to goal
 inline constexpr float goalReward = 1.0f;
 // Small existential penalty per timestep
-inline constexpr float existentialPenalty = -1.0f;
+inline constexpr float existentialPenalty = -0.01f;
 
 // Steps per episode
 inline constexpr int32_t episodeLen = 300;  // Longer episodes for the hive task

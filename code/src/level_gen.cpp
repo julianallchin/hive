@@ -225,6 +225,17 @@ namespace madEscape
         }
     };
 
+    static Entity createLevelState(Engine &ctx)
+    {
+        Entity levelState = ctx.makeEntity<LevelState>();
+        ctx.get<HiveReward>(levelState) = {0.0f};
+        ctx.get<HiveDone>(levelState) = {0}; // not done
+        ctx.get<StepsRemaining>(levelState) = {consts::episodeLen};
+
+        ctx.data().levelState = levelState;
+        return levelState;
+    }
+
 
     // Creates the macguffin (object that ants need to move)
     static Entity createMacguffin(Engine &ctx, MacguffinPlacement placement)
@@ -336,7 +347,7 @@ namespace madEscape
         ctx.get<GrabState>(ant).constraintEntity = Entity::none();
         // no need to init Lidar or Observation; they're set during simulation
         ctx.get<Action>(ant) = Action {
-            .moveAmount = 0,
+            .moveAmount = 1,
             .moveAngle = 0,
             .rotate = consts::numTurnBuckets / 2,
             .grab = 0,
@@ -769,6 +780,8 @@ namespace madEscape
     void generateWorld(Engine &ctx)
     {
         resetPersistentEntities(ctx);
+
+        createLevelState(ctx);
 
         // Place macguffin first
         const auto &macguffinPlacement = determineMacguffinPlacement(ctx);
