@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
         .execMode = exec_mode,
         .gpuID = 0,
         .numWorlds = num_worlds,
-        .randSeed = 5,
+        .randSeed = 6,
         // .autoReset = replay_log.has_value(),
         .autoReset = true,
 

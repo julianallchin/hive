@@ -4,6 +4,7 @@
 #include "level_gen.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 using namespace madrona;
 using namespace madrona::math;
@@ -229,7 +230,7 @@ inline void antMovementSystem(Engine &ctx,
     constexpr float move_max = 1000;
     constexpr float turn_max = 320;
 
-    Action = generateRandomAction(ctx, action); // TODO: take this out before we train lol
+    action = generateRandomAction(ctx, action); // TODO: take this out before we train lol
 
     Quat cur_rot = rot;
 
@@ -554,6 +555,7 @@ inline void stepTrackerSystem(Engine &,
                               HiveDone &done)
 {
     int32_t num_remaining = --steps_remaining.t;
+    std::cout << "Steps Remaining: " << num_remaining << std::endl;
     if (num_remaining ==  - 1)
     {
         done.v = 0;

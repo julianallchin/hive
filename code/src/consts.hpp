@@ -21,13 +21,13 @@ inline constexpr madrona::CountT maxWalls = 1;   // Maximum number of interior w
 inline constexpr float worldLength = 40.f;
 inline constexpr float worldWidth = 40.f;
 inline constexpr float borderWidth = 1.f;
-inline constexpr float minBorderSpawnBuffer = 0.0f;
-inline constexpr float maxBorderSpawnBuffer = 3.0f;
+inline constexpr float minBorderSpawnBuffer = 5.0f;
+inline constexpr float maxBorderSpawnBuffer = 10.0f;
 inline constexpr float antRadius = 0.1f;
 inline constexpr float grabRange = 0.1f;
 inline constexpr float macguffinRadius = 1.f;
 inline constexpr float movableObjectRadius = 1.f;
-inline constexpr float goalRadius = 1.5f;
+inline constexpr float goalRadius = 3.0f;
 
 // Reward for decreasing distance between macguffin and goal
 inline constexpr float distanceRewardScale = 0.1f;
@@ -37,7 +37,7 @@ inline constexpr float goalReward = 1.0f;
 inline constexpr float existentialPenalty = -0.001f;
 
 // Steps per episode
-inline constexpr int32_t episodeLen = 300;  // Longer episodes for the hive task
+inline constexpr int32_t episodeLen = 1500;  // Longer episodes for the hive task
 
 // Default values for curriculum learning
 inline constexpr uint32_t defaultAnts = 20;             // Start with fewer ants
@@ -45,7 +45,7 @@ inline constexpr uint32_t defaultMovableObjects = 0;    // Start with no movable
 inline constexpr uint32_t defaultWalls = 0;            // Start with no interior walls
 
 // Distance threshold for considering macguffin at goal
-inline constexpr float goalDistanceThreshold = 2.0f;
+inline constexpr float goalDistanceThreshold = 1.0f;
 
 // How many discrete options for actions
 inline constexpr madrona::CountT numMoveAmountBuckets = 4;

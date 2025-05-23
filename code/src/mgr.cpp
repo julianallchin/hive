@@ -394,7 +394,7 @@ namespace madEscape
             .muD = 0.5f,
         });
 
-        setupHull(SimObject::Macguffin, 0.03f, {
+        setupHull(SimObject::Macguffin, 0.01f, {
                                                    // Macguffin is harder to move, meant for multiple ants
                                                    .muS = 0.6f,
                                                    .muD = 0.7f,
