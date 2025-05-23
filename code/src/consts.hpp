@@ -18,21 +18,21 @@ inline constexpr madrona::CountT minWalls = 0;   // Minimum number of interior w
 inline constexpr madrona::CountT maxWalls = 1;   // Maximum number of interior walls
 
 // world/borders
-inline constexpr float worldLength = 100.f;
-inline constexpr float worldWidth = 100.f;
+inline constexpr float worldLength = 50.0f;
+inline constexpr float worldWidth = 50.0f;
 inline constexpr float borderWidth = 0.5f;
 inline constexpr float borderHeight = 2.0f;
 inline constexpr float minBorderSpawnBuffer = 0.0f;
 inline constexpr float maxBorderSpawnBuffer = 0.0f;
 inline constexpr int maxWallPlacementAttempts = 30;
 // ants
-inline constexpr float antSize = 0.5f;
+inline constexpr float antSize = 1.0f;
 inline constexpr float grabRange = 0.1f;
 inline constexpr float antMacguffinBuffer = 0.0f;
 inline constexpr float antMovableObjectBuffer = 0.0f;
 inline constexpr float antWallBuffer = 0.0f;
 inline constexpr float antAntBuffer = 0.0f;
-inline constexpr int maxAntPlacementAttemptsPerAnt = 1000;
+inline constexpr int maxAntPlacementAttemptsPerAnt = 30;
 inline constexpr float antInverseMass = 1.0f;
 // macguffin
 inline constexpr float macguffinSize = 4.0f;
