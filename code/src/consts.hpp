@@ -5,6 +5,7 @@
 namespace madEscape {
 
 namespace consts {
+inline constexpr bool overrideActionsWithRandom = true;
 // Ant population constraints
 inline constexpr madrona::CountT minAnts = 0;     // Minimum number of ants
 inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
@@ -21,7 +22,7 @@ inline constexpr madrona::CountT maxWalls = 5;   // Maximum number of interior w
 inline constexpr float worldLength = 50.0f;
 inline constexpr float worldWidth = 100.0f;
 inline constexpr float borderWidth = 0.5f;
-inline constexpr float borderHeight = 2.0f;
+inline constexpr float borderHeight = 5.0f;
 inline constexpr float minBorderSpawnBuffer = 3.0f;
 inline constexpr float maxBorderSpawnBuffer = 6.0f;
 inline constexpr int maxWallPlacementAttempts = 30;
@@ -36,7 +37,7 @@ inline constexpr int maxAntPlacementAttemptsPerAnt = 30;
 inline constexpr float antInverseMass = 1.0f;
 // macguffin
 inline constexpr float macguffinSize = 4.0f;
-inline constexpr float macguffinInverseMass = 0.1f;
+inline constexpr float macguffinInverseMass = 0.025f;
 // goal
 inline constexpr float goalSize = 4.0f;
 // internal walls
@@ -54,9 +55,10 @@ inline constexpr float movableObjectObjectBuffer = 1.0f;
 inline constexpr float movableObjectSize = 2.0f; // default 2x2x2
 inline constexpr float movableObjectMinScale = 0.5f; // random scaling factor on top of default
 inline constexpr float movableObjectMaxScale = 2.0f; // random scaling factor on top of default
-inline constexpr float movableObjectInverseMass = 0.3f;
+inline constexpr float movableObjectInverseMass = 0.05f;
 
-// mesh default values (when an object is created, its true size is the scale param * default mesh size)
+// mesh default values
+// (when an object is created, its true size is the scale param * default mesh size)
 // don't touch these unless you use different meshes (ie .obj files)
 inline constexpr float macguffinMeshSize = 2.0f;
 inline constexpr float goalMeshSize = 2.0f;
@@ -102,7 +104,7 @@ inline constexpr float deltaT = 0.04f;
 // Number of physics substeps
 inline constexpr madrona::CountT numPhysicsSubsteps = 4.f;
 
-inline constexpr float gravity = 0.0f;//9.8f; // positive values give downward gravity
+inline constexpr float gravity = 9.8f; // positive values give downward gravity
 
 }
 
