@@ -723,7 +723,6 @@ namespace madEscape
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAnts,
                                        1,
                                    });
     }
