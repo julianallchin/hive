@@ -204,7 +204,6 @@ namespace madEscape
         float angle;
     };
     
-    // Structure to hold macguffin or goal placement information
     struct MacguffinPlacement {
         float x;
         float y;
@@ -229,7 +228,7 @@ namespace madEscape
     {
         Entity levelState = ctx.makeEntity<LevelState>();
         ctx.get<HiveReward>(levelState) = {0.0f};
-        ctx.get<HiveDone>(levelState) = {0}; // not done
+        ctx.get<HiveDone>(levelState) = {0}; // 0 = not done
         ctx.get<StepsRemaining>(levelState) = {consts::episodeLen};
 
         ctx.data().levelState = levelState;
@@ -772,7 +771,7 @@ namespace madEscape
     }
 
 
-    // Generate the hive simulation world
+    // Generate the hive simulation world. called each episode.
     void generateWorld(Engine &ctx)
     {
         resetPersistentEntities(ctx);
