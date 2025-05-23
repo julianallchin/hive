@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <vector>
-#include <iostream>
 
 namespace madEscape
 {
@@ -699,7 +698,6 @@ namespace madEscape
                 if (std::abs(x - macguffinPlacement.x) < (consts::antSize / 2.0f + consts::macguffinSize / 2.0f + consts::antMacguffinBuffer) &&
                     std::abs(y - macguffinPlacement.y) < (consts::antSize / 2.0f + consts::macguffinSize / 2.0f + consts::antMacguffinBuffer)) {
                     overlapsWithMacguffin = true;
-                    break;
                 }
                 
                 if (overlapsWithMacguffin) {
@@ -770,7 +768,6 @@ namespace madEscape
             }
         }
         ctx.singleton<NumAnts>().count = antPlacements.size();
-        std::cout << "Spawns in ants. Created: " << antPlacements.size() << std::endl;
         return antPlacements;
     }
 
