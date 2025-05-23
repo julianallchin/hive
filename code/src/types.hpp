@@ -101,9 +101,15 @@ namespace madEscape
         NumTypes,
     };
 
-    struct HiveReward
+    struct Reward
     {
         float v;
+    };
+
+    struct RewardHelperVars
+    {
+        float prev_dist;
+        float original_dist;
     };
 
     struct HiveDone
@@ -124,7 +130,8 @@ namespace madEscape
     /* ECS Archetypes */
 
     struct LevelState : public madrona::Archetype<
-                    HiveReward,
+                    Reward,
+                    RewardHelperVars,
                     HiveDone,
                     StepsRemaining>
     {

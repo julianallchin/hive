@@ -26,7 +26,8 @@ namespace madEscape
         // Register individual components
         registry.registerComponent<Action>();
         registry.registerComponent<Observation>();
-        registry.registerComponent<HiveReward>();
+        registry.registerComponent<Reward>();
+        registry.registerComponent<RewardHelperVars>();
         registry.registerComponent<HiveDone>();
         registry.registerComponent<GrabState>();
         registry.registerComponent<Lidar>();
@@ -52,7 +53,7 @@ namespace madEscape
             (uint32_t)ExportID::NumAnts);
         registry.exportColumn<Ant, Action>(
             (uint32_t)ExportID::Action);
-        registry.exportColumn<LevelState, HiveReward>(
+        registry.exportColumn<LevelState, Reward>(
             (uint32_t)ExportID::Reward);
         registry.exportColumn<LevelState, HiveDone>(
             (uint32_t)ExportID::Done);
@@ -126,9 +127,6 @@ namespace madEscape
         // Assign a new episode ID and update RNG
         ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
                                         ctx.data().curWorldEpisode++, (uint32_t)ctx.worldID().idx));
-
-        ctx.data().prevDist = -1.0f; // negative to indicate needs initialization; done below in hiveRewardSystem
-        ctx.data().startingDist = -1.0f;
 
         // Randomly determine the number of ants for this episode - using the values from Sim struct
         // These values were stored from the Config in the Sim constructor
@@ -353,7 +351,7 @@ static inline float globalPosObs(float v)
 
 // Computes the collective reward for the hive based on macguffin movement toward goal
 // and goal achievement.
-inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, StepsRemaining &steps)
+inline void RewardSystem(Engine &ctx, Reward &reward, RewardHelperVars &rewardHelper, HiveDone &done, StepsRemaining &steps)
 {
     // If done, don't update reward
     if (done.v == 1)
@@ -371,15 +369,15 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
     float dist = (goal_pos_2d - macguffin_pos_2d).length();
 
     // First time initialization
-    if (ctx.data().prevDist < 0)
+    if (rewardHelper.prev_dist < 0)
     {
-        ctx.data().prevDist = dist;
-        ctx.data().startingDist = dist;
+        rewardHelper.prev_dist = dist;
+        rewardHelper.original_dist = dist;
     }
 
     // Step reward based on distance reduction
     // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
-    float step_reward = consts::distanceRewardScale * (ctx.data().prevDist - dist) / ctx.data().startingDist;
+    float step_reward = consts::distanceRewardScale * (rewardHelper.prev_dist - dist) / rewardHelper.original_dist;
 
     // Goal reward if close enough
     float goal_reward = 0.0f;
@@ -402,7 +400,7 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
     }
 
     // Store current distance for next step
-    ctx.data().prevDist = dist;
+    rewardHelper.prev_dist = dist;
 }
 
 static inline float angleObs(float v)
@@ -628,8 +626,9 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
     // Compute hive reward based on macguffin position relative to goal
     auto hive_reward_sys = builder.addToGraph<ParallelForNode<Engine,
-                                                            hiveRewardSystem,
-                                                            HiveReward,
+                                                            RewardSystem,
+                                                            Reward,
+                                                            RewardHelperVars,
                                                             HiveDone,
                                                             StepsRemaining
                                                             >>({phys_done});

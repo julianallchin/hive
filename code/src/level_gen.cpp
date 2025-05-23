@@ -227,9 +227,11 @@ namespace madEscape
     static Entity createLevelState(Engine &ctx)
     {
         Entity levelState = ctx.makeEntity<LevelState>();
-        ctx.get<HiveReward>(levelState) = {0.0f};
-        ctx.get<HiveDone>(levelState) = {0}; // 0 = not done
-        ctx.get<StepsRemaining>(levelState) = {consts::episodeLen};
+        ctx.get<Reward>(levelState).v = 0.0f;
+        ctx.get<RewardHelperVars>(levelState).prev_dist = -1.0f;
+        ctx.get<RewardHelperVars>(levelState).original_dist = -1.0f;
+        ctx.get<HiveDone>(levelState).v = 0; // 0 = not done
+        ctx.get<StepsRemaining>(levelState).t = consts::episodeLen;
 
         ctx.data().levelState = levelState;
         return levelState;

@@ -137,8 +137,6 @@ struct Sim : public madrona::WorldBase {
     size_t numWalls;
 
     Entity levelState;
-    float prevDist; // used to calculate reward (distance between macguffin and goal)
-    float startingDist; // used to calculate reward (dist btwn macguff and goal)
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {
