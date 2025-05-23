@@ -668,7 +668,8 @@ namespace madEscape
         float minY = -consts::worldLength / 2.0f;
         float maxY = consts::worldLength / 2.0f;
         
-        float borderBuffer = consts::borderWidth / 2.0f + consts::antSize / 2;
+        float borderBuffer = consts::borderWidth / 2.0f + consts::antSize / 2.0f;
+
         
         // Adjusted room boundaries accounting for border walls
         float adjustedMinX = minX + borderBuffer;
@@ -751,7 +752,7 @@ namespace madEscape
                 }
                 
                 if (overlapsWithAnt) {
-                    break;
+                    continue;
                 }
                 
                 // Ant position is valid, add it
