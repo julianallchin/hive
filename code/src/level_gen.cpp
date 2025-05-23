@@ -88,7 +88,7 @@ namespace madEscape
             ctx.data().borders[0],
             Vector3{
                 0,
-                -consts::worldWidth / 2.f + consts::borderWidth / 2.f,
+                -consts::worldWidth / 2.f,
                 0,
             },
             Quat{1, 0, 0, 0},
@@ -96,7 +96,7 @@ namespace madEscape
             EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
-                consts::worldWidth,
+                consts::worldWidth + consts::borderWidth, // add borderwidth for no jagged corners
                 consts::borderWidth,
                 2.f,
             });
@@ -107,7 +107,7 @@ namespace madEscape
             ctx,
             ctx.data().borders[1],
             Vector3{
-                consts::worldWidth / 2.f - consts::borderWidth / 2.f,
+                consts::worldWidth / 2.f,
                 0,
                 0,
             },
@@ -117,7 +117,7 @@ namespace madEscape
             ResponseType::Static,
             Diag3x3{
                 consts::borderWidth,
-                consts::worldWidth,
+                consts::worldWidth + consts::borderWidth, // add borderwidth for no jagged corners
                 2.f,
             });
 
@@ -128,7 +128,7 @@ namespace madEscape
             ctx.data().borders[2],
             Vector3{
                 0,
-                consts::worldWidth / 2.f - consts::borderWidth / 2.f,
+                consts::worldWidth / 2.f,
                 0,
             },
             Quat{1, 0, 0, 0},
@@ -136,7 +136,7 @@ namespace madEscape
             EntityType::PhysicsEntity,
             ResponseType::Static,
             Diag3x3{
-                consts::worldWidth,
+                consts::worldWidth + consts::borderWidth, // add borderwidth for no jagged corners
                 consts::borderWidth,
                 2.f,
             });
@@ -147,7 +147,7 @@ namespace madEscape
             ctx,
             ctx.data().borders[3],
             Vector3{
-                -consts::worldWidth / 2.f + consts::borderWidth / 2.f,
+                -consts::worldWidth / 2.f,
                 0,
                 0,
             },
@@ -157,7 +157,7 @@ namespace madEscape
             ResponseType::Static,
             Diag3x3{
                 consts::borderWidth,
-                consts::worldWidth,
+                consts::worldWidth + consts::borderWidth, // add borderwidth for no jagged corners
                 2.f,
             });
     }
@@ -250,9 +250,9 @@ namespace madEscape
             EntityType::Macguffin,
             ResponseType::Dynamic,
             Diag3x3{
-                consts::macguffinRadius * 2,
-                consts::macguffinRadius * 2,
-                consts::macguffinRadius * 2});
+                consts::macguffinSize,
+                consts::macguffinSize,
+                consts::macguffinSize});
         registerRigidBodyEntity(ctx, macguffin, SimObject::Macguffin);
         ctx.data().macguffin = macguffin;
         return macguffin;
@@ -267,9 +267,9 @@ namespace madEscape
         ctx.get<Position>(goal) = placement.toVector3();
         ctx.get<Rotation>(goal) = Quat{1, 0, 0, 0};
         ctx.get<Scale>(goal) = Diag3x3{
-            consts::goalRadius * 2,
-            consts::goalRadius * 2,
-            0.1f};
+            consts::goalSize,
+            consts::goalSize,
+            0.01f};
         ctx.get<ObjectID>(goal) = ObjectID{(int32_t)SimObject::Goal};
         ctx.get<EntityType>(goal) = EntityType::Goal;
         ctx.data().goal = goal;
@@ -283,15 +283,15 @@ namespace madEscape
         setupRigidBodyEntity(
             ctx,
             obj,
-            Vector3{placement.x, placement.y, consts::movableObjectRadius * placement.scale},
+            Vector3{placement.x, placement.y, consts::movableObjectSize * placement.scale},
             Quat{1, 0, 0, 0},
             SimObject::MovableObject,
             EntityType::MovableObject,
             ResponseType::Dynamic,
             Diag3x3{
-                consts::movableObjectRadius * 2 * placement.scale,
-                consts::movableObjectRadius * 2 * placement.scale,
-                consts::movableObjectRadius * 2 * placement.scale});
+                consts::movableObjectSize * placement.scale,
+                consts::movableObjectSize * placement.scale,
+                consts::movableObjectSize * placement.scale});
         registerRigidBodyEntity(ctx, obj, SimObject::MovableObject);
         ctx.data().movableObjects[index] = obj;
         return obj;
@@ -312,7 +312,7 @@ namespace madEscape
             Diag3x3{
                 placement.width,
                 placement.height,
-                2.0f});
+                consts::wallHeight});
         registerRigidBodyEntity(ctx, wall, SimObject::Wall);
         ctx.data().walls[index] = wall;
         return wall;
@@ -333,15 +333,15 @@ namespace madEscape
         setupRigidBodyEntity(
             ctx,
             ant,
-            Vector3{placement.x, placement.y, consts::antRadius},
+            Vector3{placement.x, placement.y, 0},
             Quat::angleAxis(placement.angle, math::up),
             SimObject::Ant,
             EntityType::Ant,
             ResponseType::Dynamic,
             Diag3x3 {
-                consts::antRadius * 2,
-                consts::antRadius * 2,
-                consts::antRadius * 2 }
+                consts::antSize,
+                consts::antSize,
+                consts::antSize}
         );
         
         ctx.get<GrabState>(ant).constraintEntity = Entity::none();
@@ -365,7 +365,7 @@ namespace madEscape
         
         // Buffer from the wall to ensure the macguffin doesn't clip into the border
         // (Add a small margin to macguffin radius for safety)
-        float buffer = 2 * consts::macguffinRadius + consts::borderWidth;
+        float buffer = consts::macguffinSize / 2.0f + 1.5f * consts::borderWidth;
         
         // Room boundaries accounting for the border walls
         float minX = -consts::worldWidth / 2.0f + buffer;
@@ -407,7 +407,7 @@ namespace madEscape
         Border goalWall = static_cast<Border>((static_cast<int>(macguffinPlacement.wall) + 2) % 4);
         
         // Buffer from the wall to ensure the goal doesn't clip into the border
-        float buffer = 2 * consts::goalRadius + consts::borderWidth;
+        float buffer = consts::goalSize / 2.0f + 1.0f * consts::borderWidth;
         
         // Room boundaries accounting for the border walls
         float minX = -consts::worldWidth / 2.0f + buffer;
@@ -458,8 +458,8 @@ namespace madEscape
         float maxY = consts::worldLength / 2.0f;
         
         // Buffer to keep objects from overlapping
-        float macguffinBuffer = consts::macguffinRadius + 1.0f;
-        float goalBuffer = consts::goalRadius + 1.0f;
+        float macguffinBuffer = consts::macguffinSize + 1.0f;
+        float goalBuffer = consts::goalSize + 1.0f;
         
         // Try up to the maximum number of attempts for wall placement
         int attempt = 0;
@@ -557,11 +557,11 @@ namespace madEscape
         float maxY = consts::worldLength / 2.0f;
         
         // Buffers to keep objects from overlapping
-        float macguffinBuffer = consts::macguffinRadius + consts::movableObjectRadius + 1.0f;
-        float goalBuffer = consts::goalRadius + consts::movableObjectRadius + 1.0f;
-        float objectBuffer = consts::movableObjectRadius * 2.0f + 1.0f;
-        float wallBuffer = consts::borderWidth + consts::movableObjectRadius + 0.5f;
-        float borderBuffer = consts::borderWidth + consts::movableObjectRadius;
+        float macguffinBuffer = consts::macguffinSize + consts::movableObjectSize + 1.0f;
+        float goalBuffer = consts::goalSize + consts::movableObjectSize + 1.0f;
+        float objectBuffer = consts::movableObjectSize * 2.0f + 1.0f;
+        float wallBuffer = consts::borderWidth + consts::movableObjectSize + 0.5f;
+        float borderBuffer = consts::borderWidth + consts::movableObjectSize;
         
         // Adjusted room boundaries accounting for border walls
         float adjustedMinX = minX + borderBuffer;
@@ -605,8 +605,8 @@ namespace madEscape
             for (const auto &wall : wallPlacements) {
                 // Check if object is too close to a wall
                 // Simple box overlap check
-                if (std::abs(x - wall.x) < (consts::movableObjectRadius * scale + wall.width / 2 + wallBuffer) &&
-                    std::abs(y - wall.y) < (consts::movableObjectRadius * scale + wall.height / 2 + wallBuffer)) {
+                if (std::abs(x - wall.x) < (consts::movableObjectSize * scale + wall.width / 2 + wallBuffer) &&
+                    std::abs(y - wall.y) < (consts::movableObjectSize * scale + wall.height / 2 + wallBuffer)) {
                     overlapsWithWall = true;
                     break;
                 }
@@ -661,12 +661,12 @@ namespace madEscape
         float maxY = consts::worldLength / 2.0f;
         
         // Buffers to keep ants from overlapping
-        float macguffinBuffer = consts::macguffinRadius + consts::antRadius + 0.5f;
-        float goalBuffer = consts::goalRadius + consts::antRadius + 0.5f;
-        float wallBuffer = consts::borderWidth + consts::antRadius + 0.2f;
-        float objectBuffer = consts::movableObjectRadius + consts::antRadius + 0.5f;
-        float antBuffer = consts::antRadius * 2.0f + 0.2f;
-        float borderBuffer = consts::borderWidth + consts::antRadius;
+        float macguffinBuffer = consts::macguffinSize + consts::antSize + 0.5f;
+        float goalBuffer = consts::goalSize + consts::antSize + 0.5f;
+        float wallBuffer = consts::borderWidth + consts::antSize + 0.2f;
+        float objectBuffer = consts::movableObjectSize + consts::antSize + 0.5f;
+        float antBuffer = consts::antSize * 2.0f + 0.2f;
+        float borderBuffer = consts::borderWidth + consts::antSize;
         
         // Adjusted room boundaries accounting for border walls
         float adjustedMinX = minX + borderBuffer;
@@ -713,8 +713,8 @@ namespace madEscape
                 bool overlapsWithWall = false;
                 for (const auto &wall : wallPlacements) {
                     // Simple box-based distance check
-                    if (std::abs(x - wall.x) < (consts::antRadius + wall.width / 2 + wallBuffer) &&
-                        std::abs(y - wall.y) < (consts::antRadius + wall.height / 2 + wallBuffer)) {
+                    if (std::abs(x - wall.x) < (consts::antSize + wall.width / 2 + wallBuffer) &&
+                        std::abs(y - wall.y) < (consts::antSize + wall.height / 2 + wallBuffer)) {
                         overlapsWithWall = true;
                         break;
                     }
