@@ -5,7 +5,7 @@
 namespace madEscape {
 
 namespace consts {
-inline constexpr bool overrideActionsWithRandom = true;
+inline constexpr bool overrideActionsWithRandom = false;
 // Ant population constraints
 inline constexpr madrona::CountT minAnts = 0;     // Minimum number of ants
 inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
