@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <iostream>
 
 namespace madEscape
 {
@@ -283,7 +284,7 @@ namespace madEscape
         setupRigidBodyEntity(
             ctx,
             obj,
-            Vector3{placement.x, placement.y, consts::movableObjectSize * placement.scale},
+            Vector3{placement.x, placement.y, 0},
             Quat{1, 0, 0, 0},
             SimObject::MovableObject,
             EntityType::MovableObject,
@@ -652,7 +653,7 @@ namespace madEscape
     }
     
     
-    static std::vector<AntPlacement> determineAntPlacements(Engine &ctx, const MacguffinPlacement &macguffinPlacement, const GoalPlacement &goalPlacement, const std::vector<WallPlacement> &wallPlacements, const std::vector<MovableObjectPlacement> &movableObjectPlacements) {
+    static std::vector<AntPlacement> determineAntPlacements(Engine &ctx, const MacguffinPlacement &macguffinPlacement, const GoalPlacement &_, const std::vector<WallPlacement> &wallPlacements, const std::vector<MovableObjectPlacement> &movableObjectPlacements) {
         std::vector<AntPlacement> antPlacements;
         
         // Get how many ants we need to place
@@ -667,13 +668,7 @@ namespace madEscape
         float minY = -consts::worldLength / 2.0f;
         float maxY = consts::worldLength / 2.0f;
         
-        // Buffers to keep ants from overlapping
-        float macguffinBuffer = consts::macguffinSize + consts::antSize + 0.5f;
-        float goalBuffer = consts::goalSize + consts::antSize + 0.5f;
-        float wallBuffer = consts::borderWidth + consts::antSize + 0.2f;
-        float objectBuffer = consts::movableObjectSize + consts::antSize + 0.5f;
-        float antBuffer = consts::antSize * 2.0f + 0.2f;
-        float borderBuffer = consts::borderWidth + consts::antSize;
+        float borderBuffer = consts::borderWidth / 2.0f + consts::antSize / 2;
         
         // Adjusted room boundaries accounting for border walls
         float adjustedMinX = minX + borderBuffer;
@@ -699,29 +694,25 @@ namespace madEscape
                 float angle = randBetween(ctx, 0.0f, 2.0f * 3.14159f);  // 0 to 2π radians
                 
                 // Check if ant overlaps with macguffin
-                float distToMacguffin = std::sqrt(
-                    std::pow(x - macguffinPlacement.x, 2) + 
-                    std::pow(y - macguffinPlacement.y, 2));
-                
-                if (distToMacguffin < macguffinBuffer) {
-                    continue; // Skip this attempt
+                bool overlapsWithMacguffin = false;
+                if (std::abs(x - macguffinPlacement.x) < (consts::antSize / 2.0f + consts::macguffinSize / 2.0f + consts::antMacguffinBuffer) &&
+                    std::abs(y - macguffinPlacement.y) < (consts::antSize / 2.0f + consts::macguffinSize / 2.0f + consts::antMacguffinBuffer)) {
+                    overlapsWithMacguffin = true;
+                    break;
                 }
                 
-                // Check if ant overlaps with goal
-                float distToGoal = std::sqrt(
-                    std::pow(x - goalPlacement.x, 2) + 
-                    std::pow(y - goalPlacement.y, 2));
-                
-                if (distToGoal < goalBuffer) {
+                if (overlapsWithMacguffin) {
                     continue; // Skip this attempt
                 }
+
+                // its's fine if they spawn on the goal; don't check that
                 
                 // Check if ant overlaps with walls
                 bool overlapsWithWall = false;
                 for (const auto &wall : wallPlacements) {
                     // Simple box-based distance check
-                    if (std::abs(x - wall.x) < (consts::antSize + wall.width / 2 + wallBuffer) &&
-                        std::abs(y - wall.y) < (consts::antSize + wall.height / 2 + wallBuffer)) {
+                    if (std::abs(x - wall.x) < (consts::antSize / 2.0f + wall.width / 2.0f + consts::antWallBuffer) &&
+                        std::abs(y - wall.y) < (consts::antSize / 2.0f + wall.height / 2.0f + consts::antWallBuffer)) {
                         overlapsWithWall = true;
                         break;
                     }
@@ -734,12 +725,9 @@ namespace madEscape
                 // Check if ant overlaps with movable objects
                 bool overlapsWithObject = false;
                 for (const auto &obj : movableObjectPlacements) {
-                    float distToObject = std::sqrt(
-                        std::pow(x - obj.x, 2) + 
-                        std::pow(y - obj.y, 2));
-                    
-                    // Account for object scale
-                    if (distToObject < objectBuffer * obj.scale) {
+                    // Simple box-based distance check
+                    if (std::abs(x - obj.x) < (consts::antSize / 2.0f + consts::movableObjectSize * obj.scale / 2.0f + consts::antWallBuffer) &&
+                        std::abs(y - obj.y) < (consts::antSize / 2.0f + consts::movableObjectSize * obj.scale / 2.0f + consts::antWallBuffer)) {
                         overlapsWithObject = true;
                         break;
                     }
@@ -756,21 +744,23 @@ namespace madEscape
                         std::pow(x - existingAnt.x, 2) + 
                         std::pow(y - existingAnt.y, 2));
                     
-                    if (distToAnt < antBuffer) {
+                    if (distToAnt < consts::antSize + consts::antAntBuffer) {
                         overlapsWithAnt = true;
                         break;
                     }
                 }
                 
-                if (!overlapsWithAnt) {
-                    // Ant position is valid, add it
-                    AntPlacement ant;
-                    ant.x = x;
-                    ant.y = y;
-                    ant.angle = angle;
-                    antPlacements.push_back(ant);
-                    placedSuccessfully = true;
+                if (overlapsWithAnt) {
+                    break;
                 }
+                
+                // Ant position is valid, add it
+                AntPlacement ant;
+                ant.x = x;
+                ant.y = y;
+                ant.angle = angle;
+                antPlacements.push_back(ant);
+                placedSuccessfully = true;
             }
             
             // If we couldn't place this ant after all attempts, stop trying to place more
@@ -779,6 +769,7 @@ namespace madEscape
             }
         }
         ctx.singleton<NumAnts>().count = antPlacements.size();
+        std::cout << "Spawns in ants. Created: " << antPlacements.size() << std::endl;
         return antPlacements;
     }
 

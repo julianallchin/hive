@@ -17,32 +17,47 @@ inline constexpr madrona::CountT maxMovableObjects = 1; // Maximum number of mov
 inline constexpr madrona::CountT minWalls = 0;   // Minimum number of interior walls
 inline constexpr madrona::CountT maxWalls = 1;   // Maximum number of interior walls
 
-// Various world / entity size parameters.
-inline constexpr float worldLength = 50.f;
-inline constexpr float worldWidth = 50.f;
+// world/borders
+inline constexpr float worldLength = 100.f;
+inline constexpr float worldWidth = 100.f;
 inline constexpr float borderWidth = 0.5f;
 inline constexpr float borderHeight = 2.0f;
 inline constexpr float minBorderSpawnBuffer = 0.0f;
 inline constexpr float maxBorderSpawnBuffer = 0.0f;
-inline constexpr float antSize = 1.0f; // max dim is < 2.5 in default mesh
+inline constexpr int maxWallPlacementAttempts = 30;
+// ants
+inline constexpr float antSize = 0.5f;
 inline constexpr float grabRange = 0.1f;
-inline constexpr float macguffinSize = 10.f; // note mesh default size is 2x2x2; it's scaled as such
-inline constexpr float goalSize = 10.0f; // default 2x2x2
+inline constexpr float antMacguffinBuffer = 0.0f;
+inline constexpr float antMovableObjectBuffer = 0.0f;
+inline constexpr float antWallBuffer = 0.0f;
+inline constexpr float antAntBuffer = 0.0f;
+inline constexpr int maxAntPlacementAttemptsPerAnt = 1000;
+inline constexpr float antInverseMass = 1.0f;
+// macguffin
+inline constexpr float macguffinSize = 4.0f;
+inline constexpr float macguffinInverseMass = 0.1f;
+// goal
+inline constexpr float goalSize = 4.0f;
+// internal walls
 inline constexpr float minWallLength = 5.0f;
 inline constexpr float maxWallLength = 15.0f;
-inline constexpr float wallHeight = 2.0f; // default 2.5
+inline constexpr float wallHeight = 2.0f;
 inline constexpr float wallMacguffinBuffer = 1.0f;
 inline constexpr float wallGoalBuffer = 5.0f;
 inline constexpr float wallWallBuffer = 3.0f;
+inline constexpr int maxMovableObjectPlacementAttempts = 30;
+// internal movable objects (eg cube obstructions)
 inline constexpr float movableObjectMacguffinBuffer = 1.0f;
 inline constexpr float movableObjectWallBuffer = 1.0f;
 inline constexpr float movableObjectObjectBuffer = 1.0f;
 inline constexpr float movableObjectSize = 5.0f; // default 2x2x2
 inline constexpr float movableObjectMinScale = 1.0f; // random scaling factor on top of default
 inline constexpr float movableObjectMaxScale = 1.0f; // random scaling factor on top of default
-
+inline constexpr float movableObjectInverseMass = 0.3f;
 
 // mesh default values (when an object is created, its true size is the scale param * default mesh size)
+// don't touch these unless you use different meshes (ie .obj files)
 inline constexpr float macguffinMeshSize = 2.0f;
 inline constexpr float goalMeshSize = 2.0f;
 inline constexpr float movableObjectMeshSize = 2.0f;
@@ -88,11 +103,6 @@ inline constexpr float deltaT = 0.04f;
 inline constexpr madrona::CountT numPhysicsSubsteps = 4.f;
 
 inline constexpr float gravity = 0.0f;//9.8f; // positive values give downward gravity
-
-// Maximum number of attempts for random object placement
-inline constexpr int maxWallPlacementAttempts = 30;
-inline constexpr int maxMovableObjectPlacementAttempts = 30;
-inline constexpr int maxAntPlacementAttemptsPerAnt = 30;
 
 }
 

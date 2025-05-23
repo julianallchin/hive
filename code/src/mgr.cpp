@@ -384,7 +384,7 @@ namespace madEscape
             };
         };
 
-        setupHull(SimObject::MovableObject, 0.1f, {
+        setupHull(SimObject::MovableObject, consts::movableObjectInverseMass, {
                                                       .muS = 0.5f,
                                                       .muD = 0.75f,
                                                   });
@@ -394,13 +394,13 @@ namespace madEscape
             .muD = 0.5f,
         });
 
-        setupHull(SimObject::Macguffin, 0.03f, {
+        setupHull(SimObject::Macguffin, consts::macguffinInverseMass, {
                                                    // Macguffin is harder to move, meant for multiple ants
                                                    .muS = 0.6f,
                                                    .muD = 0.7f,
         });
 
-        setupHull(SimObject::Ant, 1.f, {
+        setupHull(SimObject::Ant, consts::antInverseMass, {
             .muS = 0.5f,
             .muD = 0.5f,
         });
