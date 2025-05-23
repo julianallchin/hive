@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     });
 
     float camera_move_speed = 30.f;
-    float camera_height = (consts::worldWidth + consts::worldLength) / 2.5f;
+    float camera_height = (consts::worldWidth + consts::worldLength) / 2.0f;
     math::Vector3 initial_camera_position = { 0, 0, camera_height};
 
     // Top-down view for the ant colony

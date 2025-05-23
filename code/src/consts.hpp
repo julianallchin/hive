@@ -5,7 +5,7 @@
 namespace madEscape {
 
 namespace consts {
-inline constexpr bool overrideActionsWithRandom = false;
+inline constexpr bool overrideActionsWithRandom = true;
 // Ant population constraints
 inline constexpr madrona::CountT minAnts = 0;     // Minimum number of ants
 inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
@@ -19,8 +19,8 @@ inline constexpr madrona::CountT minWalls = 0;   // Minimum number of interior w
 inline constexpr madrona::CountT maxWalls = 5;   // Maximum number of interior walls
 
 // world/borders
-inline constexpr float worldLength = 50.0f;
-inline constexpr float worldWidth = 100.0f;
+inline constexpr float worldLength = 40.0f;
+inline constexpr float worldWidth = 40.0f;
 inline constexpr float borderWidth = 0.5f;
 inline constexpr float borderHeight = 5.0f;
 inline constexpr float minBorderSpawnBuffer = 3.0f;
