@@ -11,19 +11,19 @@ inline constexpr madrona::CountT maxAnts = 100;    // Maximum number of ants
 
 // Movable objects constraints
 inline constexpr madrona::CountT minMovableObjects = 0;  // Minimum number of movable objects
-inline constexpr madrona::CountT maxMovableObjects = 1; // Maximum number of movable objects
+inline constexpr madrona::CountT maxMovableObjects = 5; // Maximum number of movable objects
 
 // Interior walls constraints
 inline constexpr madrona::CountT minWalls = 0;   // Minimum number of interior walls
-inline constexpr madrona::CountT maxWalls = 1;   // Maximum number of interior walls
+inline constexpr madrona::CountT maxWalls = 5;   // Maximum number of interior walls
 
 // world/borders
 inline constexpr float worldLength = 50.0f;
-inline constexpr float worldWidth = 50.0f;
+inline constexpr float worldWidth = 100.0f;
 inline constexpr float borderWidth = 0.5f;
 inline constexpr float borderHeight = 2.0f;
-inline constexpr float minBorderSpawnBuffer = 0.0f;
-inline constexpr float maxBorderSpawnBuffer = 0.0f;
+inline constexpr float minBorderSpawnBuffer = 3.0f;
+inline constexpr float maxBorderSpawnBuffer = 6.0f;
 inline constexpr int maxWallPlacementAttempts = 30;
 // ants
 inline constexpr float antSize = 1.0f;
@@ -41,7 +41,7 @@ inline constexpr float macguffinInverseMass = 0.1f;
 inline constexpr float goalSize = 4.0f;
 // internal walls
 inline constexpr float minWallLength = 5.0f;
-inline constexpr float maxWallLength = 15.0f;
+inline constexpr float maxWallLength = 30.0f;
 inline constexpr float wallHeight = 2.0f;
 inline constexpr float wallMacguffinBuffer = 1.0f;
 inline constexpr float wallGoalBuffer = 5.0f;
@@ -51,9 +51,9 @@ inline constexpr int maxMovableObjectPlacementAttempts = 30;
 inline constexpr float movableObjectMacguffinBuffer = 1.0f;
 inline constexpr float movableObjectWallBuffer = 1.0f;
 inline constexpr float movableObjectObjectBuffer = 1.0f;
-inline constexpr float movableObjectSize = 5.0f; // default 2x2x2
-inline constexpr float movableObjectMinScale = 1.0f; // random scaling factor on top of default
-inline constexpr float movableObjectMaxScale = 1.0f; // random scaling factor on top of default
+inline constexpr float movableObjectSize = 2.0f; // default 2x2x2
+inline constexpr float movableObjectMinScale = 0.5f; // random scaling factor on top of default
+inline constexpr float movableObjectMaxScale = 2.0f; // random scaling factor on top of default
 inline constexpr float movableObjectInverseMass = 0.3f;
 
 // mesh default values (when an object is created, its true size is the scale param * default mesh size)

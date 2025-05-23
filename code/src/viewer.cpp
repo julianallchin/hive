@@ -87,10 +87,10 @@ int main(int argc, char *argv[])
 
         .minAntsRand = num_ants,
         .maxAntsRand = num_ants,
-        .minMovableObjectsRand = 0,
-        .maxMovableObjectsRand = 0,
-        .minWallsRand = 0,
-        .maxWallsRand = 0,
+        .minMovableObjectsRand = 1,
+        .maxMovableObjectsRand = 5,
+        .minWallsRand = 1,
+        .maxWallsRand = 5,
 
         .enableBatchRenderer = enable_batch_renderer,
         .extRenderAPI = wm.gpuAPIManager().backend(),
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     });
 
     float camera_move_speed = 30.f;
-    float camera_height = fmax(consts::worldWidth, consts::worldLength);
+    float camera_height = (consts::worldWidth + consts::worldLength) / 2.5f;
     math::Vector3 initial_camera_position = { 0, 0, camera_height};
 
     // Top-down view for the ant colony
