@@ -27,7 +27,7 @@ inline constexpr float antRadius = 0.1f;
 inline constexpr float grabRange = 0.1f;
 inline constexpr float macguffinRadius = 1.f;
 inline constexpr float movableObjectRadius = 1.f;
-inline constexpr float goalRadius = 3.0f;
+inline constexpr float goalRadius = 10.0f;
 
 // Reward for decreasing distance between macguffin and goal
 inline constexpr float distanceRewardScale = 0.1f;
@@ -37,7 +37,7 @@ inline constexpr float goalReward = 1.0f;
 inline constexpr float existentialPenalty = -0.001f;
 
 // Steps per episode
-inline constexpr int32_t episodeLen = 1500;  // Longer episodes for the hive task
+inline constexpr int32_t episodeLen = 1000;  // Longer episodes for the hive task
 
 // Default values for curriculum learning
 inline constexpr uint32_t defaultAnts = 20;             // Start with fewer ants

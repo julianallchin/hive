@@ -382,7 +382,19 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
 
     // Goal reward if close enough
     float goal_reward = 0.0f;
-    if (dist <= consts::goalDistanceThreshold)
+
+    // Calculate the 2D boundaries of the goal
+    float goal_min_x = goal_pos.x - consts::goalRadius;
+    float goal_max_x = goal_pos.x + consts::goalRadius;
+    float goal_min_y = goal_pos.y - consts::goalRadius;
+    float goal_max_y = goal_pos.y + consts::goalRadius;
+
+    // Check if the macguffin's center (macguffin_pos.x, macguffin_pos.y) is within these boundaries
+    bool is_within_x_bounds = (macguffin_pos.x >= goal_min_x) && (macguffin_pos.x <= goal_max_x);
+    bool is_within_y_bounds = (macguffin_pos.y >= goal_min_y) && (macguffin_pos.y <= goal_max_y);
+    
+    // if (dist <= consts::goalDistanceThreshold)
+    if (is_within_x_bounds && is_within_y_bounds)
     {
         goal_reward = consts::goalReward;
         done.v = 1; // Episode complete on goal achievement"
