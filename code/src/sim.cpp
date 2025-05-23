@@ -171,9 +171,56 @@ namespace madEscape
         }
     }
 
+// Function to be filled
+inline Action generateRandomAction(Engine &ctx, Action currAction) {
+    /*
+        - always move forward
+        - with probability 1%, grab
+        - every 20 steps, start turning left, straight, or right
+    */
+
+    // 1. Always move forward
+    // Assuming higher bucket index means more amount.
+    // Use max bucket for "always move forward".
+    currAction.moveAmount = consts::numMoveAmountBuckets - 1; 
+    // Assuming bucket 0 for moveAngle corresponds to agent's local forward.
+    currAction.moveAngle = 0; 
+
+    // 2. With probability 1%, grab
+    if (ctx.data().rng.sampleUniform() < 0.01f) { // sampleUniform() is [0, 1)
+        currAction.grab = 1;
+    } else {
+        currAction.grab = 0;
+    }
+
+    // 3. Every 20 steps, start turning left, straight, or right.
+    //    On other steps, go straight.
+    //    Access the 't' member of StepsRemaining.
+    int32_t steps_remaining_val = ctx.get<StepsRemaining>(ctx.data().levelState).t;
+   
+    if (steps_remaining_val % 20 == 0) {
+        // Randomly choose to turn left, go straight, or turn right.
+        // uniformInt(ctx, min, max) is inclusive of min and max.
+        int32_t turn_choice = uniformInt(ctx, 0, 2); // 0: left, 1: straight, 2: right
+
+        if (turn_choice == 0) { // Turn Left
+            // Assuming bucket 0 is maximum left turn.
+            currAction.rotate = 0; 
+        } else if (turn_choice == 1) { // Go Straight
+            // Middle bucket for turning means no rotation.
+            currAction.rotate = consts::numTurnBuckets / 2; 
+        } else { // Turn Right (turn_choice == 2)
+            // Assuming highest bucket index is maximum right turn.
+            currAction.rotate = consts::numTurnBuckets - 1; 
+        }
+    }
+   
+    return currAction; // Return the modified action, or just rely on modification by reference
+}
+
 // Translates discrete actions from the Action component to forces
 // used by the physics simulation.
-inline void antMovementSystem(Engine &_,
+inline void antMovementSystem(Engine &ctx,
                               Action &action,
                               Rotation &rot,
                               ExternalForce &external_force,
@@ -181,6 +228,8 @@ inline void antMovementSystem(Engine &_,
 {
     constexpr float move_max = 1000;
     constexpr float turn_max = 320;
+
+    Action = generateRandomAction(ctx, action); // TODO: take this out before we train lol
 
     Quat cur_rot = rot;
 
