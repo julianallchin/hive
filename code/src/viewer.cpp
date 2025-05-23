@@ -87,10 +87,10 @@ int main(int argc, char *argv[])
 
         .minAntsRand = num_ants,
         .maxAntsRand = num_ants,
-        .minMovableObjectsRand = 0,
-        .maxMovableObjectsRand = 0,
-        .minWallsRand = 0,
-        .maxWallsRand = 0,
+        .minMovableObjectsRand = 1,
+        .maxMovableObjectsRand = 1,
+        .minWallsRand = 1,
+        .maxWallsRand = 1,
 
         .enableBatchRenderer = enable_batch_renderer,
         .extRenderAPI = wm.gpuAPIManager().backend(),
