@@ -381,7 +381,15 @@ inline void RewardSystem(Engine &ctx, Reward &reward, RewardHelperVars &rewardHe
 
     // Goal reward if close enough
     float goal_reward = 0.0f;
-    if (dist <= consts::goalDistanceThreshold)
+    // Calculate goal's XY bounds
+    float goal_min_x = goal_pos.x - consts::goalSize / 2.0f;
+    float goal_max_x = goal_pos.x + consts::goalSize / 2.0f;
+    float goal_min_y = goal_pos.y - consts::goalSize / 2.0f;
+    float goal_max_y = goal_pos.y + consts::goalSize / 2.0f;
+    // Check if macguffin's XY center is within goal's XY bounds
+    bool within_bounds = (macguffin_pos.x >= goal_min_x && macguffin_pos.x <= goal_max_x &&
+                          macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
+    if (within_bounds)
     {
         goal_reward = consts::goalReward;
         done.v = 1; // Episode complete on goal achievement"
