@@ -6,23 +6,38 @@ from .action import DiscreteActionDistributions
 from .actor_critic import ActorCritic, DiscreteActor, Critic
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, num_channels, num_layers):
+    def __init__(self, dims):
+        """Enhanced MLP with flexible architecture
+        
+        Args:
+            dims: List of dimensions for the entire network, including input and output dims
+                  e.g. [64, 128, 64, 32] for input_dim=64, two hidden layers (128, 64), and output_dim=32
+                  Must have at least length 2 (for input and output dimensions)
+        """
         super().__init__()
-
-        layers = [
-            nn.Linear(input_dim, num_channels),
-            nn.LayerNorm(num_channels),
-            nn.ReLU(),
-        ]
-        for i in range(num_layers - 1):
-            layers.append(nn.Linear(num_channels, num_channels))
-            layers.append(nn.LayerNorm(num_channels))
+        
+        # Validate input
+        if not isinstance(dims, (list, tuple)) or len(dims) < 2:
+            raise ValueError("dims must be a list/tuple with at least 2 dimensions (input and output)")
+        
+        # Build network with variable width layers
+        layers = []
+        
+        # Create layers between each pair of dimensions
+        for i in range(len(dims) - 1):
+            # Linear transformation
+            layers.append(nn.Linear(dims[i], dims[i+1]))
+            
+            # Add normalization and activation to all layers
+            layers.append(nn.LayerNorm(dims[i+1]))
             layers.append(nn.ReLU())
-
+            
         self.net = nn.Sequential(*layers)
-
+        
+        # Initialize weights
         for layer in self.net:
             if isinstance(layer, nn.Linear):
+                # Use kaiming normal initialization for all layers
                 nn.init.kaiming_normal_(
                     layer.weight, nn.init.calculate_gain("relu"))
                 if layer.bias is not None:
