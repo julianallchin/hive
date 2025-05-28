@@ -4,8 +4,6 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 from .action import DiscreteActionDistributions
 from .profile import profile
-from .models import AntMLP, HivemindAttention
-from .rnn import LSTM
 
 class Backbone(nn.Module):
     def __init__(self):
@@ -276,67 +274,57 @@ class BackboneSeparate(Backbone):
         with torch.no_grad():
             processed_obs = self.process_obs(*obs_in)
 
-        actor_rnn_state = self.extract_actor_rnn_state(rnn_states)
-        critic_rnn_state = self.extract_critic_rnn_state(rnn_states)
+        actor_features, new_actor_rnn_states = self.actor_encoder(
+            self.extract_actor_rnn_state(rnn_states),
+            processed_obs)
+        critic_features, new_critic_rnn_states = self.critic_encoder(
+            self.extract_critic_rnn_state(rnn_states),
+            processed_obs)
 
-        actor_features, new_actor_rnn_state = self.actor_encoder(
-            actor_rnn_state, processed_obs)
-        critic_features, new_critic_rnn_state = self.critic_encoder(
-            critic_rnn_state, processed_obs)
-
-        return (actor_features, critic_features,
-                self.package_rnn_states(new_actor_rnn_state,
-                                        new_critic_rnn_state))
+        return actor_features, critic_features, self.package_rnn_states(
+            new_actor_rnn_states, new_critic_rnn_states)
 
     def _rollout_common(self, rnn_states_out, rnn_states_in,
                         *obs_in):
         with torch.no_grad():
             processed_obs = self.process_obs(*obs_in)
 
-        actor_rnn_state_in = self.extract_actor_rnn_state(rnn_states_in)
-        critic_rnn_state_in = self.extract_critic_rnn_state(rnn_states_in)
-
-        actor_features = self.actor_encoder.fwd_inplace(
-            None, actor_rnn_state_in, processed_obs)
-        critic_features = self.critic_encoder.fwd_inplace(
-            None, critic_rnn_state_in, processed_obs)
-
-        if rnn_states_out != None:
-            rnn_states_out[...] = rnn_states_in
-
-        return actor_features, critic_features
+        return self.encoder.fwd_inplace(
+            rnn_states_out, rnn_states_in, processed_obs)
 
     def fwd_actor_only(self, rnn_states_out, rnn_states_in,
                        *obs_in):
         with torch.no_grad():
             processed_obs = self.process_obs(*obs_in)
 
-        actor_rnn_state = self.extract_actor_rnn_state(rnn_states_in)
-        actor_features = self.actor_encoder.fwd_inplace(
-            None, actor_rnn_state, processed_obs)
-
-        if rnn_states_out != None:
-            rnn_states_out[...] = rnn_states_in
-
-        return actor_features
+        return self.actor_encoder.fwd_inplace(
+            self.extract_actor_rnn_state(rnn_states_out) if rnn_states_out else None,
+            self.extract_actor_rnn_state(rnn_states_in),
+            processed_obs)
 
     def fwd_critic_only(self, rnn_states_out, rnn_states_in,
                         *obs_in):
         with torch.no_grad():
             processed_obs = self.process_obs(*obs_in)
 
-        critic_rnn_state = self.extract_critic_rnn_state(rnn_states_in)
-        critic_features = self.critic_encoder.fwd_inplace(
-            None, critic_rnn_state, processed_obs)
-
-        if rnn_states_out != None:
-            rnn_states_out[...] = rnn_states_in
-
-        return critic_features
+        return self.critic_encoder.fwd_inplace(
+            self.extract_critic_rnn_state(rnn_states_out) if rnn_states_out else None,
+            self.extract_critic_rnn_state(rnn_states_in),
+            processed_obs)
 
     def fwd_rollout(self, rnn_states_out, rnn_states_in, *obs_in):
-        actor_features, critic_features = self._rollout_common(
-            rnn_states_out, rnn_states_in, *obs_in)
+        with torch.no_grad():
+            processed_obs = self.process_obs(*obs_in)
+
+        actor_features = self.actor_encoder.fwd_inplace(
+            self.extract_actor_rnn_state(rnn_states_out),
+            self.extract_actor_rnn_state(rnn_states_in),
+            processed_obs)
+
+        critic_features = self.critic_encoder.fwd_inplace(
+            self.extract_critic_rnn_state(rnn_states_out),
+            self.extract_critic_rnn_state(rnn_states_in),
+            processed_obs)
 
         return actor_features, critic_features
 
@@ -354,220 +342,3 @@ class BackboneSeparate(Backbone):
             sequence_breaks, processed_obs)
 
         return actor_features, critic_features
-
-class HiveBackbone(Backbone):
-    """Backbone for the hivemind architecture that coordinates multiple ants
-    
-    This backbone implements the hierarchical RL architecture where:
-    1. Each ant processes its local observations with command from hivemind
-    2. Ants generate actions and messages to the hivemind
-    3. Hivemind aggregates messages through attention
-    4. Hivemind processes global information through LSTM
-    5. Hivemind generates command for next timestep
-    """
-    def __init__(self, num_ants, ant_local_obs_dim, command_dim, ant_mlp_hidden, 
-                 phys_action_total_logits, message_dim,
-                 attn_heads, attn_output_dim,
-                 lstm_hidden_dim, lstm_layers,
-                 ant_mlp_module=None, hive_attention_module=None, 
-                 hive_lstm_module=None, command_mlp_module=None):
-        super().__init__()
-
-        self.num_ants = num_ants  # Number of ants per simulation
-
-        # Store dimensions for command generation
-        self._command_dim = command_dim
-        self._lstm_hidden_dim = lstm_hidden_dim
-
-        # Initialize or use provided ant MLP module
-        self.ant_mlp = ant_mlp_module if ant_mlp_module else \
-            AntMLP(ant_local_obs_dim, command_dim, ant_mlp_hidden,
-                   phys_action_total_logits, message_dim)
-
-        # Initialize or use provided attention module for hivemind
-        self.hive_attention = hive_attention_module if hive_attention_module else \
-            HivemindAttention(message_dim, attn_heads, attn_output_dim)
-        
-        # Initialize or use provided LSTM for hivemind state tracking
-        self.hive_lstm = hive_lstm_module if hive_lstm_module else \
-            LSTM(in_channels=attn_output_dim, hidden_channels=lstm_hidden_dim, num_layers=lstm_layers)
-        
-        # MLP to generate command from LSTM hidden state
-        self.command_mlp = command_mlp_module if command_mlp_module else \
-            nn.Sequential(
-                nn.Linear(lstm_hidden_dim, lstm_hidden_dim // 2),
-                nn.ReLU(),
-                nn.Linear(lstm_hidden_dim // 2, command_dim)
-            )
-
-        # Initialize command MLP weights
-        for idx, layer in enumerate(self.command_mlp):
-            if isinstance(layer, nn.Linear):
-                if idx == len(self.command_mlp) - 1:  # Last layer - command output
-                    nn.init.orthogonal_(layer.weight, gain=0.1)
-                else:  # Hidden layers
-                    nn.init.kaiming_normal_(layer.weight, nn.init.calculate_gain("relu"))
-                if layer.bias is not None:
-                    nn.init.constant_(layer.bias, val=0)
-
-        # Configure recurrence based on the Hivemind's LSTM
-        self.recurrent_cfg = RecurrentStateConfig([self.hive_lstm.hidden_shape])
-        
-        # Helper methods to handle LSTM state extraction and packaging
-        self.extract_lstm_hc = lambda rnn_states_tuple: rnn_states_tuple[0] if rnn_states_tuple else None
-        self.package_lstm_hc = lambda hc_tuple: (hc_tuple,)
-        
-        # Process observation - identity by default, override in subclass if needed
-        self.process_obs = lambda *obs_list: obs_list[0]
-
-    def _get_command_from_state(self, lstm_hc_state, batch_size, device):
-        """Generate hivemind command from LSTM state"""
-        if lstm_hc_state is not None:
-            # Extract hidden state from last LSTM layer
-            # lstm_hc_state shape: [2, num_layers, batch_size, hidden_dim]
-            # h has shape [num_layers, batch_size, hidden_dim]
-            h_last_layer = lstm_hc_state[0][-1]  # [batch_size, hidden_dim]
-            command = self.command_mlp(h_last_layer)   # [batch_size, command_dim]
-        else:
-            # Initial step or no recurrent state, use a zero command
-            command = torch.zeros(batch_size, self._command_dim, device=device)
-        return command
-
-    def _forward_steps(self, current_hive_lstm_hc, ant_obs_input, 
-                       rnn_states_out_tuple_for_update=None):
-        """Core forward pass for the hivemind architecture"""
-        batch_sims = ant_obs_input.shape[0]  # Number of parallel simulations
-        device = ant_obs_input.device
-
-        # 1. Generate Command from previous LSTM state
-        command_for_ants = self._get_command_from_state(current_hive_lstm_hc, batch_sims, device)
-        
-        # Expand command for each ant: [BatchSims, CommandDim] -> [BatchSims, NumAnts, CommandDim]
-        command_expanded = command_for_ants.unsqueeze(1).expand(-1, self.num_ants, -1)
-
-        # Flatten batch dimensions for AntMLP:
-        # ant_obs_input: [BatchSims, NumAnts, ObsDim] -> [BatchSims * NumAnts, ObsDim]
-        # command_expanded: [BatchSims, NumAnts, CommandDim] -> [BatchSims * NumAnts, CommandDim]
-        flat_ant_obs = ant_obs_input.reshape(batch_sims * self.num_ants, -1)
-        flat_command_expanded = command_expanded.reshape(batch_sims * self.num_ants, -1)
-
-        # 2. Ant MLPs: Process observations and generate actions and messages
-        flat_phys_action_logits, flat_messages = self.ant_mlp(flat_ant_obs, flat_command_expanded)
-        
-        # Reshape messages for attention: [BatchSims, NumAnts, MessageDim]
-        ant_messages_for_attn = flat_messages.view(batch_sims, self.num_ants, -1)
-
-        # 3. Hivemind Attention: Aggregate ant messages to global message
-        global_message = self.hive_attention(ant_messages_for_attn)  # [BatchSims, AttnOutputDim]
-
-        # 4. Hivemind LSTM: Update LSTM state using global message
-        # Input to LSTM needs to be [seq_len=1, batch, input_size]
-        lstm_input = global_message.unsqueeze(0)  # [1, BatchSims, AttnOutputDim]
-        
-        lstm_output_feat, next_hive_lstm_hc = self.hive_lstm(lstm_input, current_hive_lstm_hc)
-        
-        # Actor features are the flattened physical action logits for all ants
-        actor_features = flat_phys_action_logits  # [BatchSims * NumAnts, PhysActionLogitsDim]
-        
-        # Critic features are derived from the hivemind's state - use LSTM output
-        # Squeeze seq_len dim: [1, BatchSims, LSTMHiddenDim] -> [BatchSims, LSTMHiddenDim]
-        critic_features = lstm_output_feat.squeeze(0)
-
-        # Update rnn_states_out if provided (for fwd_inplace pattern)
-        if rnn_states_out_tuple_for_update is not None:
-            # Copy the new LSTM state to the output tensor
-            rnn_states_out_tuple_for_update[0].copy_(next_hive_lstm_hc)
-
-        return actor_features, critic_features, self.package_lstm_hc(next_hive_lstm_hc)
-
-    def forward(self, rnn_states_in, *obs_in):
-        # Extract observations
-        ant_obs = self.process_obs(*obs_in)
-        
-        # Extract current LSTM state from rnn_states_in
-        current_lstm_hc = self.extract_lstm_hc(rnn_states_in)
-        
-        # Forward pass through the hivemind architecture
-        actor_features, critic_features, new_rnn_states = self._forward_steps(
-            current_lstm_hc, ant_obs)
-            
-        return actor_features, critic_features, new_rnn_states
-
-    def fwd_rollout(self, rnn_states_out, rnn_states_in, *obs_in):
-        # Process observations
-        ant_obs = self.process_obs(*obs_in)
-        
-        # Extract current LSTM state
-        current_lstm_hc = self.extract_lstm_hc(rnn_states_in)
-
-        # Forward pass with state update
-        actor_features, critic_features, _ = self._forward_steps(
-            current_lstm_hc, ant_obs, rnn_states_out)
-            
-        return actor_features, critic_features
-
-    def fwd_actor_only(self, rnn_states_out, rnn_states_in, *obs_in):
-        # Similar to fwd_rollout, but only return actor features
-        ant_obs = self.process_obs(*obs_in)
-        current_lstm_hc = self.extract_lstm_hc(rnn_states_in)
-        
-        actor_features, _, _ = self._forward_steps(current_lstm_hc, ant_obs, rnn_states_out)
-        return actor_features
-        
-    def fwd_critic_only(self, rnn_states_out, rnn_states_in, *obs_in):
-        # Similar to fwd_rollout, but only return critic features
-        ant_obs = self.process_obs(*obs_in)
-        current_lstm_hc = self.extract_lstm_hc(rnn_states_in)
-        
-        _, critic_features, _ = self._forward_steps(current_lstm_hc, ant_obs, rnn_states_out)
-        return critic_features
-
-    def fwd_sequence(self, rnn_start_states, sequence_breaks, *obs_in_seq):
-        # obs_in_seq[0] should be [T, N_batch, NumAnts, AntObsDim]
-        # Directly process without flattening
-        ant_obs_seq = self.process_obs(*obs_in_seq)
-        
-        # Get dimensions
-        T, N_batch = ant_obs_seq.shape[0], ant_obs_seq.shape[1]
-        device = ant_obs_seq.device
-
-        # Initialize current LSTM state for the batch
-        current_lstm_hc_batch = self.extract_lstm_hc(rnn_start_states)
-
-        # Lists to collect features across timesteps
-        all_actor_features_flat_steps = []
-        all_critic_features_steps = []
-
-        # Process each timestep
-        for t in range(T):
-            # Get observations for this timestep: [N_batch, NumAnts, AntObsDim]
-            ant_obs_t = ant_obs_seq[t]
-            
-            # Forward step without state update (we'll manually update)
-            actor_features_t_flat, critic_features_t, next_lstm_hc_packaged = \
-                self._forward_steps(current_lstm_hc_batch, ant_obs_t)
-            
-            # Collect features for this timestep
-            all_actor_features_flat_steps.append(actor_features_t_flat)
-            all_critic_features_steps.append(critic_features_t)
-
-            # Extract new LSTM state
-            next_lstm_hc = self.extract_lstm_hc(next_lstm_hc_packaged)
-            
-            # Apply sequence breaks (episode dones) to reset LSTM state
-            # Get done mask: [N_batch, 1] -> expanded to LSTM state shape
-            done_mask_t = sequence_breaks[t].view(-1, 1, 1, 1)
-            done_mask_t = done_mask_t.expand_as(next_lstm_hc)
-            
-            # Reset LSTM state when done is True
-            zeros_like_state = torch.zeros_like(next_lstm_hc)
-            current_lstm_hc_batch = torch.where(done_mask_t, zeros_like_state, next_lstm_hc)
-
-        # Concatenate results over time
-        # Actor features: List of [N_batch * NumAnts, LogitsDim] -> [T * N_batch * NumAnts, LogitsDim]
-        final_actor_features = torch.cat(all_actor_features_flat_steps, dim=0)
-        
-        # Critic features: List of [N_batch, LSTMHiddenDim] -> [T * N_batch, LSTMHiddenDim]
-        final_critic_features = torch.cat(all_critic_features_steps, dim=0)
-        
-        return final_actor_features, final_critic_features
