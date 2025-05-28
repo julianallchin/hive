@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
         .execMode = exec_mode,
         .gpuID = 0,
         .numWorlds = num_worlds,
-        .randSeed = 6,
+        .randSeed = 5,
         // .autoReset = replay_log.has_value(),
         .autoReset = true,
 
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
             return true;
         }
 
-        printf("Step: %u\n", cur_replay_step);
+        // printf("Step: %u\n", cur_replay_step); // TODO: remove
         
         for (uint32_t i = 0; i < num_worlds; i++) {
             

@@ -27,7 +27,7 @@ inline constexpr float antRadius = 0.1f;
 inline constexpr float grabRange = 0.1f;
 inline constexpr float macguffinRadius = 1.f;
 inline constexpr float movableObjectRadius = 1.f;
-inline constexpr float goalRadius = 10.0f;
+inline constexpr float goalRadius = 1.0f;
 
 // Reward for decreasing distance between macguffin and goal
 inline constexpr float distanceRewardScale = 0.1f;

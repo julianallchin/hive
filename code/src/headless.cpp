@@ -61,10 +61,10 @@ int main(int argc, char *argv[])
         .gpuID = 0,
         .numWorlds = (uint32_t)num_worlds,
         .randSeed = 5,
-        .autoReset = false,
+        .autoReset = true,
 
-        .minAntsRand = 10, // note: if this is changed, viewer.cpp should probably be updated?
-        .maxAntsRand = 10,
+        .minAntsRand = 100, // note: if this is changed, viewer.cpp should probably be updated?
+        .maxAntsRand = 100,
         .minMovableObjectsRand = 0,
         .maxMovableObjectsRand = 0,
         .minWallsRand = 0,

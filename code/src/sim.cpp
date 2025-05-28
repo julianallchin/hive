@@ -380,6 +380,9 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
     // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
     float step_reward = consts::distanceRewardScale * (ctx.data().prevDist - dist) / ctx.data().startingDist;
 
+    // Existential penalty per timestep
+    float exist_penalty = consts::existentialPenalty;
+    
     // Goal reward if close enough
     float goal_reward = 0.0f;
 
@@ -397,14 +400,17 @@ inline void hiveRewardSystem(Engine &ctx, HiveReward &reward, HiveDone &done, St
     if (is_within_x_bounds && is_within_y_bounds)
     {
         goal_reward = consts::goalReward;
-        done.v = 1; // Episode complete on goal achievement"
+        done.v = 1; // Episode complete on goal achievement
     }
-
-    // Existential penalty per timestep
-    float exist_penalty = consts::existentialPenalty;
 
     // Total reward for this step
     reward.v = step_reward + goal_reward + exist_penalty;
+    
+    // Print success information if goal was reached
+    if (is_within_x_bounds && is_within_y_bounds)
+    {
+        std::cout << "SUCCESS:" << (madEscape::consts::episodeLen - steps.t) << ":" << reward.v << std::endl;
+    }
 
     // If steps remaining is zero, mark as done
     if (--steps.t <= 0)
@@ -567,7 +573,7 @@ inline void stepTrackerSystem(Engine &,
                               HiveDone &done)
 {
     int32_t num_remaining = --steps_remaining.t;
-    std::cout << "Steps Remaining: " << num_remaining << std::endl;
+    // std::cout << "Steps Remaining: " << num_remaining << std::endl; // TODO: remove
     if (num_remaining ==  - 1)
     {
         done.v = 0;
