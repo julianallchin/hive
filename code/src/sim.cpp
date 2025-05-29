@@ -410,9 +410,6 @@ namespace madEscape
 
         // Total reward for this step
         reward.v = step_reward + goal_reward + exist_penalty;
-        
-        // HACKY TESTING STUFF: TODO: REMOVE
-        printf("TaskGraph Reward: %.8f\n\n", reward.v);
 
 
         // If steps remaining is zero, mark as done

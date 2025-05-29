@@ -346,7 +346,22 @@ namespace madEscape
         );
         
         ctx.get<GrabState>(ant).constraintEntity = Entity::none();
-        // no need to init Lidar or Observation; they're set during simulation
+        for (CountT i = 0; i < consts::numLidarSamples; i++) {
+            ctx.get<Lidar>(ant).samples[i] = LidarSample {
+                .depth = 0.0f,
+                .encodedType = (float) EntityType::None,
+            };
+        }
+        ctx.get<Observation>(ant) = Observation {
+            .global_x = 0.0f,
+            .global_y = 0.0f,
+            .orientation_theta = 0.0f,
+            .is_grabbing = 0.0f, // 1.0 if grabbing, 0.0 otherwise
+            .polar_to_macguffin_r = 0.0f,
+            .polar_to_macguffin_theta = 0.0f,
+            .polar_to_goal_r = 0.0f,
+            .polar_to_goal_theta = 0.0f
+        };
         ctx.get<Action>(ant) = Action {
             .moveAmount = 0,
             .moveAngle = 0,

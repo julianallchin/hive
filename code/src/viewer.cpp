@@ -267,8 +267,6 @@ int main(int argc, char *argv[])
         mgr.step();
         
         // Uncomment to see ant observations and rewards during simulation
-        // printObs();
-
-        // printObs();
+        printObs();
     }, []() {});
 }
