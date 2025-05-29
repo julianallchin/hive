@@ -266,10 +266,10 @@ namespace madEscape
     // Implements the grab action by casting a short ray in front of the ant
     // and creating a joint constraint if a grabbable entity is hit.
     inline void antGrabSystem(Engine &ctx,
-                              Entity e,
-                              Position pos,
-                              Rotation rot,
-                              Action action,
+                              Entity &e,
+                              Position &pos,
+                              Rotation &rot,
+                              Action &action,
                               GrabState &grab)
     {
         if (action.grab == 0)
@@ -410,6 +410,10 @@ namespace madEscape
 
         // Total reward for this step
         reward.v = step_reward + goal_reward + exist_penalty;
+        
+        // HACKY TESTING STUFF: TODO: REMOVE
+        printf("TaskGraph Reward: %.8f\n\n", reward.v);
+
 
         // If steps remaining is zero, mark as done
         if (--steps.t <= 0)
@@ -457,12 +461,11 @@ namespace madEscape
     // This system packages ant observations for the ant policy inputs.
     // It collects self-state and relative polar coordinates to important objects.
     inline void collectAntObservationsSystem(Engine &ctx,
-                                             Position pos,
-                                             Rotation rot,
+                                             Position &pos,
+                                             Rotation &rot,
                                              const GrabState &grab,
                                              Observation &ant_obs)
     {
-
         // Self state observations
         ant_obs.global_x = globalPosObs(pos.x);
         ant_obs.global_y = globalPosObs(pos.y);
@@ -498,7 +501,7 @@ namespace madEscape
     // a warp of threads is dispatched for each invocation of the system
     // and each thread in the warp traces one lidar ray for the agent.
     inline void lidarSystem(Engine &ctx,
-                            Entity e,
+                            Entity &e,
                             Lidar &lidar)
     {
         Vector3 pos = ctx.get<Position>(e);
