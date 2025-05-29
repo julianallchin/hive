@@ -160,10 +160,38 @@ namespace madEscape
                 (consts::worldLength + consts::borderWidth) / consts::borderMeshY, // add borderwidth for no jagged corners
                 consts::borderHeight / consts::borderMeshHeight,
             });
+
+        for (CountT i = 0; i < consts::maxAnts; i++)
+        {
+            Entity ant = ctx.makeRenderableEntity<Ant>();
+            if (ctx.data().enableRender) {
+                render::RenderingSystem::attachEntityToView(ctx,
+                                                        ant,
+                                                        100.f, 0.001f,
+                                                        0.5f * math::up);
+            }
+
+            // rigidbody including: pos, rot, scale, obj_id, vel, response_type, force, torque, entity_type
+            setupRigidBodyEntity(
+                ctx,
+                ant,
+                Vector3{0, 0, 0}, // overwritten on reset
+                Quat::angleAxis(placement.angle, math::up),
+                SimObject::Ant,
+                EntityType::Ant,
+                ResponseType::Dynamic,
+                Diag3x3 {
+                    consts::antSize / consts::antMeshSize,
+                    consts::antSize / consts::antMeshSize,
+                    consts::antSize / consts::antMeshSize}
+            );
+            
+            ctx.data().ants[i] = ant;
+        }
     }
 
     // Persistent entities need to be re-registered with the broadphase system.
-    void resetPersistentEntities(Engine &ctx)
+    void resetPersistentEntities(Engine &ctx, AllPlacements &placements)
     {
         // Register the floor
         registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
@@ -172,6 +200,21 @@ namespace madEscape
         for (CountT i = 0; i < 4; i++)
         {
             registerRigidBodyEntity(ctx, ctx.data().borders[i], SimObject::Plane);
+        }
+
+        for (CountT i = 0; i < consts::max::Ants; i++) {
+            Entity ant = ctx.data().ants[i];
+            AntPlacement placement = placements.ants[i];
+            ctx.get<Position>(ant) = Vector3{placement.x, placement.y, 0.0f};
+            ctx.get<GrabState>(ant).constraintEntity = Entity::none();
+            // no need to init Lidar or Observation; they're set during simulation
+            ctx.get<Action>(ant) = Action {
+                .moveAmount = 0,
+                .moveAngle = 0,
+                .rotate = consts::numTurnBuckets / 2,
+                .grab = 0,
+            };
+            registerRigidBodyEntity(ctx, ant, SimObject::Ant);
         }
     }
 
@@ -222,6 +265,14 @@ namespace madEscape
         Vector3 toVector3() const {
             return Vector3{x, y, 0.0f};
         }
+    };
+
+    struct AllPlacements {
+        MacguffinPlacement macguffin;
+        GoalPlacement goal;
+        std::vector<WallPlacement> walls;
+        std::vector<MovableObjectPlacement> movableObjects;
+        std::vector<AntPlacement> ants;
     };
 
     static Entity createLevelState(Engine &ctx)
@@ -319,45 +370,6 @@ namespace madEscape
         return wall;
     }
     
-
-    Entity createAnt(Engine &ctx, const AntPlacement &placement, CountT index)
-    {
-        Entity ant = ctx.makeRenderableEntity<Ant>();
-        if (ctx.data().enableRender) {
-            render::RenderingSystem::attachEntityToView(ctx,
-                                                       ant,
-                                                       100.f, 0.001f,
-                                                       0.5f * math::up);
-        }
-
-        // rigidbody including: pos, rot, scale, obj_id, vel, response_type, force, torque, entity_type
-        setupRigidBodyEntity(
-            ctx,
-            ant,
-            Vector3{placement.x, placement.y, 0},
-            Quat::angleAxis(placement.angle, math::up),
-            SimObject::Ant,
-            EntityType::Ant,
-            ResponseType::Dynamic,
-            Diag3x3 {
-                consts::antSize / consts::antMeshSize,
-                consts::antSize / consts::antMeshSize,
-                consts::antSize / consts::antMeshSize}
-        );
-        
-        ctx.get<GrabState>(ant).constraintEntity = Entity::none();
-        // no need to init Lidar or Observation; they're set during simulation
-        ctx.get<Action>(ant) = Action {
-            .moveAmount = 0,
-            .moveAngle = 0,
-            .rotate = consts::numTurnBuckets / 2,
-            .grab = 0,
-        };
-        
-        registerRigidBodyEntity(ctx, ant, SimObject::Ant);
-        ctx.data().ants[index] = ant;
-        return ant;
-    }
 
     // Determine a suitable position for the macguffin
     static MacguffinPlacement determineMacguffinPlacement(Engine &ctx) {
@@ -776,34 +788,36 @@ namespace madEscape
     // Generate the hive simulation world. called each episode.
     void generateWorld(Engine &ctx)
     {
-        resetPersistentEntities(ctx);
+        const auto &macguffinPlacement = determineMacguffinPlacement(ctx);
+        const auto &goalPlacement = determineGoalPlacement(ctx, macguffinPlacement);
+        const auto &wallPlacements = determineWallPlacements(ctx, macguffinPlacement, goalPlacement);
+        const auto &movableObjectPlacements = determineMovableObjectPlacements(ctx, macguffinPlacement, goalPlacement, wallPlacements);
+        const auto &antPlacements = determineAntPlacements(ctx, macguffinPlacement, goalPlacement, wallPlacements, movableObjectPlacements);
+        const AllPlacements placements = {
+            macguffinPlacement,
+            goalPlacement,
+            wallPlacements,
+            movableObjectPlacements,
+            antPlacements
+        };
+        resetPersistentEntities(ctx, placements);
 
         createLevelState(ctx);
 
         // Place macguffin first
-        const auto &macguffinPlacement = determineMacguffinPlacement(ctx);
         createMacguffin(ctx, macguffinPlacement);
 
         // goal
-        const auto &goalPlacement = determineGoalPlacement(ctx, macguffinPlacement);
         createGoal(ctx, goalPlacement);
 
         // walls
-        const auto &wallPlacements = determineWallPlacements(ctx, macguffinPlacement, goalPlacement);
         for (size_t i = 0; i < ctx.data().numWalls; i++) {
             createWall(ctx, wallPlacements[i], i);
         }
 
         // movable objects
-        const auto &movableObjectPlacements = determineMovableObjectPlacements(ctx, macguffinPlacement, goalPlacement, wallPlacements);
         for (size_t i = 0; i < ctx.data().numMovableObjects; i++) {
             createMovableObject(ctx, movableObjectPlacements[i], i);
-        }
-
-        // ants
-        const auto &antPlacements = determineAntPlacements(ctx, macguffinPlacement, goalPlacement, wallPlacements, movableObjectPlacements);
-        for (int32_t i = 0; i < ctx.singleton<NumAnts>().count; ++i) {
-            createAnt(ctx, antPlacements[i], i);
         }
     }
 
