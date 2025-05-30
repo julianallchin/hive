@@ -32,7 +32,6 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<StepsRemaining>();
 
     registry.registerSingleton<WorldReset>();
-    registry.registerSingleton<LevelState>();
 
     registry.registerArchetype<Agent>();
     registry.registerArchetype<PhysicsEntity>();
@@ -56,19 +55,7 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
 
 static inline void cleanupWorld(Engine &ctx)
 {
-    // Destroy current level entities
-    LevelState &level = ctx.singleton<LevelState>();
-    for (CountT i = 0; i < consts::numRooms; i++) {
-        Room &room = level.rooms[i];
-        for (CountT j = 0; j < consts::maxObstacleEntities; j++) {
-            if (room.entities[j] != Entity::none()) {
-                ctx.destroyRenderableEntity(room.entities[j]);
-            }
-        }
-
-        ctx.destroyRenderableEntity(room.walls[0]);
-        ctx.destroyRenderableEntity(room.walls[1]);
-    }
+    return; // destroy non persistent entities here
 }
 
 static inline void initWorld(Engine &ctx)
