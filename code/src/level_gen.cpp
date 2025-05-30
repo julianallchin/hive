@@ -61,9 +61,6 @@ static void registerRigidBodyEntity(
 // All these entities persist across all episodes.
 void createPersistentEntities(Engine &ctx)
 {
-    // initialized on reset
-    ctx.data().episodeTracker = ctx.makeEntity<EpisodeTracker>();
-
     // Create the floor entity, just a simple static plane.
     ctx.data().floorPlane = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
@@ -156,6 +153,9 @@ void createPersistentEntities(Engine &ctx)
             2.f,
         });
 
+    // initialized on reset
+    ctx.data().episodeTracker = ctx.makeEntity<EpisodeTracker>();
+
     // MacGuffin
     ctx.data().macguffin = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
@@ -167,15 +167,15 @@ void createPersistentEntities(Engine &ctx)
         EntityType::MacGuffin,
         ResponseType::Dynamic,
         Diag3x3 {
-            consts::macguffinScale,
-            consts::macguffinScale,
-            consts::macguffinScale
+            consts::macguffinSize,
+            consts::macguffinSize,
+            consts::macguffinSize
         });
 
     // Goal
     Entity goal = ctx.data().goal = ctx.makeRenderableEntity<Goal>();
     ctx.get<Rotation>(goal) = Quat {1, 0, 0, 0};
-    ctx.get<Scale>(goal) = Diag3x3 { consts::goalScale, consts::goalScale, 0.1f };
+    ctx.get<Scale>(goal) = Diag3x3 { consts::goalSize, consts::goalSize, 0.1f };
     ctx.get<ObjectID>(goal) = ObjectID { (int32_t)SimObject::Goal };
     ctx.get<EntityType>(goal) = EntityType::Goal;
     // position to be initialized on level reset
@@ -208,9 +208,6 @@ void createPersistentEntities(Engine &ctx)
 // reset their positions.
 static void resetPersistentEntities(Engine &ctx)
 {
-    Entity episodeTracker = ctx.data().episodeTracker;
-    ctx.get<StepsRemaining>(episodeTracker).t = consts::episodeLen;
-
     registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
 
     for (CountT i = 0; i < 4; i++) {
@@ -219,8 +216,9 @@ static void resetPersistentEntities(Engine &ctx)
     }
     // MacGuffin
     Entity macguffin = ctx.data().macguffin;
+    Vector3 macguffin_pos{0.0, 0.0, 10.0};
     registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
-    ctx.get<Position>(macguffin) = Vector3 {0.0, 0.0, 10.0};
+    ctx.get<Position>(macguffin) = macguffin_pos;
     ctx.get<Rotation>(macguffin) = Quat {1, 0, 0, 0};
     ctx.get<Velocity>(macguffin) = {
         Vector3::zero(),
@@ -231,7 +229,15 @@ static void resetPersistentEntities(Engine &ctx)
 
     // Goal
     Entity goal = ctx.data().goal;
-    ctx.get<Position>(goal) = Vector3 { 15.0f, 15.0f, 0.0f };
+    Vector3 goal_pos{ 15.0f, 15.0f, 0.0f};
+    ctx.get<Position>(goal) = goal_pos;
+
+    // Episode Tracker
+    Entity episodeTracker = ctx.data().episodeTracker;
+    ctx.get<StepsRemaining>(episodeTracker).t = consts::episodeLen;
+    ctx.get<RewardHelper>(episodeTracker).starting_dist = -1.0f; // initialized in rewardsystem
+    ctx.get<RewardHelper>(episodeTracker).prev_dist = -1.0f; // initialized in rewardsystem
+
 
     // Agents
     for (CountT i = 0; i < consts::numAgents; i++) {

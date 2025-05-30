@@ -369,7 +369,7 @@ namespace madEscape
                                              .muD = 0.5f,
                                          });
 
-        setupHull(SimObject::MacGuffin, 0.005f, {
+        setupHull(SimObject::MacGuffin, 0.05f, {
                                                     .muS = 0.5f,
                                                     .muD = 0.75f,
                                                 });

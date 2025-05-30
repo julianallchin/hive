@@ -28,6 +28,7 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<Lidar>();
     registry.registerComponent<EntityType>();
     registry.registerComponent<Reward>();
+    registry.registerComponent<RewardHelper>();
     registry.registerComponent<Done>();
     registry.registerComponent<StepsRemaining>();
     registry.registerComponent<MacGuffinState>();
@@ -328,11 +329,69 @@ inline void lidarSystem(Engine &ctx,
 // so far through the challenge. Continuous reward is provided for any new
 // distance achieved.
 inline void rewardSystem(Engine &ctx,
-                         Reward &out_reward)
+                         Reward &out_reward,
+                         RewardHelper &reward_helper,
+                         Done &done,
+                         StepsRemaining &steps_remaining
+                        )
 {
-    Entity et = ctx.data().episodeTracker;
-    StepsRemaining sr = ctx.get<StepsRemaining>(et);
-    out_reward.v = sr.t * 2;
+    // If done, don't update reward
+    if (done.v == 1)
+    {
+        return;
+    }
+
+    // Get positions of macguffin and goal
+    Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
+    Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
+
+    // Calculate 2D distance (ignore Z axis)
+    Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
+    Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
+    float dist = (goal_pos_2d - macguffin_pos_2d).length();
+
+    // First time initialization
+    if (reward_helper.prev_dist < 0)
+    {
+        reward_helper.prev_dist = dist;
+        reward_helper.starting_dist = dist;
+    }
+
+    // Step reward based on distance reduction
+    // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
+    float step_reward = consts::distanceRewardScale * (reward_helper.prev_dist - dist) / reward_helper.starting_dist;
+
+    // Goal reward if close enough
+    float goal_reward = 0.0f;
+    // Calculate goal's XY bounds
+    float goal_min_x = goal_pos.x - consts::goalSize / 2.0f;
+    float goal_max_x = goal_pos.x + consts::goalSize / 2.0f;
+    float goal_min_y = goal_pos.y - consts::goalSize / 2.0f;
+    float goal_max_y = goal_pos.y + consts::goalSize / 2.0f;
+    // Check if macguffin's XY center is within goal's XY bounds
+    bool within_bounds = (macguffin_pos.x >= goal_min_x && macguffin_pos.x <= goal_max_x &&
+                            macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
+    if (within_bounds)
+    {
+        goal_reward = consts::goalReward;
+        done.v = 1; // Episode complete on goal achievement
+    }
+
+    // Existential penalty per timestep
+    float exist_penalty = consts::existentialPenalty;
+
+    // Total reward for this step
+    out_reward.v = step_reward + goal_reward + exist_penalty;
+
+
+    // If steps remaining is zero, mark as done
+    if (--steps_remaining.t <= 0)
+    {
+        done.v = 1;
+    }
+
+    // Store current distance for next step
+    reward_helper.prev_dist = dist;
 }
 
 // Keep track of the number of steps remaining in the episode and
@@ -416,7 +475,10 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     // Compute initial reward now that physics has updated the world state
     auto reward_sys = builder.addToGraph<ParallelForNode<Engine,
          rewardSystem,
-            Reward
+            Reward,
+            RewardHelper,
+            Done,
+            StepsRemaining
         >>({phys_done});
 
     // Check if the episode is over

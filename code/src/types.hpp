@@ -47,6 +47,12 @@ struct Reward {
     float v;
 };
 
+// additional information needed to calculate reward
+struct RewardHelper {
+    float starting_dist;
+    float prev_dist;
+};
+
 // Per-agent component that indicates that the agent's episode is finished
 // This is exported per-agent for simplicity in the training code
 struct Done {
@@ -96,9 +102,7 @@ struct GrabState {
 
 // Added state for the MacGuffin. Intentionally empty at the moment, as no additional state is needed.
 // In the future, this could for example be replaced with actions, to allow the MacGuffin to become alive.
-struct MacGuffinState{
-
-};
+struct MacGuffinState{};
 
 // This enum is used to track the type of each entity for the purposes of
 // classifying the objects hit by each lidar sample.
@@ -114,6 +118,7 @@ enum class EntityType : uint32_t {
 
 struct EpisodeTracker : public madrona::Archetype <
     Reward,
+    RewardHelper,
     Done,
     StepsRemaining
 > {};
