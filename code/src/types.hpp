@@ -98,11 +98,9 @@ struct GrabState {
 // classifying the objects hit by each lidar sample.
 enum class EntityType : uint32_t {
     None,
-    Button,
     Cube,
     Wall,
     Agent,
-    Door,
     NumTypes,
 };
 
