@@ -306,34 +306,6 @@ static void makeEndWall(Engine &ctx,
     room.walls[1] = right_wall;
 }
 
-// static Entity makeCube(Engine &ctx,
-//                        float cube_x,
-//                        float cube_y,
-//                        float scale = 1.f)
-// {
-//     Entity cube = ctx.makeRenderableEntity<PhysicsEntity>();
-//     setupRigidBodyEntity(
-//         ctx,
-//         cube,
-//         Vector3 {
-//             cube_x,
-//             cube_y,
-//             1.f * scale,
-//         },
-//         Quat { 1, 0, 0, 0 },
-//         SimObject::Cube,
-//         EntityType::Cube,
-//         ResponseType::Dynamic,
-//         Diag3x3 {
-//             scale,
-//             scale,
-//             scale,
-//         });
-//     registerRigidBodyEntity(ctx, cube, SimObject::Cube);
-
-//     return cube;
-// }
-
 // A room with a single button that needs to be pressed, the door stays open.
 static CountT makeSingleButtonRoom(Engine &ctx,
                                    Room &room,
