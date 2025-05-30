@@ -58,8 +58,6 @@ struct Done {
 // Observation state for the current agent.
 // Positions are rescaled to the bounds of the play area to assist training.
 struct SelfObservation {
-    float roomX;
-    float roomY;
     float globalX;
     float globalY;
     float globalZ;
@@ -89,13 +87,6 @@ struct Lidar {
 // to track the progression of time.
 struct StepsRemaining {
     uint32_t t;
-};
-
-
-// Per-agent component storing Entity IDs of the other agents. Used to
-// build the egocentric observations of their state.
-struct OtherAgents {
-    madrona::Entity e[consts::numAgents - 1];
 };
 
 // Tracks if an agent is currently grabbing another entity

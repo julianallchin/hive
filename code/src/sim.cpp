@@ -27,7 +27,6 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<Reward>();
     registry.registerComponent<Done>();
     registry.registerComponent<GrabState>();
-    registry.registerComponent<OtherAgents>();
     registry.registerComponent<Lidar>();
     registry.registerComponent<StepsRemaining>();
     registry.registerComponent<EntityType>();
@@ -271,13 +270,6 @@ inline void collectObservationsSystem(Engine &ctx,
                                       const GrabState &grab,
                                       SelfObservation &self_obs)
 {
-    CountT cur_room_idx = CountT(pos.y / consts::roomLength);
-    cur_room_idx = std::max(CountT(0), 
-        std::min(consts::numRooms - 1, cur_room_idx));
-
-    self_obs.roomX = pos.x / (consts::worldWidth / 2.f);
-    self_obs.roomY = (pos.y - cur_room_idx * consts::roomLength) /
-        consts::roomLength;
     self_obs.globalX = globalPosObs(pos.x);
     self_obs.globalY = globalPosObs(pos.y);
     self_obs.globalZ = globalPosObs(pos.z);
