@@ -75,37 +75,6 @@ struct PolarObservation {
     float theta;
 };
 
-struct PartnerObservation {
-    PolarObservation polar;
-    float isGrabbing;
-};
-
-// Egocentric observations of other agents
-struct PartnerObservations {
-    PartnerObservation obs[consts::numAgents - 1];
-};
-
-// PartnerObservations is exported as a
-// [N, A, consts::numAgents - 1, 3] // tensor to pytorch
-static_assert(sizeof(PartnerObservations) == sizeof(float) *
-    (consts::numAgents - 1) * 3);
-
-// Per-agent egocentric observations for the interactable entities
-// in the current room.
-struct EntityObservation {
-    PolarObservation polar;
-    float encodedType;
-};
-
-struct RoomEntityObservations {
-    EntityObservation obs[consts::maxEntitiesPerRoom];
-};
-
-// RoomEntityObservations is exported as a
-// [N, A, maxEntitiesPerRoom, 3] tensor to pytorch
-static_assert(sizeof(RoomEntityObservations) == sizeof(float) *
-    consts::maxEntitiesPerRoom * 3);
-
 struct LidarSample {
     float depth;
     float encodedType;
@@ -122,11 +91,6 @@ struct StepsRemaining {
     uint32_t t;
 };
 
-// Tracks progress the agent has made through the challenge, used to add
-// reward when more progress has been made
-struct Progress {
-    float maxY;
-};
 
 // Per-agent component storing Entity IDs of the other agents. Used to
 // build the egocentric observations of their state.
