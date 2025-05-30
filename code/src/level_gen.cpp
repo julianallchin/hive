@@ -136,6 +136,26 @@ void createPersistentEntities(Engine &ctx)
             2.f,
         });
 
+    // Top
+    ctx.data().borders[3] = ctx.makeRenderableEntity<PhysicsEntity>();
+    setupRigidBodyEntity(
+        ctx,
+        ctx.data().borders[3],
+        Vector3 {
+            0,
+            consts::worldLength - consts::wallWidth / 2.0f,
+            0,
+        },
+        Quat { 1, 0, 0, 0 },
+        SimObject::Wall,
+        EntityType::Wall,
+        ResponseType::Static,
+        Diag3x3 {
+            consts::worldWidth,
+            consts::wallWidth,
+            2.f,
+        });
+
     // Create agent entities. Note that this leaves a lot of components
     // uninitialized, these will be set during world generation, which is
     // called for every episode.
@@ -169,7 +189,7 @@ static void resetPersistentEntities(Engine &ctx)
 
     registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
 
-     for (CountT i = 0; i < 3; i++) {
+     for (CountT i = 0; i < 4; i++) {
          Entity wall_entity = ctx.data().borders[i];
          registerRigidBodyEntity(ctx, wall_entity, SimObject::Wall);
      }

@@ -16,7 +16,7 @@ inline constexpr madrona::CountT maxBarriers = 3;
 
 
 inline constexpr madrona::CountT maxTotalEntities = 
-        numAgents + maxCubes + maxBarriers + 5; // 5 for side walls + floor + episodeTracker
+        numAgents + maxCubes + maxBarriers + 6; // 6 for 4 side walls + floor + episodeTracker
 
 
 // Various world / entity size parameters

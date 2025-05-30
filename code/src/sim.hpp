@@ -96,9 +96,8 @@ struct Sim : public madrona::WorldBase {
     // Floor plane entity, constant across all episodes.
     Entity floorPlane;
 
-    // Border wall entities: 3 walls to the left, up and down that define
-    // play area. These are constant across all episodes.
-    Entity borders[3];
+    // Border wall entities define play area. These are constant across all episodes.
+    Entity borders[4];
 
     // non-physical entity tracking reward, done, and stepsRemaining. persists across episodes (and reset at start)
     Entity episodeTracker;
