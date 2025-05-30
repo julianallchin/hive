@@ -197,12 +197,8 @@ static void loadRenderObjects(render::RenderManager &render_mgr)
         (std::filesystem::path(DATA_DIR) / "cube_render.obj").string();
     render_asset_paths[(size_t)SimObject::Wall] =
         (std::filesystem::path(DATA_DIR) / "wall_render.obj").string();
-    render_asset_paths[(size_t)SimObject::Door] =
-        (std::filesystem::path(DATA_DIR) / "wall_render.obj").string();
     render_asset_paths[(size_t)SimObject::Agent] =
         (std::filesystem::path(DATA_DIR) / "agent_render.obj").string();
-    render_asset_paths[(size_t)SimObject::Button] =
-        (std::filesystem::path(DATA_DIR) / "cube_render.obj").string();
     render_asset_paths[(size_t)SimObject::Plane] =
         (std::filesystem::path(DATA_DIR) / "plane.obj").string();
 
@@ -234,11 +230,9 @@ static void loadRenderObjects(render::RenderManager &render_mgr)
     // Override materials
     render_assets->objects[(CountT)SimObject::Cube].meshes[0].materialIDX = 0;
     render_assets->objects[(CountT)SimObject::Wall].meshes[0].materialIDX = 1;
-    render_assets->objects[(CountT)SimObject::Door].meshes[0].materialIDX = 5;
     render_assets->objects[(CountT)SimObject::Agent].meshes[0].materialIDX = 2;
     render_assets->objects[(CountT)SimObject::Agent].meshes[1].materialIDX = 3;
     render_assets->objects[(CountT)SimObject::Agent].meshes[2].materialIDX = 3;
-    render_assets->objects[(CountT)SimObject::Button].meshes[0].materialIDX = 6;
     render_assets->objects[(CountT)SimObject::Plane].meshes[0].materialIDX = 4;
 
     imp::ImageImporter img_importer;
@@ -265,12 +259,8 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
         (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
     asset_paths[(size_t)SimObject::Wall] =
         (std::filesystem::path(DATA_DIR) / "wall_collision.obj").string();
-    asset_paths[(size_t)SimObject::Door] =
-        (std::filesystem::path(DATA_DIR) / "wall_collision.obj").string();
     asset_paths[(size_t)SimObject::Agent] =
         (std::filesystem::path(DATA_DIR) / "agent_collision_simplified.obj").string();
-    asset_paths[(size_t)SimObject::Button] =
-        (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
 
     std::array<const char *, (size_t)SimObject::NumObjects - 1> asset_cstrs;
     for (size_t i = 0; i < asset_paths.size(); i++) {
@@ -329,17 +319,7 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
         .muD = 0.5f,
     });
 
-    setupHull(SimObject::Door, 0.f, {
-        .muS = 0.5f,
-        .muD = 0.5f,
-    });
-
     setupHull(SimObject::Agent, 1.f, {
-        .muS = 0.5f,
-        .muD = 0.5f,
-    });
-
-    setupHull(SimObject::Button, 1.f, {
         .muS = 0.5f,
         .muD = 0.5f,
     });
@@ -612,17 +592,6 @@ Tensor Manager::roomEntityObservationsTensor() const
                                    impl_->cfg.numWorlds,
                                    consts::numAgents,
                                    consts::maxEntitiesPerRoom,
-                                   3,
-                               });
-}
-
-Tensor Manager::doorObservationTensor() const
-{
-    return impl_->exportTensor(ExportID::DoorObservation,
-                               TensorElementType::Float32,
-                               {
-                                   impl_->cfg.numWorlds,
-                                   consts::numAgents,
                                    3,
                                });
 }

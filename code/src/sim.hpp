@@ -28,7 +28,6 @@ enum class ExportID : uint32_t {
     SelfObservation,
     PartnerObservations,
     RoomEntityObservations,
-    DoorObservation,
     Lidar,
     StepsRemaining,
     NumExports,
@@ -39,9 +38,7 @@ enum class ExportID : uint32_t {
 enum class SimObject : uint32_t {
     Cube,
     Wall,
-    Door,
     Agent,
-    Button,
     Plane,
     NumObjects,
 };

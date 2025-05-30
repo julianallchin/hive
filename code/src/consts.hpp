@@ -45,7 +45,7 @@ inline constexpr madrona::CountT numLidarSamples = 30;
 inline constexpr float deltaT = 0.04f;
 
 // Speed at which doors raise and lower
-inline constexpr float doorSpeed = 30.f;
+// inline constexpr float doorSpeed = 30.f;
 
 // Number of physics substeps
 inline constexpr madrona::CountT numPhysicsSubsteps = 4.f;

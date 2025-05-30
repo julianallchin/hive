@@ -106,13 +106,6 @@ struct RoomEntityObservations {
 static_assert(sizeof(RoomEntityObservations) == sizeof(float) *
     consts::maxEntitiesPerRoom * 3);
 
-// Observation of the current room's door. It's relative position and
-// whether or not it is ope
-struct DoorObservation {
-    PolarObservation polar;
-    float isOpen; // 1.0 when open, 0.0 when closed.
-};
-
 struct LidarSample {
     float depth;
     float encodedType;
@@ -158,24 +151,6 @@ enum class EntityType : uint32_t {
     NumTypes,
 };
 
-// A per-door component that tracks whether or not the door should be open.
-struct OpenState {
-    bool isOpen;
-};
-
-// Linked buttons that control the door opening and whether or not the door
-// should remain open after the buttons are pressed once.
-struct DoorProperties {
-    Entity buttons[consts::maxEntitiesPerRoom];
-    int32_t numButtons;
-    bool isPersistent;
-};
-
-// Similar to OpenState, true during frames where a button is pressed
-struct ButtonState {
-    bool isPressed;
-};
-
 // Room itself is not a component but is used by the singleton
 // component "LevelState" (below) to represent the state of the full level
 struct Room {
@@ -184,9 +159,6 @@ struct Room {
 
     // The walls that separate this room from the next
     Entity walls[2];
-
-    // The door the agents need to figure out how to lower
-    Entity door;
 };
 
 // A singleton component storing the state of all the rooms in the current
@@ -218,7 +190,6 @@ struct Agent : public madrona::Archetype<
     SelfObservation,
     PartnerObservations,
     RoomEntityObservations,
-    DoorObservation,
     Lidar,
     StepsRemaining,
 
@@ -231,27 +202,6 @@ struct Agent : public madrona::Archetype<
     madrona::render::RenderCamera,
     // All entities with the Renderable component will be drawn by the
     // viewer and batch renderer
-    madrona::render::Renderable
-> {};
-
-// Archetype for the doors blocking the end of each challenge room
-struct DoorEntity : public madrona::Archetype<
-    RigidBody,
-    OpenState,
-    DoorProperties,
-    EntityType,
-    madrona::render::Renderable
-> {};
-
-// Archetype for the button objects that open the doors
-// Buttons don't have collision but are rendered
-struct ButtonEntity : public madrona::Archetype<
-    Position,
-    Rotation,
-    Scale,
-    ObjectID,
-    ButtonState,
-    EntityType,
     madrona::render::Renderable
 > {};
 
