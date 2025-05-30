@@ -15,17 +15,10 @@ NB_MODULE(madrona_escape_room, m) {
     madrona::py::setupMadronaSubmodule(m);
 
     nb::class_<Manager> (m, "SimManager")
-    // should match Manager::Config
         .def("__init__", [](Manager *self,
                             madrona::py::PyExecMode exec_mode,
                             int64_t gpu_id,
                             int64_t num_worlds,
-                            int64_t min_ants_rand,
-                            int64_t max_ants_rand,
-                            int64_t min_movable_objects_rand,
-                            int64_t max_movable_objects_rand,
-                            int64_t min_walls_rand,
-                            int64_t max_walls_rand,
                             int64_t rand_seed,
                             bool auto_reset,
                             bool enable_batch_renderer) {
@@ -35,23 +28,11 @@ NB_MODULE(madrona_escape_room, m) {
                 .numWorlds = (uint32_t)num_worlds,
                 .randSeed = (uint32_t)rand_seed,
                 .autoReset = auto_reset,
-                .minAntsRand = (uint32_t)min_ants_rand,
-                .maxAntsRand = (uint32_t)max_ants_rand,
-                .minMovableObjectsRand = (uint32_t)min_movable_objects_rand,
-                .maxMovableObjectsRand = (uint32_t)max_movable_objects_rand,
-                .minWallsRand = (uint32_t)min_walls_rand,
-                .maxWallsRand = (uint32_t)max_walls_rand,
                 .enableBatchRenderer = enable_batch_renderer,
             });
         }, nb::arg("exec_mode"),
            nb::arg("gpu_id"),
            nb::arg("num_worlds"),
-           nb::arg("min_ants_rand"),
-           nb::arg("max_ants_rand"),
-           nb::arg("min_movable_objects_rand"),
-           nb::arg("max_movable_objects_rand"),
-           nb::arg("min_walls_rand"),
-           nb::arg("max_walls_rand"),
            nb::arg("rand_seed"),
            nb::arg("auto_reset"),
            nb::arg("enable_batch_renderer") = false)
@@ -60,9 +41,13 @@ NB_MODULE(madrona_escape_room, m) {
         .def("action_tensor", &Manager::actionTensor)
         .def("reward_tensor", &Manager::rewardTensor)
         .def("done_tensor", &Manager::doneTensor)
-        .def("observation_tensor", &Manager::observationTensor)
+        .def("self_observation_tensor", &Manager::selfObservationTensor)
+        .def("partner_observations_tensor", &Manager::partnerObservationsTensor)
+        .def("room_entity_observations_tensor",
+             &Manager::roomEntityObservationsTensor)
+        .def("door_observation_tensor",
+             &Manager::doorObservationTensor)
         .def("lidar_tensor", &Manager::lidarTensor)
-        .def("num_ants_tensor", &Manager::numAntsTensor)
         .def("steps_remaining_tensor", &Manager::stepsRemainingTensor)
         .def("rgb_tensor", &Manager::rgbTensor)
         .def("depth_tensor", &Manager::depthTensor)

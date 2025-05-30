@@ -6,202 +6,261 @@
 #include <madrona/physics.hpp>
 #include <madrona/render/ecs.hpp>
 
-#include "consts.hpp" // Assuming this will be updated with new constants
+#include "consts.hpp"
 
-namespace madEscape
-{
+namespace madEscape {
 
-    // Forward declaration
-    class Engine;
+// Include several madrona types into the simulator namespace for convenience
+using madrona::Entity;
+using madrona::RandKey;
+using madrona::CountT;
+using madrona::base::Position;
+using madrona::base::Rotation;
+using madrona::base::Scale;
+using madrona::base::ObjectID;
+using madrona::phys::Velocity;
+using madrona::phys::ResponseType;
+using madrona::phys::ExternalForce;
+using madrona::phys::ExternalTorque;
+using madrona::phys::RigidBody;
 
-    // Madrona types used
-    using madrona::CountT;
-    using madrona::Entity;
-    using madrona::RandKey;
-    using madrona::base::ObjectID;
-    using madrona::base::Position;
-    using madrona::base::Rotation;
-    using madrona::base::Scale;
-    using madrona::phys::ExternalForce;
-    using madrona::phys::ExternalTorque;
-    using madrona::phys::ResponseType;
-    using madrona::phys::RigidBody; // Bundle component
-    using madrona::phys::Velocity;
+// WorldReset is a per-world singleton component that causes the current
+// episode to be terminated and the world regenerated
+// (Singleton components like WorldReset can be accessed via Context::singleton
+// (eg ctx.singleton<WorldReset>().reset = 1)
+struct WorldReset {
+    int32_t reset;
+};
 
-    // WorldReset is a per-world singleton component that causes the current
-    // episode to be terminated and the world regenerated.
-    struct WorldReset
-    {
-        int32_t reset; // 1 to reset, 0 otherwise
-    };
+// Discrete action component. Ranges are defined by consts::numMoveBuckets (5),
+// repeated here for clarity
+struct Action {
+    int32_t moveAmount; // [0, 3]
+    int32_t moveAngle; // [0, 7]
+    int32_t rotate; // [-2, 2]
+    int32_t grab; // 0 = do nothing, 1 = grab / release
+};
 
-    // Polar coordinates for observations (distance and angle)
-    struct PolarObservation
-    {
-        float r;     // distance
-        float theta; // angle
-    };
+// Per-agent reward
+// Exported as an [N * A, 1] float tensor to training code
+struct Reward {
+    float v;
+};
 
-    // Defines the physical actions an ant can take.
-    // This is an input to the simulation from the policy.
-    struct Action
-    {
-        int32_t moveAmount; // Discrete bucket index for movement force
-        int32_t moveAngle;  // Discrete bucket index for movement direction (egocentric)
-        int32_t rotate;      // Discrete bucket index for rotation torque
-        int32_t grab;     // 0 = no-op, 1 = attempt to grab / release
-    };
+// Per-agent component that indicates that the agent's episode is finished
+// This is exported per-agent for simplicity in the training code
+struct Done {
+    // Currently bool components are not supported due to
+    // padding issues, so Done is an int32_t
+    int32_t v;
+};
 
-    // Observation data for a single ant, excluding Lidar.
-    // This is an output from the simulation to the policy.
-    struct Observation
-    {
-        // Self state
-        float global_x;          // Ant's global X position (normalized)
-        float global_y;          // Ant's global Y position (normalized)
-        float orientation_theta; // Ant's orientation angle in 2D plane (normalized -pi to pi)
-        float is_grabbing;       // 1.0 if grabbing, 0.0 otherwise
+// Observation state for the current agent.
+// Positions are rescaled to the bounds of the play area to assist training.
+struct SelfObservation {
+    float roomX;
+    float roomY;
+    float globalX;
+    float globalY;
+    float globalZ;
+    float maxY;
+    float theta;
+    float isGrabbing;
+};
 
-        // Task state
-        float polar_to_macguffin_r;     // Distance to macguffin
-        float polar_to_macguffin_theta; // Angle to macguffin (egocentric)
-        float polar_to_goal_r;          // Distance to goal
-        float polar_to_goal_theta;      // Angle to goal (egocentric)
-    };
+// The state of the world is passed to each agent in terms of egocentric
+// polar coordinates. theta is degrees off agent forward.
+struct PolarObservation {
+    float r;
+    float theta;
+};
 
-    // Lidar sample structure (depth and type of hit entity)
-    struct LidarSample
-    {
-        float depth;        // Distance to hit, normalized
-        float encodedType; // Encoded type of the entity hit
-    };
+struct PartnerObservation {
+    PolarObservation polar;
+    float isGrabbing;
+};
 
-    // Lidar sensor data for an ant.
-    // This is an output from the simulation to the policy.
-    struct Lidar
-    {
-        LidarSample samples[consts::numLidarSamples];
-    };
+// Egocentric observations of other agents
+struct PartnerObservations {
+    PartnerObservation obs[consts::numAgents - 1];
+};
 
-    // Tracks if an ant is currently grabbing another entity
-    struct GrabState
-    {
-        Entity constraintEntity; // Entity::none() if not grabbing
-    };
+// PartnerObservations is exported as a
+// [N, A, consts::numAgents - 1, 3] // tensor to pytorch
+static_assert(sizeof(PartnerObservations) == sizeof(float) *
+    (consts::numAgents - 1) * 3);
 
-    // Enum for various entity types in the simulation
-    enum class EntityType : uint32_t
-    {
-        None,
-        Ant,
-        Macguffin,
-        Goal,          // Non-physical target
-        PhysicsEntity,          // Static obstacle
-        MovableObject, // Dynamic obstacle
-        NumTypes,
-    };
+// Per-agent egocentric observations for the interactable entities
+// in the current room.
+struct EntityObservation {
+    PolarObservation polar;
+    float encodedType;
+};
 
-    struct Reward
-    {
-        float v;
-    };
+struct RoomEntityObservations {
+    EntityObservation obs[consts::maxEntitiesPerRoom];
+};
 
-    struct RewardHelperVars
-    {
-        float prev_dist;
-        float original_dist;
-    };
+// RoomEntityObservations is exported as a
+// [N, A, maxEntitiesPerRoom, 3] tensor to pytorch
+static_assert(sizeof(RoomEntityObservations) == sizeof(float) *
+    consts::maxEntitiesPerRoom * 3);
 
-    struct HiveDone
-    {
-        int32_t v; // 1 if done, 0 otherwise
-    };
+// Observation of the current room's door. It's relative position and
+// whether or not it is ope
+struct DoorObservation {
+    PolarObservation polar;
+    float isOpen; // 1.0 when open, 0.0 when closed.
+};
 
-    struct StepsRemaining
-    {
-        int32_t t;
-    };
-    
-    struct NumAnts
-    {
-        int32_t count;
-    };
+struct LidarSample {
+    float depth;
+    float encodedType;
+};
 
-    /* ECS Archetypes */
+// Linear depth values and entity type in a circle around the agent
+struct Lidar {
+    LidarSample samples[consts::numLidarSamples];
+};
 
-    struct LevelState : public madrona::Archetype<
-                    Reward,
-                    RewardHelperVars,
-                    HiveDone,
-                    StepsRemaining>
-    {
-    };
+// Number of steps remaining in the episode. Allows non-recurrent policies
+// to track the progression of time.
+struct StepsRemaining {
+    uint32_t t;
+};
 
-    // Archetype for Ants
-    struct Ant : public madrona::Archetype<
-                     // Physics components
-                     RigidBody, // Includes Position, Rotation, Scale, ObjectID, Velocity, etc.
-                     EntityType,
+// Tracks progress the agent has made through the challenge, used to add
+// reward when more progress has been made
+struct Progress {
+    float maxY;
+};
 
-                     // Ant-specific state
-                     GrabState,
-                     Lidar,
-                     Observation,
-                     Action,
+// Per-agent component storing Entity IDs of the other agents. Used to
+// build the egocentric observations of their state.
+struct OtherAgents {
+    madrona::Entity e[consts::numAgents - 1];
+};
 
-                     // Rendering
-                     madrona::render::Renderable,
-                     madrona::render::RenderCamera // Optional: if wanting per-ant camera views
-                     >
-    {
-    };
+// Tracks if an agent is currently grabbing another entity
+struct GrabState {
+    Entity constraintEntity;
+};
 
-    // Archetype for the Macguffin (the object to be moved)
-    struct Macguffin : public madrona::Archetype<
-                           RigidBody,
-                           EntityType,
-                           madrona::render::Renderable>
-    {
-    };
+// This enum is used to track the type of each entity for the purposes of
+// classifying the objects hit by each lidar sample.
+enum class EntityType : uint32_t {
+    None,
+    Button,
+    Cube,
+    Wall,
+    Agent,
+    Door,
+    NumTypes,
+};
 
-    // Archetype for the Goal (target location, non-physical)
-    struct Goal : public madrona::Archetype<
-                      Position, // Essential for location
-                      ObjectID, // For rendering if visualized
-                      Scale,    // For rendering if visualized
-                      Rotation, // For rendering if visualized (though likely fixed for a 2D target marker)
-                      EntityType,
-                      madrona::render::Renderable>
-    {
-    };
+// A per-door component that tracks whether or not the door should be open.
+struct OpenState {
+    bool isOpen;
+};
 
-    // Archetype for entities that need physics but don't have logic (read: fixed walls and the floor)
-    struct PhysicsEntity : public madrona::Archetype<
-                      RigidBody, // Will be set to ResponseType::Static
-                      EntityType,
-                      madrona::render::Renderable>
-    {
-    };
+// Linked buttons that control the door opening and whether or not the door
+// should remain open after the buttons are pressed once.
+struct DoorProperties {
+    Entity buttons[consts::maxEntitiesPerRoom];
+    int32_t numButtons;
+    bool isPersistent;
+};
 
-    // Archetype for Movable Objects (dynamic obstacles)
-    struct MovableObject : public madrona::Archetype<
-                               RigidBody,
-                               EntityType,
-                               madrona::render::Renderable>
-    {
-    };
+// Similar to OpenState, true during frames where a button is pressed
+struct ButtonState {
+    bool isPressed;
+};
 
-    // Static asserts for component sizes if they are to be exported directly as fixed-size tensors
-    // Note: Madrona handles padding, but good for sanity checking total data expected by Python.
+// Room itself is not a component but is used by the singleton
+// component "LevelState" (below) to represent the state of the full level
+struct Room {
+    // These are entities the agent will interact with
+    Entity entities[consts::maxEntitiesPerRoom];
 
-    // Size of Observation (8 floats)
-    static_assert(sizeof(Observation) == sizeof(float) * 8);
+    // The walls that separate this room from the next
+    Entity walls[2];
 
-    // Size of Lidar data (numLidarSamples * 2 floats per sample)
-    static_assert(sizeof(Lidar) == sizeof(LidarSample) * consts::numLidarSamples);
-    static_assert(sizeof(LidarSample) == sizeof(float) * 2);
+    // The door the agents need to figure out how to lower
+    Entity door;
+};
 
-    // Size of Action (4 int32_t values)
-    static_assert(sizeof(Action) == sizeof(int32_t) * 4);
+// A singleton component storing the state of all the rooms in the current
+// randomly generated level
+struct LevelState {
+    Room rooms[consts::numRooms];
+};
 
-} // namespace madEscape
+/* ECS Archetypes for the game */
+
+// There are 2 Agents in the environment trying to get to the destination
+struct Agent : public madrona::Archetype<
+    // RigidBody is a "bundle" component defined in physics.hpp in Madrona.
+    // This includes a number of components into the archetype, including
+    // Position, Rotation, Scale, Velocity, and a number of other components
+    // used internally by the physics.
+    RigidBody,
+
+    // Internal logic state.
+    GrabState,
+    Progress,
+    OtherAgents,
+    EntityType,
+
+    // Input
+    Action,
+
+    // Observations
+    SelfObservation,
+    PartnerObservations,
+    RoomEntityObservations,
+    DoorObservation,
+    Lidar,
+    StepsRemaining,
+
+    // Reward, episode termination
+    Reward,
+    Done,
+
+    // Visualization: In addition to the fly camera, src/viewer.cpp can
+    // view the scene from the perspective of entities with this component
+    madrona::render::RenderCamera,
+    // All entities with the Renderable component will be drawn by the
+    // viewer and batch renderer
+    madrona::render::Renderable
+> {};
+
+// Archetype for the doors blocking the end of each challenge room
+struct DoorEntity : public madrona::Archetype<
+    RigidBody,
+    OpenState,
+    DoorProperties,
+    EntityType,
+    madrona::render::Renderable
+> {};
+
+// Archetype for the button objects that open the doors
+// Buttons don't have collision but are rendered
+struct ButtonEntity : public madrona::Archetype<
+    Position,
+    Rotation,
+    Scale,
+    ObjectID,
+    ButtonState,
+    EntityType,
+    madrona::render::Renderable
+> {};
+
+// Generic archetype for entities that need physics but don't have custom
+// logic associated with them.
+struct PhysicsEntity : public madrona::Archetype<
+    RigidBody,
+    EntityType,
+    madrona::render::Renderable
+> {};
+
+}

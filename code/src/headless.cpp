@@ -62,14 +62,6 @@ int main(int argc, char *argv[])
         .numWorlds = (uint32_t)num_worlds,
         .randSeed = 5,
         .autoReset = false,
-
-        .minAntsRand = 10, // note: if this is changed, viewer.cpp should probably be updated?
-        .maxAntsRand = 10,
-        .minMovableObjectsRand = 0,
-        .maxMovableObjectsRand = 0,
-        .minWallsRand = 0,
-        .maxWallsRand = 0,
-
         .enableBatchRenderer = false,
     });
 

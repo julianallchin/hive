@@ -5,7 +5,6 @@
 #include "sim.hpp"
 #include "mgr.hpp"
 #include "types.hpp"
-#include "consts.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -31,30 +30,27 @@ int main(int argc, char *argv[])
 {
     using namespace madEscape;
 
+    constexpr int64_t num_views = 2;
+
     // Read command line arguments
-    uint32_t num_ants = 1;
-    if (argc >= 2) {
-        num_ants = (uint32_t)atoi(argv[1]);
-    }
-    
     uint32_t num_worlds = 1;
-    if (argc >= 3) {
-        num_worlds = (uint32_t)atoi(argv[2]);
+    if (argc >= 2) {
+        num_worlds = (uint32_t)atoi(argv[1]);
     }
 
     ExecMode exec_mode = ExecMode::CPU;
-    if (argc >= 4) {
-        if (!strcmp("--cpu", argv[3])) {
+    if (argc >= 3) {
+        if (!strcmp("--cpu", argv[2])) {
             exec_mode = ExecMode::CPU;
-        } else if (!strcmp("--cuda", argv[3])) {
+        } else if (!strcmp("--cuda", argv[2])) {
             exec_mode = ExecMode::CUDA;
         }
     }
 
     // Setup replay log
     const char *replay_log_path = nullptr;
-    if (argc >= 5) {
-        replay_log_path = argv[4];
+    if (argc >= 4) {
+        replay_log_path = argv[3];
     }
 
     auto replay_log = Optional<HeapArray<int32_t>>::none();
@@ -62,7 +58,7 @@ int main(int argc, char *argv[])
     uint32_t num_replay_steps = 0;
     if (replay_log_path != nullptr) {
         replay_log = readReplayLog(replay_log_path);
-        num_replay_steps = replay_log->size() / (num_worlds * consts::maxAnts * 4);
+        num_replay_steps = replay_log->size() / (num_worlds * num_views * 4);
     }
 
     bool enable_batch_renderer =
@@ -73,7 +69,7 @@ int main(int argc, char *argv[])
 #endif
 
     WindowManager wm {};
-    WindowHandle window = wm.makeWindow("Hive", 2730, 1536);
+    WindowHandle window = wm.makeWindow("Escape Room", 2730, 1536);
     render::GPUHandle render_gpu = wm.initGPU(0, { window.get() });
 
     // Create the simulation manager
@@ -82,28 +78,19 @@ int main(int argc, char *argv[])
         .gpuID = 0,
         .numWorlds = num_worlds,
         .randSeed = 5,
-        // .autoReset = replay_log.has_value(),
-        .autoReset = true,
-
-        .minAntsRand = num_ants,
-        .maxAntsRand = num_ants,
-        .minMovableObjectsRand = 1,
-        .maxMovableObjectsRand = 5,
-        .minWallsRand = 1,
-        .maxWallsRand = 5,
-
+        .autoReset = replay_log.has_value(),
         .enableBatchRenderer = enable_batch_renderer,
         .extRenderAPI = wm.gpuAPIManager().backend(),
         .extRenderDev = render_gpu.device(),
     });
 
-    float camera_move_speed = 30.f;
-    float camera_height = (consts::worldWidth + consts::worldLength) / 2.0f;
-    math::Vector3 initial_camera_position = { 0, 0, camera_height};
+    float camera_move_speed = 10.f;
 
-    // Top-down view for the ant colony
+    math::Vector3 initial_camera_position = { 0, consts::worldLength / 2.f, 30 };
+
     math::Quat initial_camera_rotation =
-        math::Quat::angleAxis(-math::pi / 2.f, math::right).normalize();
+        (math::Quat::angleAxis(-math::pi / 2.f, math::up) *
+        math::Quat::angleAxis(-math::pi / 2.f, math::right)).normalize();
 
 
     // Create the viewer viewer
@@ -115,29 +102,26 @@ int main(int argc, char *argv[])
         .cameraRotation = initial_camera_rotation,
     });
 
-    // Replay step for ant colony
+    // Replay step
     auto replayStep = [&]() {
         if (cur_replay_step == num_replay_steps - 1) {
             return true;
         }
 
         printf("Step: %u\n", cur_replay_step);
-        
+
         for (uint32_t i = 0; i < num_worlds; i++) {
-            
-            assert(num_ants > 0);
-            
-            for (uint32_t j = 0; j < (uint32_t)num_ants; j++) {
+            for (uint32_t j = 0; j < num_views; j++) {
                 uint32_t base_idx = 0;
-                base_idx = 4 * (cur_replay_step * consts::maxAnts * num_worlds +
-                    i * consts::maxAnts + j);
+                base_idx = 4 * (cur_replay_step * num_views * num_worlds +
+                    i * num_views + j);
 
                 int32_t move_amount = (*replay_log)[base_idx];
                 int32_t move_angle = (*replay_log)[base_idx + 1];
                 int32_t turn = (*replay_log)[base_idx + 2];
                 int32_t g = (*replay_log)[base_idx + 3];
 
-                printf("World %d, Ant %d: move=%d angle=%d turn=%d grab=%d\n",
+                printf("%d, %d: %d %d %d %d\n",
                        i, j, move_amount, move_angle, turn, g);
                 mgr.setAction(i, j, move_amount, move_angle, turn, g);
             }
@@ -148,19 +132,27 @@ int main(int argc, char *argv[])
         return false;
     };
 
-    // Printers for ant colony simulation
-    auto ant_printer = mgr.observationTensor().makePrinter();
-    auto ant_count_printer = mgr.numAntsTensor().makePrinter();
+    // Printers
+    auto self_printer = mgr.selfObservationTensor().makePrinter();
+    auto partner_printer = mgr.partnerObservationsTensor().makePrinter();
+    auto room_ent_printer = mgr.roomEntityObservationsTensor().makePrinter();
+    auto door_printer = mgr.doorObservationTensor().makePrinter();
     auto lidar_printer = mgr.lidarTensor().makePrinter();
     auto steps_remaining_printer = mgr.stepsRemainingTensor().makePrinter();
     auto reward_printer = mgr.rewardTensor().makePrinter();
 
     auto printObs = [&]() {
-        printf("Ant Observations\n");
-        ant_printer.print();
+        printf("Self\n");
+        self_printer.print();
 
-        printf("Ant Count\n");
-        ant_count_printer.print();
+        printf("Partner\n");
+        partner_printer.print();
+
+        printf("Room Entities\n");
+        room_ent_printer.print();
+
+        printf("Door\n");
+        door_printer.print();
 
         printf("Lidar\n");
         lidar_printer.print();
@@ -168,7 +160,7 @@ int main(int argc, char *argv[])
         printf("Steps Remaining\n");
         steps_remaining_printer.print();
 
-        printf("Hive Reward\n");
+        printf("Reward\n");
         reward_printer.print();
 
         printf("\n");
@@ -181,11 +173,10 @@ int main(int argc, char *argv[])
     {
         using Key = Viewer::KeyboardKey;
         if (input.keyHit(Key::R)) {
-            // Reset the current world
             mgr.triggerReset(world_idx);
         }
     },
-    [&mgr](CountT world_idx, CountT ant_idx,
+    [&mgr](CountT world_idx, CountT agent_idx,
            const Viewer::UserInput &input)
     {
         using Key = Viewer::KeyboardKey;
@@ -252,8 +243,7 @@ int main(int argc, char *argv[])
             move_angle = 0;
         }
 
-        // Set action for this individual ant
-        mgr.setAction(world_idx, ant_idx, move_amount, move_angle, r, g);
+        mgr.setAction(world_idx, agent_idx, move_amount, move_angle, r, g);
     }, [&]() {
         if (replay_log.has_value()) {
             bool replay_finished = replayStep();
@@ -263,10 +253,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Step the ant colony simulation
         mgr.step();
-        
-        // Uncomment to see ant observations and rewards during simulation
+
         printObs();
     }, []() {});
 }

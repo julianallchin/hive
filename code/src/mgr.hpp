@@ -21,14 +21,6 @@ public:
         uint32_t numWorlds; // Simulation batch size
         uint32_t randSeed; // Seed for random world gen
         bool autoReset; // Immediately generate new world on episode end
-        
-        uint32_t minAntsRand;
-        uint32_t maxAntsRand;
-        uint32_t minMovableObjectsRand;
-        uint32_t maxMovableObjectsRand;
-        uint32_t minWallsRand;
-        uint32_t maxWallsRand;
-
         bool enableBatchRenderer;
         uint32_t batchRenderViewWidth = 64;
         uint32_t batchRenderViewHeight = 64;
@@ -47,16 +39,12 @@ public:
     madrona::py::Tensor actionTensor() const;
     madrona::py::Tensor rewardTensor() const;
     madrona::py::Tensor doneTensor() const;
-    
-    // Ant-specific observations
-    madrona::py::Tensor observationTensor() const; // Ant's full state (includes task observations)
-    madrona::py::Tensor lidarTensor() const; // Raycast/lidar observations
-    
-    // World state
-    madrona::py::Tensor numAntsTensor() const; // Number of ants per world (varies due to randomization)
+    madrona::py::Tensor selfObservationTensor() const;
+    madrona::py::Tensor partnerObservationsTensor() const;
+    madrona::py::Tensor roomEntityObservationsTensor() const;
+    madrona::py::Tensor doorObservationTensor() const;
+    madrona::py::Tensor lidarTensor() const;
     madrona::py::Tensor stepsRemainingTensor() const;
-    
-    // Optional visualization tensors for debugging
     madrona::py::Tensor rgbTensor() const;
     madrona::py::Tensor depthTensor() const;
 
