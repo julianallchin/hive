@@ -34,6 +34,7 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<MacGuffinState>();
 
     registry.registerSingleton<WorldReset>();
+    registry.registerSingleton<NumAgents>();
 
     registry.registerArchetype<Agent>();
     registry.registerArchetype<PhysicsEntity>();
@@ -44,6 +45,8 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
 
     registry.exportSingleton<WorldReset>(
         (uint32_t)ExportID::Reset);
+    registry.exportSingleton<NumAgents>(
+        (uint32_t)ExportID::NumAgents);
     registry.exportColumn<Agent, Action>(
         (uint32_t)ExportID::Action);
     registry.exportColumn<Agent, SelfObservation>(
@@ -555,7 +558,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
 Sim::Sim(Engine &ctx,
          const Config &cfg,
-         const WorldInit &)
+         const WorldInit &worldInit)
     : WorldBase(ctx)
 {
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,

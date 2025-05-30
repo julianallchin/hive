@@ -7,16 +7,19 @@ namespace madEscape {
 namespace consts {
 
 // Generated levels assume 2 agents
-inline constexpr madrona::CountT numAgents = 2;
+inline constexpr int32_t minAgents = 1;
+inline constexpr int32_t maxAgents = 4;
 
 // Maximum number of interactive objects per challenge room. This is needed
 // in order to setup the fixed-size learning tensors appropriately.
-inline constexpr madrona::CountT maxCubes = 3;
-inline constexpr madrona::CountT maxBarriers = 3;
+inline constexpr int32_t minCubes = 0;
+inline constexpr int32_t maxCubes = 3;
+inline constexpr int32_t minBarriers = 0;
+inline constexpr int32_t maxBarriers = 3;
 
 
 inline constexpr madrona::CountT maxTotalEntities = 
-        numAgents + maxCubes + maxBarriers + 6; // 6 for 4 side walls + floor + episodeTracker
+        maxAgents + maxCubes + maxBarriers + 6; // 6 for 4 side walls + floor + episodeTracker
 
 
 // Various world / entity size parameters

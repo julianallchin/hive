@@ -32,6 +32,13 @@ struct WorldReset {
     int32_t reset;
 };
 
+// per world singleton component that tracks the number of ants actually being used in the simulation
+// (we create the max number and store them outside the simulation perimeter, so not all are used.
+// we need a fixed number of ants to exist in order to enable exports)
+struct NumAgents {
+    int32_t n;
+};
+
 // Discrete action component. Ranges are defined by consts::numMoveBuckets (5),
 // repeated here for clarity
 struct Action {

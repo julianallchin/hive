@@ -83,7 +83,7 @@ namespace madEscape
                                                                  .agentViewWidth = mgr_cfg.batchRenderViewWidth,
                                                                  .agentViewHeight = mgr_cfg.batchRenderViewHeight,
                                                                  .numWorlds = mgr_cfg.numWorlds,
-                                                                 .maxViewsPerWorld = consts::numAgents,
+                                                                 .maxViewsPerWorld = consts::maxAgents,
                                                                  .maxInstancesPerWorld = 1000,
                                                                  .execMode = mgr_cfg.execMode,
                                                                  .voxelCfg = {},
@@ -607,7 +607,7 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::numAgents,
+                                       consts::maxAgents,
                                        4,
                                    });
     }
@@ -636,7 +636,7 @@ namespace madEscape
                                    TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::numAgents,
+                                       consts::maxAgents,
                                        6,
                                    });
     }
@@ -646,7 +646,7 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::numAgents,
+                                       consts::maxAgents,
                                        consts::numLidarSamples,
                                        2,
                                    });
@@ -662,13 +662,23 @@ namespace madEscape
                                    });
     }
 
+    Tensor Manager::numAgentsTensor() const
+    {
+        return impl_->exportTensor(ExportID::NumAgents,
+                                   TensorElementType::Int32,
+                                   {
+                                       impl_->cfg.numWorlds,
+                                       1,
+                                   });
+    }
+
     Tensor Manager::rgbTensor() const
     {
         const uint8_t *rgb_ptr = impl_->renderMgr->batchRendererRGBOut();
 
         return Tensor((void *)rgb_ptr, TensorElementType::UInt8, {
                                                                      impl_->cfg.numWorlds,
-                                                                     consts::numAgents,
+                                                                     consts::maxAgents,
                                                                      impl_->cfg.batchRenderViewHeight,
                                                                      impl_->cfg.batchRenderViewWidth,
                                                                      4,
@@ -682,7 +692,7 @@ namespace madEscape
 
         return Tensor((void *)depth_ptr, TensorElementType::Float32, {
                                                                          impl_->cfg.numWorlds,
-                                                                         consts::numAgents,
+                                                                         consts::maxAgents,
                                                                          impl_->cfg.batchRenderViewHeight,
                                                                          impl_->cfg.batchRenderViewWidth,
                                                                          1,
@@ -726,7 +736,7 @@ namespace madEscape
         };
 
         auto *action_ptr = impl_->agentActionsBuffer +
-                           world_idx * consts::numAgents + agent_idx;
+                           world_idx * consts::maxAgents + agent_idx;
 
         if (impl_->cfg.execMode == ExecMode::CUDA)
         {

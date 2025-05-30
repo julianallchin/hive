@@ -16,6 +16,13 @@ static inline float randBetween(Engine &ctx, float min, float max)
     return ctx.data().rng.sampleUniform() * (max - min) + min;
 }
 
+// Returns a random integer between min and max (inclusive)
+static inline int randIntBetween(Engine &ctx, int min, int max)
+{
+    float rand_float = ctx.data().rng.sampleUniform() * (max + 1 - min) + min;
+    return static_cast<int>(rand_float);
+}
+
 // Initialize the basic components needed for physics rigid body entities
 static inline void setupRigidBodyEntity(
     Engine &ctx,
@@ -180,10 +187,13 @@ void createPersistentEntities(Engine &ctx)
     ctx.get<EntityType>(goal) = EntityType::Goal;
     // position to be initialized on level reset
 
-    // Create agent entities. Note that this leaves a lot of components
+    // Agents
+    // Note that this leaves a lot of components
     // uninitialized, these will be set during world generation, which is
     // called for every episode.
-    for (CountT i = 0; i < consts::numAgents; ++i) {
+    // We create the max number, even if all are not used. This is because agents
+    // must persist between episodes or else you can't export their data (for some reason)
+    for (CountT i = 0; i < consts::maxAgents; ++i) {
         Entity agent = ctx.data().agents[i] =
             ctx.makeRenderableEntity<Agent>();
 
@@ -216,7 +226,7 @@ static void resetPersistentEntities(Engine &ctx)
     }
     // MacGuffin
     Entity macguffin = ctx.data().macguffin;
-    Vector3 macguffin_pos{0.0, 0.0, 10.0};
+    Vector3 macguffin_pos{0.0, 30.0, 10.0};
     registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
     ctx.get<Position>(macguffin) = macguffin_pos;
     ctx.get<Rotation>(macguffin) = Quat {1, 0, 0, 0};
@@ -238,37 +248,20 @@ static void resetPersistentEntities(Engine &ctx)
     ctx.get<RewardHelper>(episodeTracker).starting_dist = -1.0f; // initialized in rewardsystem
     ctx.get<RewardHelper>(episodeTracker).prev_dist = -1.0f; // initialized in rewardsystem
 
+    // NumAgents
+    int32_t numAgents = randIntBetween(ctx, consts::minAgents, consts::maxAgents);
+    ctx.singleton<NumAgents>().n = numAgents;
 
     // Agents
-    for (CountT i = 0; i < consts::numAgents; i++) {
+    for (int32_t i = 0; i < consts::maxAgents; i++) {
+        // for every ant, set most things to the default values
         Entity agent_entity = ctx.data().agents[i];
         registerRigidBodyEntity(ctx, agent_entity, SimObject::Agent);
-
-        // Place the agents near the starting wall
-        Vector3 pos {
-            randInRangeCentered(ctx, 
-                consts::worldWidth / 2.f - 2.5f * consts::agentRadius),
-            randBetween(ctx, consts::agentRadius * 1.1f,  2.f),
-            0.f,
-        };
-
-        if (i % 2 == 0) {
-            pos.x += consts::worldWidth / 4.f;
-        } else {
-            pos.x -= consts::worldWidth / 4.f;
-        }
-
-        ctx.get<Position>(agent_entity) = pos;
-        ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
-            randInRangeCentered(ctx, math::pi / 4.f),
-            math::up);
-
         auto &grab_state = ctx.get<GrabState>(agent_entity);
         if (grab_state.constraintEntity != Entity::none()) {
             ctx.destroyEntity(grab_state.constraintEntity);
             grab_state.constraintEntity = Entity::none();
         }
-
         ctx.get<Velocity>(agent_entity) = {
             Vector3::zero(),
             Vector3::zero(),
@@ -281,7 +274,29 @@ static void resetPersistentEntities(Engine &ctx)
             .rotate = consts::numTurnBuckets / 2,
             .grab = 0,
         };
+        // set positions of the agent's we'll actually use
+        if (i < numAgents) {
+            // Place the agents near the starting wall
+            ctx.get<Position>(agent_entity) = Vector3 {
+                (2.0f) * i,
+                0.0f,
+                0.f,
+            };
+            ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
+                randInRangeCentered(ctx, math::pi / 4.f),
+                math::up);
+        }
+        // for the rest of the ants, they go to jail
+        else {
+            ctx.get<Position>(agent_entity) = Vector3 {
+                10.0f * i,
+                100.0f,
+                0.0f,
+            };
+            ctx.get<Rotation>(agent_entity) = Quat{ 1, 0, 0, 0};
+        }
     }
+        
 }
 
 static Entity makeCube(Engine &ctx,
@@ -358,7 +373,7 @@ static Entity makeBarrier(Engine &ctx,
 static void generateLevel(Engine &ctx)
 {
     // some cubes
-    CountT numCubes = consts::maxCubes;
+    int32_t numCubes = randIntBetween(ctx, consts::minCubes, consts::maxCubes);
     for (CountT i = 0; i < numCubes; i++) {
         float x = randBetween(ctx, -10.0f, 10.0f);
         float y = 10.0f * i + 5.0f;
@@ -366,21 +381,21 @@ static void generateLevel(Engine &ctx)
         Entity cube = makeCube(ctx, x, y, scale);
         ctx.data().cubes[i] = cube;
     }
-    for (CountT i = numCubes; i < consts::maxCubes; i++) {
+    for (int32_t i = numCubes; i < consts::maxCubes; i++) {
         ctx.data().cubes[i] = Entity::none();
     }
 
 
     // some barriers
-    CountT numBarriers = consts::maxBarriers;
-    for (CountT i = 0; i < numBarriers; i++) {
+    int32_t numBarriers = randIntBetween(ctx, consts::minBarriers, consts::maxBarriers);
+    for (int32_t i = 0; i < numBarriers; i++) {
         float x = randBetween(ctx, -10.0f, 10.0f);
         float y = -10.0f * i - 5.0f;
         float length = 10.0f;
         Entity barrier = makeBarrier(ctx, x, y, length, WallDirection::Horizontal);
         ctx.data().barriers[i] = barrier;
     }
-    for (CountT i = numBarriers; i < consts::maxBarriers; i++) {
+    for (int32_t i = numBarriers; i < consts::maxBarriers; i++) {
         ctx.data().barriers[i] = Entity::none();
     }
 }

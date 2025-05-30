@@ -42,6 +42,7 @@ public:
     madrona::py::Tensor selfObservationTensor() const;
     madrona::py::Tensor lidarTensor() const;
     madrona::py::Tensor stepsRemainingTensor() const;
+    madrona::py::Tensor numAgentsTensor() const;
     madrona::py::Tensor rgbTensor() const;
     madrona::py::Tensor depthTensor() const;
 

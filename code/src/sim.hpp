@@ -28,6 +28,7 @@ enum class ExportID : uint32_t {
     SelfObservation,
     Lidar,
     StepsRemaining,
+    NumAgents,
     NumExports,
 };
 
@@ -59,6 +60,7 @@ struct Sim : public madrona::WorldBase {
         const madrona::render::RenderECSBridge *renderBridge;
     };
 
+
     // This class would allow per-world custom data to be passed into
     // simulator initialization, but that isn't necessary in this environment
     struct WorldInit {};
@@ -79,7 +81,7 @@ struct Sim : public madrona::WorldBase {
     // can contain per-world initialization data, created in (src/mgr.cpp)
     Sim(Engine &ctx,
         const Config &cfg,
-        const WorldInit &);
+        const WorldInit &worldInit);
 
     // The base random key that episode random keys are split off of
     madrona::RandKey initRandKey;
@@ -113,7 +115,7 @@ struct Sim : public madrona::WorldBase {
 
     // Agent entity references. This entities live across all episodes
     // and are just reset to the start of the level on reset.
-    Entity agents[consts::numAgents];
+    Entity agents[consts::maxAgents];
 
     Entity cubes[consts::maxCubes];
 
