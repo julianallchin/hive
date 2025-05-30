@@ -211,10 +211,12 @@ namespace madEscape
             (std::filesystem::path(DATA_DIR) / "wall_render.obj").string();
         render_asset_paths[(size_t)SimObject::Agent] =
             (std::filesystem::path(DATA_DIR) / "agent_render.obj").string();
-        render_asset_paths[(size_t)SimObject::Plane] =
-            (std::filesystem::path(DATA_DIR) / "plane.obj").string();
         render_asset_paths[(size_t)SimObject::MacGuffin] =
             (std::filesystem::path(DATA_DIR) / "cube_render.obj").string();
+        render_asset_paths[(size_t)SimObject::Goal] =
+            (std::filesystem::path(DATA_DIR) / "cube_render.obj").string();
+        render_asset_paths[(size_t)SimObject::Plane] =
+            (std::filesystem::path(DATA_DIR) / "plane.obj").string();
 
         std::array<const char *, (size_t)SimObject::NumObjects> render_asset_cstrs;
         for (size_t i = 0; i < render_asset_paths.size(); i++)
@@ -264,8 +266,9 @@ namespace madEscape
         render_assets->objects[(CountT)SimObject::Agent].meshes[0].materialIDX = 2;
         render_assets->objects[(CountT)SimObject::Agent].meshes[1].materialIDX = 3;
         render_assets->objects[(CountT)SimObject::Agent].meshes[2].materialIDX = 3;
-        render_assets->objects[(CountT)SimObject::Plane].meshes[0].materialIDX = 4;
         render_assets->objects[(CountT)SimObject::MacGuffin].meshes[0].materialIDX = 5;
+        render_assets->objects[(CountT)SimObject::Goal].meshes[0].materialIDX = 6;
+        render_assets->objects[(CountT)SimObject::Plane].meshes[0].materialIDX = 4;
 
         imp::ImageImporter img_importer;
         Span<imp::SourceTexture> imported_textures = img_importer.importImages(
@@ -296,6 +299,8 @@ namespace madEscape
         asset_paths[(size_t)SimObject::Agent] =
             (std::filesystem::path(DATA_DIR) / "agent_collision_simplified.obj").string();
         asset_paths[(size_t)SimObject::MacGuffin] =
+            (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
+        asset_paths[(size_t)SimObject::Goal] =
             (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
 
         std::array<const char *, (size_t)SimObject::NumObjects - 1> asset_cstrs;
@@ -354,11 +359,6 @@ namespace madEscape
                                                .muD = 0.75f,
                                            });
 
-        setupHull(SimObject::MacGuffin, 0.005f, {
-                                                    .muS = 0.5f,
-                                                    .muD = 0.75f,
-                                                });
-
         setupHull(SimObject::Wall, 0.f, {
                                             .muS = 0.5f,
                                             .muD = 0.5f,
@@ -368,6 +368,16 @@ namespace madEscape
                                              .muS = 0.5f,
                                              .muD = 0.5f,
                                          });
+
+        setupHull(SimObject::MacGuffin, 0.005f, {
+                                                    .muS = 0.5f,
+                                                    .muD = 0.75f,
+                                                });
+
+        setupHull(SimObject::Goal, 0.0f, {
+                                            .muS = 0.5f,
+                                            .muD = 0.5f,
+                                        });
 
         SourceCollisionPrimitive plane_prim{
             .type = CollisionPrimitive::Type::Plane,

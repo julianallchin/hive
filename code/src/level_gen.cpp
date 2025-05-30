@@ -172,6 +172,14 @@ void createPersistentEntities(Engine &ctx)
             consts::macguffinScale
         });
 
+    // Goal
+    Entity goal = ctx.data().goal = ctx.makeRenderableEntity<Goal>();
+    ctx.get<Rotation>(goal) = Quat {1, 0, 0, 0};
+    ctx.get<Scale>(goal) = Diag3x3 { consts::goalScale, consts::goalScale, 0.1f };
+    ctx.get<ObjectID>(goal) = ObjectID { (int32_t)SimObject::Goal };
+    ctx.get<EntityType>(goal) = EntityType::Goal;
+    // position to be initialized on level reset
+
     // Create agent entities. Note that this leaves a lot of components
     // uninitialized, these will be set during world generation, which is
     // called for every episode.
@@ -220,6 +228,10 @@ static void resetPersistentEntities(Engine &ctx)
     };
     ctx.get<ExternalForce>(macguffin) = Vector3::zero();
     ctx.get<ExternalTorque>(macguffin) = Vector3::zero();
+
+    // Goal
+    Entity goal = ctx.data().goal;
+    ctx.get<Position>(goal) = Vector3 { 15.0f, 15.0f, 0.0f };
 
     // Agents
     for (CountT i = 0; i < consts::numAgents; i++) {
@@ -354,7 +366,6 @@ static void generateLevel(Engine &ctx)
 
 
     // some barriers
-    // some cubes
     CountT numBarriers = consts::maxBarriers;
     for (CountT i = 0; i < numBarriers; i++) {
         float x = randBetween(ctx, -10.0f, 10.0f);

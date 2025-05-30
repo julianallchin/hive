@@ -108,6 +108,7 @@ enum class EntityType : uint32_t {
     Wall,
     Agent,
     MacGuffin,
+    Goal,
     NumTypes,
 };
 
@@ -152,6 +153,17 @@ struct Agent : public madrona::Archetype<
 struct MacGuffin : public madrona:: Archetype<
     MacGuffinState,
     RigidBody,
+    EntityType,
+    madrona::render::Renderable
+> {};
+
+// Archetype for the goal objects that the macguffin is moved onto
+// Goal does't have collision but are rendered
+struct Goal : public madrona::Archetype<
+    Position,
+    Rotation,
+    Scale,
+    ObjectID,
     EntityType,
     madrona::render::Renderable
 > {};

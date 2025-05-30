@@ -38,7 +38,8 @@ enum class SimObject : uint32_t {
     Wall,
     Agent,
     MacGuffin,
-    Plane, // Note: because the code that imports meshes is a little bit funky,
+    Goal,
+    Plane, // IMPORTANT (UNFORTUNATELY): because the code that imports meshes is a little bit funky,
            // you must import things without meshes (eg Plane) last.
     NumObjects
 };
@@ -106,6 +107,9 @@ struct Sim : public madrona::WorldBase {
 
     // agents try to move this to the goal. persists across episodes (and reset at start)
     Entity macguffin;
+
+    // target location for the macguffin. persists across episdoes (and reset at start)s
+    Entity goal;
 
     // Agent entity references. This entities live across all episodes
     // and are just reset to the start of the level on reset.

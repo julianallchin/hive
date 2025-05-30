@@ -27,6 +27,7 @@ inline constexpr float barrierWidth = 1.f;
 inline constexpr float barrierHeight = 3.f;
 inline constexpr float agentRadius = 1.f;
 inline constexpr float macguffinScale = 5.0f;
+inline constexpr float goalScale = 3.0f;
 
 // Each unit of distance forward (+ y axis) rewards the agents by this amount
 inline constexpr float rewardPerDist = 0.05f;

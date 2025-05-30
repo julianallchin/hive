@@ -38,6 +38,8 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerArchetype<PhysicsEntity>();
     registry.registerArchetype<EpisodeTracker>();
     registry.registerArchetype<MacGuffin>();
+    registry.registerArchetype<Goal>();
+
 
     registry.exportSingleton<WorldReset>(
         (uint32_t)ExportID::Reset);
