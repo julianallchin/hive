@@ -100,11 +100,16 @@ struct Sim : public madrona::WorldBase {
     // play area. These are constant across all episodes.
     Entity borders[3];
 
+    // non-physical entity tracking reward, done, and stepsRemaining. persists across episodes (and reset at start)
+    Entity episodeTracker;
+
     // Agent entity references. This entities live across all episodes
     // and are just reset to the start of the level on reset.
     Entity agents[consts::numAgents];
 
-    Entity episodeTracker;
+    Entity cubes[consts::maxCubes];
+
+    Entity barriers[consts::maxBarriers];
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {

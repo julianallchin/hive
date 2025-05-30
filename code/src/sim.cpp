@@ -55,7 +55,16 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
 
 static inline void cleanupWorld(Engine &ctx)
 {
-    return; // destroy non persistent entities here
+    for (CountT i = 0; i < consts::maxCubes; i++) {
+        if (ctx.data().cubes[i] != Entity::none()) {
+            ctx.destroyRenderableEntity(ctx.data().cubes[i]);
+        }
+    }
+    for (CountT i = 0; i < consts::maxBarriers; i++) {
+        if (ctx.data().barriers[i] != Entity::none()) {
+            ctx.destroyRenderableEntity(ctx.data().barriers[i]);
+        }
+    }
 }
 
 static inline void initWorld(Engine &ctx)
@@ -498,15 +507,9 @@ Sim::Sim(Engine &ctx,
          const WorldInit &)
     : WorldBase(ctx)
 {
-    // Currently the physics system needs an upper bound on the number of
-    // entities that will be stored in the BVH. We plan to fix this in
-    // a future release.
-    constexpr CountT max_total_entities = 
-        consts::numAgents + consts::maxObstacleEntities + 5; // side walls + floor + episodeTracker
-
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
         consts::deltaT, consts::numPhysicsSubsteps, -9.8f * math::up,
-        max_total_entities);
+        consts::maxTotalEntities);
 
     initRandKey = cfg.initRandKey;
     autoReset = cfg.autoReset;

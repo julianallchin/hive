@@ -62,7 +62,7 @@ static void registerRigidBodyEntity(
 void createPersistentEntities(Engine &ctx)
 {
     // initialized on reset
-    Entity episodeTracker = ctx.data().episodeTracker = ctx.makeEntity<EpisodeTracker>();
+    ctx.data().episodeTracker = ctx.makeEntity<EpisodeTracker>();
 
     // Create the floor entity, just a simple static plane.
     ctx.data().floorPlane = ctx.makeRenderableEntity<PhysicsEntity>();
@@ -218,10 +218,106 @@ static void resetPersistentEntities(Engine &ctx)
      }
 }
 
+static Entity makeCube(Engine &ctx,
+                       float cube_x,
+                       float cube_y,
+                       float scale = 1.f)
+{
+    Entity cube = ctx.makeRenderableEntity<PhysicsEntity>();
+    setupRigidBodyEntity(
+        ctx,
+        cube,
+        Vector3 {
+            cube_x,
+            cube_y,
+            1.f * scale,
+        },
+        Quat { 1, 0, 0, 0 },
+        SimObject::Cube,
+        EntityType::Cube,
+        ResponseType::Dynamic,
+        Diag3x3 {
+            scale,
+            scale,
+            scale,
+        });
+    registerRigidBodyEntity(ctx, cube, SimObject::Cube);
+
+    return cube;
+}
+
+enum class WallDirection : bool {
+    Horizontal,
+    Vertical
+};
+
+static Entity makeBarrier(Engine &ctx,
+                       float x,
+                       float y,
+                       float length,
+                       WallDirection isHorizontal)
+{
+    Entity barrier = ctx.makeRenderableEntity<PhysicsEntity>();
+    float x_size;
+    float y_size;
+    if (isHorizontal == WallDirection::Horizontal) {
+        x_size = length;
+        y_size = consts::barrierWidth;
+    }
+    else {
+        x_size = consts::barrierWidth;
+        y_size = length;
+    }
+    setupRigidBodyEntity(
+        ctx,
+        barrier,
+        Vector3 {
+            x,
+            y,
+            0,
+        },
+        Quat { 1, 0, 0, 0 },
+        SimObject::Wall,
+        EntityType::Wall,
+        ResponseType::Static,
+        Diag3x3 {
+            x_size,
+            y_size,
+            consts::barrierHeight,
+        });
+    registerRigidBodyEntity(ctx, barrier, SimObject::Wall);
+    return barrier;
+}
+
 static void generateLevel(Engine &ctx)
 {
-    // create non persistent entities here
-    return;
+    // some cubes
+    CountT numCubes = consts::maxCubes;
+    for (CountT i = 0; i < numCubes; i++) {
+        float x = randBetween(ctx, -10.0f, 10.0f);
+        float y = 10.0f * i + 5.0f;
+        float scale = 1.0f;
+        Entity cube = makeCube(ctx, x, y, scale);
+        ctx.data().cubes[i] = cube;
+    }
+    for (CountT i = numCubes; i < consts::maxCubes; i++) {
+        ctx.data().cubes[i] = Entity::none();
+    }
+
+
+    // some barriers
+    // some cubes
+    CountT numBarriers = consts::maxBarriers;
+    for (CountT i = 0; i < numBarriers; i++) {
+        float x = randBetween(ctx, -10.0f, 10.0f);
+        float y = -10.0f * i - 5.0f;
+        float length = 10.0f;
+        Entity barrier = makeBarrier(ctx, x, y, length, WallDirection::Horizontal);
+        ctx.data().barriers[i] = barrier;
+    }
+    for (CountT i = numBarriers; i < consts::maxBarriers; i++) {
+        ctx.data().barriers[i] = Entity::none();
+    }
 }
 
 // Randomly generate a new world for a training episode

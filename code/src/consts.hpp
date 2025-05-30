@@ -11,13 +11,20 @@ inline constexpr madrona::CountT numAgents = 2;
 
 // Maximum number of interactive objects per challenge room. This is needed
 // in order to setup the fixed-size learning tensors appropriately.
-inline constexpr madrona::CountT maxObstacleEntities = 0;
+inline constexpr madrona::CountT maxCubes = 3;
+inline constexpr madrona::CountT maxBarriers = 3;
+
+
+inline constexpr madrona::CountT maxTotalEntities = 
+        numAgents + maxCubes + maxBarriers + 5; // 5 for side walls + floor + episodeTracker
 
 
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
 inline constexpr float worldWidth = 20.f;
 inline constexpr float wallWidth = 1.f;
+inline constexpr float barrierWidth = 1.f;
+inline constexpr float barrierHeight = 3.f;
 inline constexpr float agentRadius = 1.f;
 
 // Each unit of distance forward (+ y axis) rewards the agents by this amount
