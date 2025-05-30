@@ -406,46 +406,22 @@ inline void rewardSystem(Engine &,
                          Progress &progress,
                          Reward &out_reward)
 {
-    // Just in case agents do something crazy, clamp total reward
-    float reward_pos = fminf(pos.y, consts::worldLength * 2);
+    // // Just in case agents do something crazy, clamp total reward
+    // float reward_pos = fminf(pos.y, consts::worldLength * 2);
 
-    float old_max_y = progress.maxY;
+    // float old_max_y = progress.maxY;
 
-    float new_progress = reward_pos - old_max_y;
+    // float new_progress = reward_pos - old_max_y;
 
-    float reward;
-    if (new_progress > 0) {
-        reward = new_progress * consts::rewardPerDist;
-        progress.maxY = reward_pos;
-    } else {
-        reward = consts::slackReward;
-    }
+    // float reward;
+    // if (new_progress > 0) {
+    //     reward = new_progress * consts::rewardPerDist;
+    //     progress.maxY = reward_pos;
+    // } else {
+    //     reward = consts::slackReward;
+    // }
 
-    out_reward.v = reward;
-}
-
-// Each agent gets a small bonus to it's reward if the other agent has
-// progressed a similar distance, to encourage them to cooperate.
-// This system reads the values of the Progress component written by
-// rewardSystem for other agents, so it must run after.
-inline void bonusRewardSystem(Engine &ctx,
-                              OtherAgents &others,
-                              Progress &progress,
-                              Reward &reward)
-{
-    bool partners_close = true;
-    for (CountT i = 0; i < consts::numAgents - 1; i++) {
-        Entity other = others.e[i];
-        Progress other_progress = ctx.get<Progress>(other);
-
-        if (fabsf(other_progress.maxY - progress.maxY) > 2.f) {
-            partners_close = false;
-        }
-    }
-
-    if (partners_close && reward.v > 0.f) {
-        reward.v *= 1.25f;
-    }
+    out_reward.v = pos.x + pos.y;
 }
 
 // Keep track of the number of steps remaining in the episode and
@@ -534,20 +510,12 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
             Reward
         >>({phys_done});
 
-    // Assign partner's reward
-    auto bonus_reward_sys = builder.addToGraph<ParallelForNode<Engine,
-         bonusRewardSystem,
-            OtherAgents,
-            Progress,
-            Reward
-        >>({reward_sys});
-
     // Check if the episode is over
     auto done_sys = builder.addToGraph<ParallelForNode<Engine,
         stepTrackerSystem,
             StepsRemaining,
             Done
-        >>({bonus_reward_sys});
+        >>({reward_sys});
 
     // Conditionally reset the world if the episode is over
     auto reset_sys = builder.addToGraph<ParallelForNode<Engine,
