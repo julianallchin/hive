@@ -168,23 +168,6 @@ void createPersistentEntities(Engine &ctx)
         ctx.get<GrabState>(agent).constraintEntity = Entity::none();
         ctx.get<EntityType>(agent) = EntityType::Agent;
     }
-
-    // Populate OtherAgents component, which maintains a reference to the
-    // other agents in the world for each agent.
-    for (CountT i = 0; i < consts::numAgents; i++) {
-        Entity cur_agent = ctx.data().agents[i];
-
-        OtherAgents &other_agents = ctx.get<OtherAgents>(cur_agent);
-        CountT out_idx = 0;
-        for (CountT j = 0; j < consts::numAgents; j++) {
-            if (i == j) {
-                continue;
-            }
-
-            Entity other_agent = ctx.data().agents[j];
-            other_agents.e[out_idx++] = other_agent;
-        }
-    }
 }
 
 // Although agents and walls persist between episodes, we still need to
@@ -227,8 +210,6 @@ static void resetPersistentEntities(Engine &ctx)
              ctx.destroyEntity(grab_state.constraintEntity);
              grab_state.constraintEntity = Entity::none();
          }
-
-         ctx.get<Progress>(agent_entity).maxY = pos.y;
 
          ctx.get<Velocity>(agent_entity) = {
              Vector3::zero(),

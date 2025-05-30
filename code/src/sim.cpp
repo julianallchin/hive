@@ -27,10 +27,7 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<Reward>();
     registry.registerComponent<Done>();
     registry.registerComponent<GrabState>();
-    registry.registerComponent<Progress>();
     registry.registerComponent<OtherAgents>();
-    registry.registerComponent<PartnerObservations>();
-    registry.registerComponent<RoomEntityObservations>();
     registry.registerComponent<Lidar>();
     registry.registerComponent<StepsRemaining>();
     registry.registerComponent<EntityType>();
@@ -47,10 +44,6 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
         (uint32_t)ExportID::Action);
     registry.exportColumn<Agent, SelfObservation>(
         (uint32_t)ExportID::SelfObservation);
-    registry.exportColumn<Agent, PartnerObservations>(
-        (uint32_t)ExportID::PartnerObservations);
-    registry.exportColumn<Agent, RoomEntityObservations>(
-        (uint32_t)ExportID::RoomEntityObservations);
     registry.exportColumn<Agent, Lidar>(
         (uint32_t)ExportID::Lidar);
     registry.exportColumn<Agent, StepsRemaining>(
@@ -275,12 +268,8 @@ static inline float computeZAngle(Quat q)
 inline void collectObservationsSystem(Engine &ctx,
                                       Position pos,
                                       Rotation rot,
-                                      const Progress &progress,
                                       const GrabState &grab,
-                                      const OtherAgents &other_agents,
-                                      SelfObservation &self_obs,
-                                      PartnerObservations &partner_obs,
-                                      RoomEntityObservations &room_ent_obs)
+                                      SelfObservation &self_obs)
 {
     CountT cur_room_idx = CountT(pos.y / consts::roomLength);
     cur_room_idx = std::max(CountT(0), 
@@ -292,49 +281,10 @@ inline void collectObservationsSystem(Engine &ctx,
     self_obs.globalX = globalPosObs(pos.x);
     self_obs.globalY = globalPosObs(pos.y);
     self_obs.globalZ = globalPosObs(pos.z);
-    self_obs.maxY = globalPosObs(progress.maxY);
+    self_obs.maxY = globalPosObs(pos.y >= self_obs.maxY ? pos.y : self_obs.maxY);
     self_obs.theta = angleObs(computeZAngle(rot));
     self_obs.isGrabbing = grab.constraintEntity != Entity::none() ?
         1.f : 0.f;
-
-    Quat to_view = rot.inv();
-
-#pragma unroll
-    for (CountT i = 0; i < consts::numAgents - 1; i++) {
-        Entity other = other_agents.e[i];
-
-        Vector3 other_pos = ctx.get<Position>(other);
-        GrabState other_grab = ctx.get<GrabState>(other);
-        Vector3 to_other = other_pos - pos;
-
-        partner_obs.obs[i] = {
-            .polar = xyToPolar(to_view.rotateVec(to_other)),
-            .isGrabbing = other_grab.constraintEntity != Entity::none() ?
-                1.f : 0.f,
-        };
-    }
-
-    const LevelState &level = ctx.singleton<LevelState>();
-    const Room &room = level.rooms[cur_room_idx];
-
-    for (CountT i = 0; i < consts::maxEntitiesPerRoom; i++) {
-        Entity entity = room.entities[i];
-
-        EntityObservation ob;
-        if (entity == Entity::none()) {
-            ob.polar = { 0.f, 1.f };
-            ob.encodedType = encodeType(EntityType::None);
-        } else {
-            Vector3 entity_pos = ctx.get<Position>(entity);
-            EntityType entity_type = ctx.get<EntityType>(entity);
-
-            Vector3 to_entity = entity_pos - pos;
-            ob.polar = xyToPolar(to_view.rotateVec(to_entity));
-            ob.encodedType = encodeType(entity_type);
-        }
-
-        room_ent_obs.obs[i] = ob;
-    }
 }
 
 // Launches consts::numLidarSamples per agent.
@@ -403,7 +353,6 @@ inline void lidarSystem(Engine &ctx,
 // distance achieved.
 inline void rewardSystem(Engine &,
                          Position pos,
-                         Progress &progress,
                          Reward &out_reward)
 {
     // // Just in case agents do something crazy, clamp total reward
@@ -506,7 +455,6 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     auto reward_sys = builder.addToGraph<ParallelForNode<Engine,
          rewardSystem,
             Position,
-            Progress,
             Reward
         >>({phys_done});
 
@@ -544,12 +492,8 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         collectObservationsSystem,
             Position,
             Rotation,
-            Progress,
             GrabState,
-            OtherAgents,
-            SelfObservation,
-            PartnerObservations,
-            RoomEntityObservations
+            SelfObservation
         >>({post_reset_broadphase});
 
     // The lidar system

@@ -40,8 +40,6 @@ public:
     madrona::py::Tensor rewardTensor() const;
     madrona::py::Tensor doneTensor() const;
     madrona::py::Tensor selfObservationTensor() const;
-    madrona::py::Tensor partnerObservationsTensor() const;
-    madrona::py::Tensor roomEntityObservationsTensor() const;
     madrona::py::Tensor lidarTensor() const;
     madrona::py::Tensor stepsRemainingTensor() const;
     madrona::py::Tensor rgbTensor() const;

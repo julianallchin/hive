@@ -572,30 +572,6 @@ Tensor Manager::selfObservationTensor() const
                                });
 }
 
-Tensor Manager::partnerObservationsTensor() const
-{
-    return impl_->exportTensor(ExportID::PartnerObservations,
-                               TensorElementType::Float32,
-                               {
-                                   impl_->cfg.numWorlds,
-                                   consts::numAgents,
-                                   consts::numAgents - 1,
-                                   3,
-                               });
-}
-
-Tensor Manager::roomEntityObservationsTensor() const
-{
-    return impl_->exportTensor(ExportID::RoomEntityObservations,
-                               TensorElementType::Float32,
-                               {
-                                   impl_->cfg.numWorlds,
-                                   consts::numAgents,
-                                   consts::maxEntitiesPerRoom,
-                                   3,
-                               });
-}
-
 Tensor Manager::lidarTensor() const
 {
     return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,

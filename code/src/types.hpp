@@ -179,8 +179,6 @@ struct Agent : public madrona::Archetype<
 
     // Internal logic state.
     GrabState,
-    Progress,
-    OtherAgents,
     EntityType,
 
     // Input
@@ -188,8 +186,6 @@ struct Agent : public madrona::Archetype<
 
     // Observations
     SelfObservation,
-    PartnerObservations,
-    RoomEntityObservations,
     Lidar,
     StepsRemaining,
 

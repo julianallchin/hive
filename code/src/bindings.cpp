@@ -42,9 +42,6 @@ NB_MODULE(madrona_escape_room, m) {
         .def("reward_tensor", &Manager::rewardTensor)
         .def("done_tensor", &Manager::doneTensor)
         .def("self_observation_tensor", &Manager::selfObservationTensor)
-        .def("partner_observations_tensor", &Manager::partnerObservationsTensor)
-        .def("room_entity_observations_tensor",
-             &Manager::roomEntityObservationsTensor)
         .def("lidar_tensor", &Manager::lidarTensor)
         .def("steps_remaining_tensor", &Manager::stepsRemainingTensor)
         .def("rgb_tensor", &Manager::rgbTensor)
