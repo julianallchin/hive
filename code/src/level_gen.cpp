@@ -156,6 +156,22 @@ void createPersistentEntities(Engine &ctx)
             2.f,
         });
 
+    // MacGuffin
+    ctx.data().macguffin = ctx.makeRenderableEntity<PhysicsEntity>();
+    setupRigidBodyEntity(
+        ctx,
+        ctx.data().macguffin,
+        Vector3 {0, 0, 0},  // position is reset on level start
+        Quat {1, 0, 0, 0 },
+        SimObject::MacGuffin,
+        EntityType::MacGuffin,
+        ResponseType::Dynamic,
+        Diag3x3 {
+            consts::macguffinScale,
+            consts::macguffinScale,
+            consts::macguffinScale
+        });
+
     // Create agent entities. Note that this leaves a lot of components
     // uninitialized, these will be set during world generation, which is
     // called for every episode.
@@ -189,53 +205,65 @@ static void resetPersistentEntities(Engine &ctx)
 
     registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
 
-     for (CountT i = 0; i < 4; i++) {
-         Entity wall_entity = ctx.data().borders[i];
-         registerRigidBodyEntity(ctx, wall_entity, SimObject::Wall);
-     }
+    for (CountT i = 0; i < 4; i++) {
+        Entity wall_entity = ctx.data().borders[i];
+        registerRigidBodyEntity(ctx, wall_entity, SimObject::Wall);
+    }
+    // MacGuffin
+    Entity macguffin = ctx.data().macguffin;
+    registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
+    ctx.get<Position>(macguffin) = Vector3 {0.0, 0.0, 10.0};
+    ctx.get<Rotation>(macguffin) = Quat {1, 0, 0, 0};
+    ctx.get<Velocity>(macguffin) = {
+        Vector3::zero(),
+        Vector3::zero(),
+    };
+    ctx.get<ExternalForce>(macguffin) = Vector3::zero();
+    ctx.get<ExternalTorque>(macguffin) = Vector3::zero();
 
-     for (CountT i = 0; i < consts::numAgents; i++) {
-         Entity agent_entity = ctx.data().agents[i];
-         registerRigidBodyEntity(ctx, agent_entity, SimObject::Agent);
+    // Agents
+    for (CountT i = 0; i < consts::numAgents; i++) {
+        Entity agent_entity = ctx.data().agents[i];
+        registerRigidBodyEntity(ctx, agent_entity, SimObject::Agent);
 
-         // Place the agents near the starting wall
-         Vector3 pos {
-             randInRangeCentered(ctx, 
-                 consts::worldWidth / 2.f - 2.5f * consts::agentRadius),
-             randBetween(ctx, consts::agentRadius * 1.1f,  2.f),
-             0.f,
-         };
+        // Place the agents near the starting wall
+        Vector3 pos {
+            randInRangeCentered(ctx, 
+                consts::worldWidth / 2.f - 2.5f * consts::agentRadius),
+            randBetween(ctx, consts::agentRadius * 1.1f,  2.f),
+            0.f,
+        };
 
-         if (i % 2 == 0) {
-             pos.x += consts::worldWidth / 4.f;
-         } else {
-             pos.x -= consts::worldWidth / 4.f;
-         }
+        if (i % 2 == 0) {
+            pos.x += consts::worldWidth / 4.f;
+        } else {
+            pos.x -= consts::worldWidth / 4.f;
+        }
 
-         ctx.get<Position>(agent_entity) = pos;
-         ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
-             randInRangeCentered(ctx, math::pi / 4.f),
-             math::up);
+        ctx.get<Position>(agent_entity) = pos;
+        ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
+            randInRangeCentered(ctx, math::pi / 4.f),
+            math::up);
 
-         auto &grab_state = ctx.get<GrabState>(agent_entity);
-         if (grab_state.constraintEntity != Entity::none()) {
-             ctx.destroyEntity(grab_state.constraintEntity);
-             grab_state.constraintEntity = Entity::none();
-         }
+        auto &grab_state = ctx.get<GrabState>(agent_entity);
+        if (grab_state.constraintEntity != Entity::none()) {
+            ctx.destroyEntity(grab_state.constraintEntity);
+            grab_state.constraintEntity = Entity::none();
+        }
 
-         ctx.get<Velocity>(agent_entity) = {
-             Vector3::zero(),
-             Vector3::zero(),
-         };
-         ctx.get<ExternalForce>(agent_entity) = Vector3::zero();
-         ctx.get<ExternalTorque>(agent_entity) = Vector3::zero();
-         ctx.get<Action>(agent_entity) = Action {
-             .moveAmount = 0,
-             .moveAngle = 0,
-             .rotate = consts::numTurnBuckets / 2,
-             .grab = 0,
-         };
-     }
+        ctx.get<Velocity>(agent_entity) = {
+            Vector3::zero(),
+            Vector3::zero(),
+        };
+        ctx.get<ExternalForce>(agent_entity) = Vector3::zero();
+        ctx.get<ExternalTorque>(agent_entity) = Vector3::zero();
+        ctx.get<Action>(agent_entity) = Action {
+            .moveAmount = 0,
+            .moveAngle = 0,
+            .rotate = consts::numTurnBuckets / 2,
+            .grab = 0,
+        };
+    }
 }
 
 static Entity makeCube(Engine &ctx,

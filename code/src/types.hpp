@@ -94,6 +94,12 @@ struct GrabState {
     Entity constraintEntity;
 };
 
+// Added state for the MacGuffin. Intentionally empty at the moment, as no additional state is needed.
+// In the future, this could for example be replaced with actions, to allow the MacGuffin to become alive.
+struct MacGuffinState{
+
+};
+
 // This enum is used to track the type of each entity for the purposes of
 // classifying the objects hit by each lidar sample.
 enum class EntityType : uint32_t {
@@ -101,6 +107,7 @@ enum class EntityType : uint32_t {
     Cube,
     Wall,
     Agent,
+    MacGuffin,
     NumTypes,
 };
 
@@ -136,6 +143,16 @@ struct Agent : public madrona::Archetype<
     madrona::render::RenderCamera,
     // All entities with the Renderable component will be drawn by the
     // viewer and batch renderer
+    madrona::render::Renderable
+> {};
+
+// The MacGuffin object that must be moved to the goal.
+// Since MacGuffinState is currently empty, this could really just be a PhysicsEntity,
+// but we create a new archetype to separate them and allow for added state in the future.
+struct MacGuffin : public madrona:: Archetype<
+    MacGuffinState,
+    RigidBody,
+    EntityType,
     madrona::render::Renderable
 > {};
 

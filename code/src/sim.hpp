@@ -39,6 +39,7 @@ enum class SimObject : uint32_t {
     Agent,
     Plane,
     NumObjects,
+    MacGuffin
 };
 
 // The Sim class encapsulates the per-world state of the simulation.
@@ -101,6 +102,9 @@ struct Sim : public madrona::WorldBase {
 
     // non-physical entity tracking reward, done, and stepsRemaining. persists across episodes (and reset at start)
     Entity episodeTracker;
+
+    // agents try to move this to the goal. persists across episodes (and reset at start)
+    Entity macguffin;
 
     // Agent entity references. This entities live across all episodes
     // and are just reset to the start of the level on reset.

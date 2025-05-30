@@ -30,12 +30,14 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<Reward>();
     registry.registerComponent<Done>();
     registry.registerComponent<StepsRemaining>();
+    registry.registerComponent<MacGuffinState>();
 
     registry.registerSingleton<WorldReset>();
 
     registry.registerArchetype<Agent>();
     registry.registerArchetype<PhysicsEntity>();
     registry.registerArchetype<EpisodeTracker>();
+    registry.registerArchetype<MacGuffin>();
 
     registry.exportSingleton<WorldReset>(
         (uint32_t)ExportID::Reset);
@@ -55,6 +57,7 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
 
 static inline void cleanupWorld(Engine &ctx)
 {
+    // destroy non-persistent entities
     for (CountT i = 0; i < consts::maxCubes; i++) {
         if (ctx.data().cubes[i] != Entity::none()) {
             ctx.destroyRenderableEntity(ctx.data().cubes[i]);
@@ -227,22 +230,6 @@ static inline float globalPosObs(float v)
 static inline float angleObs(float v)
 {
     return v / math::pi;
-}
-
-// Translate xy delta to polar observations for learning.
-static inline PolarObservation xyToPolar(Vector3 v)
-{
-    Vector2 xy { v.x, v.y };
-
-    float r = xy.length();
-
-    // Note that this is angle off y-forward
-    float theta = atan2f(xy.x, xy.y);
-
-    return PolarObservation {
-        .r = distObs(r),
-        .theta = angleObs(theta),
-    };
 }
 
 static inline float encodeType(EntityType type)
