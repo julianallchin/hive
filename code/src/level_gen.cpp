@@ -75,6 +75,9 @@ static void registerRigidBodyEntity(
 // All these entities persist across all episodes.
 void createPersistentEntities(Engine &ctx)
 {
+    // initialized on reset
+    Entity episodeTracker = ctx.data().episodeTracker = ctx.makeEntity<EpisodeTracker>();
+
     // Create the floor entity, just a simple static plane.
     ctx.data().floorPlane = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
@@ -175,6 +178,9 @@ void createPersistentEntities(Engine &ctx)
 // reset their positions.
 static void resetPersistentEntities(Engine &ctx)
 {
+    Entity episodeTracker = ctx.data().episodeTracker;
+    ctx.get<StepsRemaining>(episodeTracker).t = consts::episodeLen;
+
     registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
 
      for (CountT i = 0; i < 3; i++) {
@@ -223,8 +229,6 @@ static void resetPersistentEntities(Engine &ctx)
              .rotate = consts::numTurnBuckets / 2,
              .grab = 0,
          };
-
-         ctx.get<StepsRemaining>(agent_entity).t = consts::episodeLen;
      }
 }
 
@@ -366,7 +370,7 @@ static void makeRoom(Engine &ctx,
 
     // Need to set any extra entities to type none so random uninitialized data
     // from prior episodes isn't exported to pytorch as agent observations.
-    for (CountT i = num_room_entities; i < consts::maxEntitiesPerRoom; i++) {
+    for (CountT i = num_room_entities; i < consts::maxObstacleEntities; i++) {
         room.entities[i] = Entity::none();
     }
 }

@@ -110,7 +110,7 @@ enum class EntityType : uint32_t {
 // component "LevelState" (below) to represent the state of the full level
 struct Room {
     // These are entities the agent will interact with
-    Entity entities[consts::maxEntitiesPerRoom];
+    Entity entities[consts::maxObstacleEntities];
 
     // The walls that separate this room from the next
     Entity walls[2];
@@ -121,6 +121,12 @@ struct Room {
 struct LevelState {
     Room rooms[consts::numRooms];
 };
+
+struct EpisodeTracker : public madrona::Archetype <
+    Reward,
+    Done,
+    StepsRemaining
+> {};
 
 /* ECS Archetypes for the game */
 
@@ -142,11 +148,6 @@ struct Agent : public madrona::Archetype<
     // Observations
     SelfObservation,
     Lidar,
-    StepsRemaining,
-
-    // Reward, episode termination
-    Reward,
-    Done,
 
     // Visualization: In addition to the fly camera, src/viewer.cpp can
     // view the scene from the perspective of entities with this component

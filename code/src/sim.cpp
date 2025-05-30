@@ -24,18 +24,19 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
 
     registry.registerComponent<Action>();
     registry.registerComponent<SelfObservation>();
-    registry.registerComponent<Reward>();
-    registry.registerComponent<Done>();
     registry.registerComponent<GrabState>();
     registry.registerComponent<Lidar>();
-    registry.registerComponent<StepsRemaining>();
     registry.registerComponent<EntityType>();
+    registry.registerComponent<Reward>();
+    registry.registerComponent<Done>();
+    registry.registerComponent<StepsRemaining>();
 
     registry.registerSingleton<WorldReset>();
     registry.registerSingleton<LevelState>();
 
     registry.registerArchetype<Agent>();
     registry.registerArchetype<PhysicsEntity>();
+    registry.registerArchetype<EpisodeTracker>();
 
     registry.exportSingleton<WorldReset>(
         (uint32_t)ExportID::Reset);
@@ -45,12 +46,12 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
         (uint32_t)ExportID::SelfObservation);
     registry.exportColumn<Agent, Lidar>(
         (uint32_t)ExportID::Lidar);
-    registry.exportColumn<Agent, StepsRemaining>(
-        (uint32_t)ExportID::StepsRemaining);
-    registry.exportColumn<Agent, Reward>(
+    registry.exportColumn<EpisodeTracker, Reward>(
         (uint32_t)ExportID::Reward);
-    registry.exportColumn<Agent, Done>(
+    registry.exportColumn<EpisodeTracker, Done>(
         (uint32_t)ExportID::Done);
+    registry.exportColumn<EpisodeTracker, StepsRemaining>(
+        (uint32_t)ExportID::StepsRemaining);
 }
 
 static inline void cleanupWorld(Engine &ctx)
@@ -59,7 +60,7 @@ static inline void cleanupWorld(Engine &ctx)
     LevelState &level = ctx.singleton<LevelState>();
     for (CountT i = 0; i < consts::numRooms; i++) {
         Room &room = level.rooms[i];
-        for (CountT j = 0; j < consts::maxEntitiesPerRoom; j++) {
+        for (CountT j = 0; j < consts::maxObstacleEntities; j++) {
             if (room.entities[j] != Entity::none()) {
                 ctx.destroyRenderableEntity(room.entities[j]);
             }
@@ -91,12 +92,10 @@ inline void resetSystem(Engine &ctx, WorldReset &reset)
 {
     int32_t should_reset = reset.reset;
     if (ctx.data().autoReset) {
-        for (CountT i = 0; i < consts::numAgents; i++) {
-            Entity agent = ctx.data().agents[i];
-            Done done = ctx.get<Done>(agent);
-            if (done.v) {
-                should_reset = 1;
-            }
+        Entity episodeTracker = ctx.data().episodeTracker;
+        Done done = ctx.get<Done>(episodeTracker);
+        if (done.v) {
+            should_reset = 1;
         }
     }
 
@@ -343,26 +342,12 @@ inline void lidarSystem(Engine &ctx,
 // Computes reward for each agent and keeps track of the max distance achieved
 // so far through the challenge. Continuous reward is provided for any new
 // distance achieved.
-inline void rewardSystem(Engine &,
-                         Position pos,
+inline void rewardSystem(Engine &ctx,
                          Reward &out_reward)
 {
-    // // Just in case agents do something crazy, clamp total reward
-    // float reward_pos = fminf(pos.y, consts::worldLength * 2);
-
-    // float old_max_y = progress.maxY;
-
-    // float new_progress = reward_pos - old_max_y;
-
-    // float reward;
-    // if (new_progress > 0) {
-    //     reward = new_progress * consts::rewardPerDist;
-    //     progress.maxY = reward_pos;
-    // } else {
-    //     reward = consts::slackReward;
-    // }
-
-    out_reward.v = pos.x + pos.y;
+    Entity et = ctx.data().episodeTracker;
+    StepsRemaining sr = ctx.get<StepsRemaining>(et);
+    out_reward.v = sr.t * 2;
 }
 
 // Keep track of the number of steps remaining in the episode and
@@ -446,7 +431,6 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     // Compute initial reward now that physics has updated the world state
     auto reward_sys = builder.addToGraph<ParallelForNode<Engine,
          rewardSystem,
-            Position,
             Reward
         >>({phys_done});
 
@@ -530,9 +514,8 @@ Sim::Sim(Engine &ctx,
     // Currently the physics system needs an upper bound on the number of
     // entities that will be stored in the BVH. We plan to fix this in
     // a future release.
-    constexpr CountT max_total_entities = consts::numAgents +
-        consts::numRooms * (consts::maxEntitiesPerRoom + 3) +
-        4; // side walls + floor
+    constexpr CountT max_total_entities = 
+        consts::numAgents + consts::maxObstacleEntities + 5; // side walls + floor + episodeTracker
 
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
         consts::deltaT, consts::numPhysicsSubsteps, -9.8f * math::up,

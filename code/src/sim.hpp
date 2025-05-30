@@ -103,6 +103,8 @@ struct Sim : public madrona::WorldBase {
     // Agent entity references. This entities live across all episodes
     // and are just reset to the start of the level on reset.
     Entity agents[consts::numAgents];
+
+    Entity episodeTracker;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {
