@@ -37,9 +37,10 @@ enum class SimObject : uint32_t {
     Cube,
     Wall,
     Agent,
-    Plane,
-    NumObjects,
-    MacGuffin
+    MacGuffin,
+    Plane, // Note: because the code that imports meshes is a little bit funky,
+           // you must import things without meshes (eg Plane) last.
+    NumObjects
 };
 
 // The Sim class encapsulates the per-world state of the simulation.
