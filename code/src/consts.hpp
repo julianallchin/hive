@@ -21,6 +21,7 @@ inline constexpr int32_t maxBarriers = 3;
 inline constexpr madrona::CountT maxTotalEntities = 
         maxAgents + maxCubes + maxBarriers + 6; // 6 for 4 side walls + floor + episodeTracker
 
+inline constexpr bool autoReset = true;
 
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
@@ -54,6 +55,8 @@ inline constexpr int maxCubePlacementAttempts = 30;
 
 inline constexpr float agentRadius = 0.5f;
 inline constexpr float agentSize = (2 * agentRadius);
+inline constexpr float agentMoveSpeed = 100.0f;
+inline constexpr float agentTurnSpeed = 32.0f;
 inline constexpr float agentInverseMass = 5.0f;
 inline constexpr float agentMacguffinBuffer = 0.0f;
 inline constexpr float agentCubeBuffer = 0.0f;

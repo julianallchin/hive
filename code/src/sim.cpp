@@ -120,8 +120,8 @@ inline void movementSystem(Engine &,
                            ExternalForce &external_force,
                            ExternalTorque &external_torque)
 {
-    constexpr float move_max = 1000;
-    constexpr float turn_max = 320;
+    constexpr float move_max = consts::agentMoveSpeed;
+    constexpr float turn_max = consts::agentTurnSpeed; // these scale with mass apparently
 
     Quat cur_rot = rot;
 
