@@ -26,6 +26,7 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<SelfObservation>();
     registry.registerComponent<GrabState>();
     registry.registerComponent<Lidar>();
+    registry.registerComponent<Active>();
     registry.registerComponent<EntityType>();
     registry.registerComponent<Reward>();
     registry.registerComponent<RewardHelper>();
@@ -34,7 +35,6 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
     registry.registerComponent<MacGuffinState>();
 
     registry.registerSingleton<WorldReset>();
-    registry.registerSingleton<NumAgents>();
 
     registry.registerArchetype<Agent>();
     registry.registerArchetype<PhysicsEntity>();
@@ -45,14 +45,14 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
 
     registry.exportSingleton<WorldReset>(
         (uint32_t)ExportID::Reset);
-    registry.exportSingleton<NumAgents>(
-        (uint32_t)ExportID::NumAgents);
     registry.exportColumn<Agent, Action>(
         (uint32_t)ExportID::Action);
     registry.exportColumn<Agent, SelfObservation>(
         (uint32_t)ExportID::SelfObservation);
     registry.exportColumn<Agent, Lidar>(
         (uint32_t)ExportID::Lidar);
+    registry.exportColumn<Agent, Active>(
+        (uint32_t)ExportID::Active);
     registry.exportColumn<EpisodeTracker, Reward>(
         (uint32_t)ExportID::Reward);
     registry.exportColumn<EpisodeTracker, Done>(

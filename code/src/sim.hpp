@@ -28,7 +28,7 @@ enum class ExportID : uint32_t {
     SelfObservation,
     Lidar,
     StepsRemaining,
-    NumAgents,
+    Active,
     NumExports,
 };
 

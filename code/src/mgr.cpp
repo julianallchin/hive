@@ -662,12 +662,13 @@ namespace madEscape
                                    });
     }
 
-    Tensor Manager::numAgentsTensor() const
+    Tensor Manager::activeAgentsTensor() const
     {
-        return impl_->exportTensor(ExportID::NumAgents,
-                                   TensorElementType::Int32,
+        return impl_->exportTensor(ExportID::Active,
+                                   TensorElementType::UInt8,
                                    {
                                        impl_->cfg.numWorlds,
+                                       consts::maxAgents,
                                        1,
                                    });
     }

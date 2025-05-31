@@ -309,7 +309,6 @@ static void resetPersistentEntities(Engine &ctx,
 
     // NumAgents
     int32_t numAgents = levelPlacements.numAgents;
-    ctx.singleton<NumAgents>().n = numAgents;
 
     // Agents
     for (int32_t i = 0; i < consts::maxAgents; i++) {
@@ -333,7 +332,7 @@ static void resetPersistentEntities(Engine &ctx,
             .rotate = consts::numTurnBuckets / 2,
             .grab = 0,
         };
-        // set positions of the agent's we'll actually use
+        // set positions and alive status of the agent's we'll actually use
         if (i < numAgents) {
             // Place the agents near the starting wall
             ctx.get<Position>(agent_entity) = Vector3 {
@@ -343,15 +342,17 @@ static void resetPersistentEntities(Engine &ctx,
             };
             ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
                 levelPlacements.agentPlacements[i].angle, math::up);
+            ctx.get<Active>(agent_entity).v = 1;
         }
         // for the rest of the ants, they go to jail
         else {
             ctx.get<Position>(agent_entity) = Vector3 {
-                consts::worldWidth + (2.0f + 2 * consts::agentSize) * i,
+                consts::worldWidth / 2.0f + (50.0f + 2 * consts::agentSize) * i,
                 0.0f,
                 0.0f,
             };
             ctx.get<Rotation>(agent_entity) = Quat{ 1, 0, 0, 0};
+            ctx.get<Active>(agent_entity).v = 0;
         }
     }
         

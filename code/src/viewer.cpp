@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
     auto lidar_printer = mgr.lidarTensor().makePrinter();
     auto steps_remaining_printer = mgr.stepsRemainingTensor().makePrinter();
     auto reward_printer = mgr.rewardTensor().makePrinter();
-    auto num_agents_printer = mgr.numAgentsTensor().makePrinter();
+    auto active_agents_printer = mgr.activeAgentsTensor().makePrinter();
 
     auto printObs = [&]() {
         printf("Self\n");
@@ -152,8 +152,8 @@ int main(int argc, char *argv[])
         printf("Reward\n");
         reward_printer.print();
 
-        printf("Num Agents\n");
-        num_agents_printer.print();
+        printf("Active Agents\n");
+        active_agents_printer.print();
 
         printf("\n");
     };

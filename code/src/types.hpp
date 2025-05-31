@@ -32,13 +32,6 @@ struct WorldReset {
     int32_t reset;
 };
 
-// per world singleton component that tracks the number of ants actually being used in the simulation
-// (we create the max number and store them outside the simulation perimeter, so not all are used.
-// we need a fixed number of ants to exist in order to enable exports)
-struct NumAgents {
-    int32_t n;
-};
-
 // Discrete action component. Ranges are defined by consts::numMoveBuckets (5),
 // repeated here for clarity
 struct Action {
@@ -114,6 +107,11 @@ struct GrabState {
 // In the future, this could for example be replaced with actions, to allow the MacGuffin to become alive.
 struct MacGuffinState{};
 
+// whether a given Agent is alive
+struct Active{
+    uint8_t v;
+};
+
 // This enum is used to track the type of each entity for the purposes of
 // classifying the objects hit by each lidar sample.
 enum class EntityType : uint32_t {
@@ -153,6 +151,8 @@ struct Agent : public madrona::Archetype<
     // Observations
     SelfObservation,
     Lidar,
+
+    Active,
 
     // Visualization: In addition to the fly camera, src/viewer.cpp can
     // view the scene from the perspective of entities with this component
