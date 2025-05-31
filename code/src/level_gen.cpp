@@ -1,4 +1,5 @@
 #include "level_gen.hpp"
+#include <vector>
 
 namespace madEscape {
 
@@ -80,14 +81,14 @@ void createPersistentEntities(Engine &ctx)
         ResponseType::Static);
 
     // Create the outer wall entities
-    // Behind
+    // Bottom
     ctx.data().borders[0] = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
         ctx,
         ctx.data().borders[0],
         Vector3 {
             0,
-            -consts::wallWidth / 2.f,
+            -consts::worldLength / 2.f,
             0,
         },
         Quat { 1, 0, 0, 0 },
@@ -95,9 +96,9 @@ void createPersistentEntities(Engine &ctx)
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            consts::worldWidth + consts::wallWidth * 2,
-            consts::wallWidth,
-            2.f,
+            (consts::worldWidth + consts::borderWidth) / consts::wallMeshX, // add borderwidth for no jagged corners
+            consts::borderWidth / consts::wallMeshY,
+            consts::borderHeight / consts::wallMeshHeight
         });
 
     // Right
@@ -106,8 +107,8 @@ void createPersistentEntities(Engine &ctx)
         ctx,
         ctx.data().borders[1],
         Vector3 {
-            consts::worldWidth / 2.f + consts::wallWidth / 2.f,
-            consts::worldLength / 2.f,
+            consts::worldWidth / 2.f,
+            0,
             0,
         },
         Quat { 1, 0, 0, 0 },
@@ -115,9 +116,9 @@ void createPersistentEntities(Engine &ctx)
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            consts::wallWidth,
-            consts::worldLength,
-            2.f,
+            consts::borderWidth / consts::wallMeshX,
+            (consts::worldLength + consts::borderWidth) / consts::wallMeshY, // add borderwidth for no jagged corners
+            consts::borderHeight / consts::wallMeshHeight,
         });
 
     // Left
@@ -126,7 +127,7 @@ void createPersistentEntities(Engine &ctx)
         ctx,
         ctx.data().borders[2],
         Vector3 {
-            -consts::worldWidth / 2.f - consts::wallWidth / 2.f,
+            0,
             consts::worldLength / 2.f,
             0,
         },
@@ -135,9 +136,9 @@ void createPersistentEntities(Engine &ctx)
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            consts::wallWidth,
-            consts::worldLength,
-            2.f,
+            (consts::worldWidth + consts::borderWidth) / consts::wallMeshX, // add borderwidth for no jagged corners
+            consts::borderWidth / consts::wallMeshY,
+            consts::borderHeight / consts::wallMeshHeight,
         });
 
     // Top
@@ -146,8 +147,8 @@ void createPersistentEntities(Engine &ctx)
         ctx,
         ctx.data().borders[3],
         Vector3 {
+            -consts::worldWidth / 2.f,
             0,
-            consts::worldLength - consts::wallWidth / 2.0f,
             0,
         },
         Quat { 1, 0, 0, 0 },
@@ -155,9 +156,9 @@ void createPersistentEntities(Engine &ctx)
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            consts::worldWidth,
-            consts::wallWidth,
-            2.f,
+            consts::borderWidth / consts::wallMeshX,
+            (consts::worldLength + consts::borderWidth) / consts::wallMeshY, // add borderwidth for no jagged corners
+            consts::borderHeight / consts::wallMeshHeight,
         });
 
     // initialized on reset
@@ -174,15 +175,18 @@ void createPersistentEntities(Engine &ctx)
         EntityType::MacGuffin,
         ResponseType::Dynamic,
         Diag3x3 {
-            consts::macguffinSize,
-            consts::macguffinSize,
-            consts::macguffinSize
+            consts::macguffinSize / consts::cubeMeshSize,
+            consts::macguffinSize / consts::cubeMeshSize,
+            consts::macguffinSize / consts::cubeMeshSize
         });
 
     // Goal
     Entity goal = ctx.data().goal = ctx.makeRenderableEntity<Goal>();
     ctx.get<Rotation>(goal) = Quat {1, 0, 0, 0};
-    ctx.get<Scale>(goal) = Diag3x3 { consts::goalSize, consts::goalSize, 0.1f };
+    ctx.get<Scale>(goal) = Diag3x3 {
+        consts::goalSize / consts::cubeMeshSize,
+        consts::goalSize / consts::cubeMeshSize,
+        0.1f };
     ctx.get<ObjectID>(goal) = ObjectID { (int32_t)SimObject::Goal };
     ctx.get<EntityType>(goal) = EntityType::Goal;
     // position to be initialized on level reset
@@ -205,7 +209,10 @@ void createPersistentEntities(Engine &ctx)
                     1.5f * math::up);
         }
 
-        ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
+        ctx.get<Scale>(agent) = Diag3x3 {
+            consts::agentSize / consts::agentMeshSize,
+            consts::agentSize / consts::agentMeshSize,
+            consts::agentSize / consts::agentMeshSize };
         ctx.get<ObjectID>(agent) = ObjectID { (int32_t)SimObject::Agent };
         ctx.get<ResponseType>(agent) = ResponseType::Dynamic;
         ctx.get<GrabState>(agent).constraintEntity = Entity::none();
@@ -213,33 +220,77 @@ void createPersistentEntities(Engine &ctx)
     }
 }
 
+
+// Enum to identify which border/wall
+enum class Border {
+    Top = 0,
+    Right = 1,
+    Bottom = 2,
+    Left = 3
+};
+
+// Structure to hold barrier placement information
+struct BarrierPlacement {
+    float x;
+    float y;
+    float width;
+    float height;
+};
+
+struct CubePlacement {
+    float x;
+    float y;
+    float scale;
+};
+
+struct AgentPlacement {
+    float x;
+    float y;
+    float angle;
+};
+
+struct MacGuffinPlacement {
+    float x;
+    float y;
+    Border wall; // Which wall/border it's placed along
+};
+
+struct GoalPlacement {
+    float x;
+    float y;
+    Border wall; // Which wall/border it's placed along
+};
+
 // Although agents and walls persist between episodes, we still need to
 // re-register them with the broadphase system and, in the case of the agents,
 // reset their positions.
-static void resetPersistentEntities(Engine &ctx)
+static void resetPersistentEntities(Engine &ctx,
+                                    const MacGuffinPlacement &macguffin_placement, 
+                                    const GoalPlacement &goal_placement,
+                                    const std::vector<AgentPlacement> &agent_placements)
 {
+    // floor
     registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
 
+    // borders
     for (CountT i = 0; i < 4; i++) {
         Entity wall_entity = ctx.data().borders[i];
         registerRigidBodyEntity(ctx, wall_entity, SimObject::Wall);
     }
+    
     // MacGuffin
     Entity macguffin = ctx.data().macguffin;
-    Vector3 macguffin_pos{0.0, 30.0, 10.0};
+    Vector3 macguffin_pos{macguffin_placement.x, macguffin_placement.y, 0.0f};
     registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
     ctx.get<Position>(macguffin) = macguffin_pos;
     ctx.get<Rotation>(macguffin) = Quat {1, 0, 0, 0};
-    ctx.get<Velocity>(macguffin) = {
-        Vector3::zero(),
-        Vector3::zero(),
-    };
+    ctx.get<Velocity>(macguffin) = { Vector3::zero(), Vector3::zero()};
     ctx.get<ExternalForce>(macguffin) = Vector3::zero();
     ctx.get<ExternalTorque>(macguffin) = Vector3::zero();
 
     // Goal
     Entity goal = ctx.data().goal;
-    Vector3 goal_pos{ 15.0f, 15.0f, 0.0f};
+    Vector3 goal_pos{goal_placement.x, goal_placement.y, 0.0f};
     ctx.get<Position>(goal) = goal_pos;
 
     // Episode Tracker
@@ -249,7 +300,7 @@ static void resetPersistentEntities(Engine &ctx)
     ctx.get<RewardHelper>(episodeTracker).prev_dist = -1.0f; // initialized in rewardsystem
 
     // NumAgents
-    int32_t numAgents = randIntBetween(ctx, consts::minAgents, consts::maxAgents);
+    int32_t numAgents = agent_placements.size();
     ctx.singleton<NumAgents>().n = numAgents;
 
     // Agents
@@ -278,19 +329,18 @@ static void resetPersistentEntities(Engine &ctx)
         if (i < numAgents) {
             // Place the agents near the starting wall
             ctx.get<Position>(agent_entity) = Vector3 {
-                (2.0f) * i,
+                agent_placements[i].x,
+                agent_placements[i].y,
                 0.0f,
-                0.f,
             };
             ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
-                randInRangeCentered(ctx, math::pi / 4.f),
-                math::up);
+                agent_placements[i].angle, math::up);
         }
         // for the rest of the ants, they go to jail
         else {
             ctx.get<Position>(agent_entity) = Vector3 {
-                10.0f * i,
-                100.0f,
+                consts::worldWidth + (2.0f + 2 * consts::agentSize) * i,
+                0.0f,
                 0.0f,
             };
             ctx.get<Rotation>(agent_entity) = Quat{ 1, 0, 0, 0};
@@ -300,102 +350,473 @@ static void resetPersistentEntities(Engine &ctx)
 }
 
 static Entity makeCube(Engine &ctx,
-                       float cube_x,
-                       float cube_y,
-                       float scale = 1.f)
+                       CubePlacement placement)
 {
     Entity cube = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
         ctx,
         cube,
         Vector3 {
-            cube_x,
-            cube_y,
-            1.f * scale,
+            placement.x,
+            placement.y,
+            0
         },
         Quat { 1, 0, 0, 0 },
         SimObject::Cube,
         EntityType::Cube,
         ResponseType::Dynamic,
-        Diag3x3 {
-            scale,
-            scale,
-            scale,
-        });
+        Diag3x3{
+            consts::cubeSize * placement.scale / consts::cubeMeshSize,
+            consts::cubeSize * placement.scale / consts::cubeMeshSize,
+            consts::cubeSize * placement.scale / consts::cubeMeshSize});
     registerRigidBodyEntity(ctx, cube, SimObject::Cube);
-
     return cube;
 }
 
-enum class WallDirection : bool {
-    Horizontal,
-    Vertical
-};
-
 static Entity makeBarrier(Engine &ctx,
-                       float x,
-                       float y,
-                       float length,
-                       WallDirection isHorizontal)
+                       BarrierPlacement placement)
 {
     Entity barrier = ctx.makeRenderableEntity<PhysicsEntity>();
-    float x_size;
-    float y_size;
-    if (isHorizontal == WallDirection::Horizontal) {
-        x_size = length;
-        y_size = consts::barrierWidth;
-    }
-    else {
-        x_size = consts::barrierWidth;
-        y_size = length;
-    }
     setupRigidBodyEntity(
         ctx,
         barrier,
-        Vector3 {
-            x,
-            y,
-            0,
-        },
+        Vector3 { placement.x, placement.y, 0 },
         Quat { 1, 0, 0, 0 },
         SimObject::Wall,
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            x_size,
-            y_size,
-            consts::barrierHeight,
+            placement.width / consts::wallMeshX,
+            placement.height / consts::wallMeshY,
+            consts::barrierHeight / consts::wallMeshHeight
         });
     registerRigidBodyEntity(ctx, barrier, SimObject::Wall);
     return barrier;
 }
 
-static void generateLevel(Engine &ctx)
+// Determine a suitable position for the macguffin
+static MacGuffinPlacement determineMacGuffinPlacement(Engine &ctx) {
+    // Choose a border randomly
+    Border border = static_cast<Border>(randIntBetween(ctx, 0, 3));
+    
+    // Buffer from the wall to ensure the macguffin doesn't clip into the border
+    float buffer = 0.5f * consts::macguffinSize + 0.5f * consts::borderWidth;
+    
+    // Room boundaries accounting for the border walls
+    float minX = -consts::worldWidth / 2.0f + buffer;
+    float maxX = consts::worldWidth / 2.0f - buffer;
+    float minY = -consts::worldLength / 2.0f + buffer;
+    float maxY = consts::worldLength / 2.0f - buffer;
+    
+    // Starting position
+    float x = 0.0f;
+    float y = 0.0f;
+    
+    // Place the macguffin near the chosen border
+    float offset = randBetween(ctx, consts::minBorderSpawnBuffer, consts::maxBorderSpawnBuffer);
+    switch (border) {
+        case Border::Top: // Top border
+            x = randBetween(ctx, minX, maxX);
+            y = maxY - offset; // 0-3 units from the border
+            break;
+        case Border::Right: // Right border
+            x = maxX - offset; // 0-3 units from the border
+            y = randBetween(ctx, minY, maxY);
+            break;
+        case Border::Bottom: // Bottom border
+            x = randBetween(ctx, minX, maxX);
+            y = minY + offset; // 0-3 units from the border
+            break;
+        case Border::Left: // Left border
+            x = minX + offset; // 0-3 units from the border
+            y = randBetween(ctx, minY, maxY);
+            break;
+    }
+    
+    return MacGuffinPlacement{x, y, border};
+}
+
+// Determine a suitable position for the goal along the perimeter of the room
+static GoalPlacement determineGoalPlacement(Engine &ctx, const MacGuffinPlacement &macguffinPlacement) {
+    // Place goal on the opposite wall
+    Border goalWall = static_cast<Border>((static_cast<int>(macguffinPlacement.wall) + 2) % 4);
+    
+    // Buffer from the wall to ensure the goal doesn't clip into the border
+    float buffer = 0.5f * consts::goalSize + 0.5f * consts::borderWidth;
+    
+    // Room boundaries accounting for the border walls
+    float minX = -consts::worldWidth / 2.0f + buffer;
+    float maxX = consts::worldWidth / 2.0f - buffer;
+    float minY = -consts::worldLength / 2.0f + buffer;
+    float maxY = consts::worldLength / 2.0f - buffer;
+    
+    // Starting position
+    float x = 0.0f;
+    float y = 0.0f;
+    
+    // Place the goal near the chosen border
+    float offset = randBetween(ctx, consts::minBorderSpawnBuffer, consts::maxBorderSpawnBuffer);
+    switch (goalWall) {
+        case Border::Top: // Top border
+            x = randBetween(ctx, minX, maxX);
+            y = maxY - offset;
+            break;
+        case Border::Right: // Right border
+            x = maxX - offset;
+            y = randBetween(ctx, minY, maxY);
+            break;
+        case Border::Bottom: // Bottom border
+            x = randBetween(ctx, minX, maxX);
+            y = minY + offset;
+            break;
+        case Border::Left: // Left border
+            x = minX + offset;
+            y = randBetween(ctx, minY, maxY);
+            break;
+    }
+    
+    return GoalPlacement{x, y, goalWall};
+}
+
+static std::vector<BarrierPlacement> determineBarrierPlacements(Engine &ctx, int32_t numBarriers, const MacGuffinPlacement &macguffinPlacement, const GoalPlacement &goalPlacement) {
+    std::vector<BarrierPlacement> barrierPlacements;
+
+    // Return empty vector if no barriers needed
+    if (numBarriers <= 0) {
+        return barrierPlacements;
+    }
+    
+    // Room boundaries
+    float minX = -consts::worldWidth / 2.0f + consts::borderWidth / 2.0f;
+    float maxX = consts::worldWidth / 2.0f - consts::borderWidth / 2.0f;
+    float minY = -consts::worldLength / 2.0f + consts::borderWidth / 2.0f;
+    float maxY = consts::worldLength / 2.0f - consts::borderWidth / 2.0f;
+
+    // Try up to the maximum number of attempts for barrier placement
+    int attempt = 0;
+
+    while (static_cast<int32_t>(barrierPlacements.size()) < numBarriers && attempt < consts::maxBarrierPlacementAttempts) {
+        attempt++;
+
+        // Decide if barrier will be horizontal or vertical
+        bool isHorizontal = randBetween(ctx, 0.0f, 1.0f) < 0.5f;
+
+        // Barrier size
+        float barrierLength = randBetween(ctx, consts::minBarrierLength, consts::maxBarrierLength);
+        float barrierWidth = consts::borderWidth;
+
+        // Determine barrier position
+        float x = 0.0f;
+        float y = 0.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+        
+        if (isHorizontal) {
+            // Horizontal barrier
+            width = barrierLength;
+            height = barrierWidth;
+
+            // Random position within room bounds
+            x = randBetween(ctx, minX + width/2, maxX - width/2);
+            y = randBetween(ctx, minY + height/2, maxY - height/2);
+        } else {
+            // Vertical barrier
+            width = barrierWidth;
+            height = barrierLength;
+
+            // Random position within room bounds
+            x = randBetween(ctx, minX + width/2, maxX - width/2);
+            y = randBetween(ctx, minY + height/2, maxY - height/2);
+        }
+        
+        bool overlapsWithMacguffin =
+        (std::abs(x - macguffinPlacement.x) < (width / 2.0f + consts::macguffinSize / 2.0f) + consts::barrierMacguffinBuffer) &&
+        (std::abs(y - macguffinPlacement.y) < (height / 2.0f + consts::macguffinSize / 2.0f) + consts::barrierMacguffinBuffer);
+
+        
+        if (overlapsWithMacguffin) {
+            continue; // Skip this attempt
+        }
+        
+        bool overlapsWithGoal =
+        (std::abs(x - goalPlacement.x) < (width / 2.0f + consts::goalSize / 2.0f) + consts::barrierGoalBuffer) &&
+        (std::abs(y - goalPlacement.y) < (height / 2.0f + consts::goalSize / 2.0f) + consts::barrierGoalBuffer);
+
+        if (overlapsWithGoal) {
+            continue; // Skip this attempt
+        }
+
+        // Check if barrier overlaps with existing barriers
+        bool overlapsWithBarrier = false;
+        for (const auto &existingBarrier : barrierPlacements) {
+            // Simple overlap check (approximate)
+            if (std::abs(x - existingBarrier.x) < (width + existingBarrier.width) / 2 + consts::barrierBarrierBuffer &&
+                std::abs(y - existingBarrier.y) < (height + existingBarrier.height) / 2 + consts::barrierBarrierBuffer) {
+                overlapsWithBarrier = true;
+                break;
+            }
+        }
+
+        if (overlapsWithBarrier) {
+            break;
+        }
+
+        BarrierPlacement barrier;
+        barrier.x = x;
+        barrier.y = y;
+        barrier.width = width;
+        barrier.height = height;
+        barrierPlacements.push_back(barrier);
+
+    }
+    return barrierPlacements;
+}
+
+static std::vector<CubePlacement> determineCubePlacements(
+Engine &ctx,
+int32_t numCubes,
+const MacGuffinPlacement &macguffinPlacement, 
+const GoalPlacement &goalPlacement, 
+const std::vector<BarrierPlacement> &barrierPlacements) {
+
+    std::vector<CubePlacement> cubePlacements;
+
+    // Return empty vector if no cubes needed
+    if (numCubes <= 0) {
+        return cubePlacements;
+    }
+
+    // Define world edges (absolute edges of the simulation area)
+    const float worldEdgeMinX = -consts::worldWidth / 2.0f;
+    const float worldEdgeMaxX =  consts::worldWidth / 2.0f;
+    const float worldEdgeMinY = -consts::worldLength / 2.0f;
+    const float worldEdgeMaxY =  consts::worldLength / 2.0f;
+
+    // Define placement boundaries (inside the border walls)
+    const float placementBoundMinX = worldEdgeMinX + consts::borderWidth / 2.0f;
+    const float placementBoundMaxX = worldEdgeMaxX - consts::borderWidth / 2.0f;
+    const float placementBoundMinY = worldEdgeMinY + consts::borderWidth / 2.0f;
+    const float placementBoundMaxY = worldEdgeMaxY - consts::borderWidth / 2.0f;
+    
+    int attempt = 0;
+
+    while (static_cast<int32_t>(cubePlacements.size()) < numCubes && attempt < consts::maxCubePlacementAttempts) {
+        attempt++;
+
+        // Random scale for the cube
+        float scale = randBetween(ctx, consts::cubeMinScaleFactor, consts::cubeMaxScaleFactor);
+
+        // Current cube's half-extent (assuming consts::cubeSize is base half-width/radius)
+        float currentCubeHalfExtent = consts::cubeSize * scale / 2.0f;
+        float macguffinHalfExtent = consts::macguffinSize / 2.0f;
+
+        // Determine valid range for placing the center of the cube
+        float placeableMinX = placementBoundMinX + currentCubeHalfExtent;
+        float placeableMaxX = placementBoundMaxX - currentCubeHalfExtent;
+        float placeableMinY = placementBoundMinY + currentCubeHalfExtent;
+        float placeableMaxY = placementBoundMaxY - currentCubeHalfExtent;
+
+        // If the placeable area is invalid (e.g., cube too large for the space), skip or break.
+        if (placeableMinX >= placeableMaxX || placeableMinY >= placeableMaxY) {
+            // This might happen if world is too small or objects too large relative to consts::borderWidth
+            // Or if numCubes is very high and remaining space is fragmented.
+            // Depending on desired behavior, could log an error or simply stop trying.
+            break; 
+        }
+
+        // Random position for the center of the cube
+        float x = randBetween(ctx, placeableMinX, placeableMaxX);
+        float y = randBetween(ctx, placeableMinY, placeableMaxY);
+        
+        // --- Overlap Checks using AABB ---
+
+        // 1. Check overlap with Macguffin
+        bool overlapsWithMacguffin =
+            (std::abs(x - macguffinPlacement.x) < (currentCubeHalfExtent + macguffinHalfExtent + consts::cubeMacguffinBuffer)) &&
+            (std::abs(y - macguffinPlacement.y) < (currentCubeHalfExtent + macguffinHalfExtent + consts::cubeMacguffinBuffer));
+
+        if (overlapsWithMacguffin) {
+            continue; // Skip this attempt, try a new placement
+        }
+
+        // its fine to overlap with goal
+
+        // 3. Check overlap with Barriers
+        bool objectOverlapsWithBarrier = false;
+        for (const auto &barrier : barrierPlacements) {
+            float barrierHalfWidth = barrier.width / 2.0f;
+            float barrierHalfHeight = barrier.height / 2.0f;
+
+            if ((std::abs(x - barrier.x) < (currentCubeHalfExtent + barrierHalfWidth + consts::cubeBarrierBuffer)) &&
+                (std::abs(y - barrier.y) < (currentCubeHalfExtent + barrierHalfHeight + consts::cubeBarrierBuffer))) {
+                objectOverlapsWithBarrier = true;
+                break; // Found an overlap with a barrier
+            }
+        }
+        if (objectOverlapsWithBarrier) {
+            continue; // Skip this attempt
+        }
+
+        // 4. Check overlap with existing Cubes
+        bool overlapsWithExistingCube = false;
+        for (const auto &existingCube : cubePlacements) {
+            float existingCubeHalfExtent = consts::cubeSize * existingCube.scale;
+
+            if ((std::abs(x - existingCube.x) < (currentCubeHalfExtent + existingCubeHalfExtent + consts::cubeCubeBuffer)) &&
+                (std::abs(y - existingCube.y) < (currentCubeHalfExtent + existingCubeHalfExtent + consts::cubeCubeBuffer))) {
+                overlapsWithExistingCube = true;
+                break; // Found an overlap with another cube
+            }
+        }
+        if (overlapsWithExistingCube) {
+            continue; // Skip this attempt
+        }
+        
+        // If all checks passed, the placement is valid
+        CubePlacement newObj;
+        newObj.x = x;
+        newObj.y = y;
+        newObj.scale = scale;
+        cubePlacements.push_back(newObj);
+    }
+    return cubePlacements;
+}
+
+
+static std::vector<AgentPlacement> determineAgentPlacements(Engine &ctx, int32_t numAgents, const MacGuffinPlacement &macguffinPlacement, const GoalPlacement &_, const std::vector<BarrierPlacement> &barrierPlacements, const std::vector<CubePlacement> &cubePlacements) {
+    std::vector<AgentPlacement> agentPlacements;
+
+    // Get how many agents we need to place
+    if (numAgents <= 0) {
+        return agentPlacements;
+    }
+    
+    // Room boundaries
+    float minX = -consts::worldWidth / 2.0f;
+    float maxX = consts::worldWidth / 2.0f;
+    float minY = -consts::worldLength / 2.0f;
+    float maxY = consts::worldLength / 2.0f;
+
+    float borderBuffer = consts::borderWidth / 2.0f + consts::agentSize / 2.0f;
+
+    
+    // Adjusted room boundaries accounting for border walls
+    float adjustedMinX = minX + borderBuffer;
+    float adjustedMaxX = maxX - borderBuffer;
+    float adjustedMinY = minY + borderBuffer;
+    float adjustedMaxY = maxY - borderBuffer;
+
+    // Try up to the maximum number of attempts per agent
+
+    // Try to place each agent
+    for (int32_t agentIndex = 0; agentIndex < numAgents; agentIndex++) {
+        int attempts = 0;
+        bool placedSuccessfully = false;
+        
+        while (!placedSuccessfully && attempts < consts::maxAgentPlacementAttemptsPerAgent) {
+            attempts++;
+            
+            // Random position within adjusted room bounds
+            float x = randBetween(ctx, adjustedMinX, adjustedMaxX);
+            float y = randBetween(ctx, adjustedMinY, adjustedMaxY);
+            
+            // Random angle (orientation)
+            float angle = randBetween(ctx, 0.0f, 2.0f * 3.14159f);  // 0 to 2π radians
+
+            // Check if agent overlaps with macguffin
+            bool overlapsWithMacguffin = false;
+            if (std::abs(x - macguffinPlacement.x) < (consts::agentSize / 2.0f + consts::macguffinSize / 2.0f + consts::agentMacguffinBuffer) &&
+                std::abs(y - macguffinPlacement.y) < (consts::agentSize / 2.0f + consts::macguffinSize / 2.0f + consts::agentMacguffinBuffer)) {
+                overlapsWithMacguffin = true;
+            }
+            
+            if (overlapsWithMacguffin) {
+                continue; // Skip this attempt
+            }
+
+            // its's fine if they spawn on the goal; don't check that
+
+            // Check if agent overlaps with walls
+            bool overlapsWithBarrier = false;
+            for (const auto &barrier : barrierPlacements) {
+                // Simple box-based distance check
+                if (std::abs(x - barrier.x) < (consts::agentSize / 2.0f + barrier.width / 2.0f + consts::agentBarrierBuffer) &&
+                    std::abs(y - barrier.y) < (consts::agentSize / 2.0f + barrier.height / 2.0f + consts::agentBarrierBuffer)) {
+                    overlapsWithBarrier = true;
+                    break;
+                }
+            }
+
+            if (overlapsWithBarrier) {
+                continue; // Skip this attempt
+            }
+
+            // Check if agent overlaps with cubes
+            bool overlapsWithCube = false;
+            for (const auto &cube : cubePlacements) {
+                // Simple box-based distance check
+                if (std::abs(x - cube.x) < (consts::agentSize / 2.0f + consts::movableObjectSize * cube.scale / 2.0f + consts::agentBarrierBuffer) &&
+                    std::abs(y - cube.y) < (consts::agentSize / 2.0f + consts::movableObjectSize * cube.scale / 2.0f + consts::agentBarrierBuffer)) {
+                    overlapsWithCube = true;
+                    break;
+                }
+            }
+
+            if (overlapsWithCube) {
+                continue; // Skip this attempt
+            }
+
+            // Check if agent overlaps with already placed agents
+            bool overlapsWithAgent = false;
+            for (const auto &existingAgent : agentPlacements) {
+                float distToAgent = std::sqrt(
+                    std::pow(x - existingAgent.x, 2) +
+                    std::pow(y - existingAgent.y, 2));
+
+                if (distToAgent < consts::agentSize + consts::agentAgentBuffer) {
+                    overlapsWithAgent = true;
+                    break;
+                }
+            }
+
+            if (overlapsWithAgent) {
+                continue;
+            }
+
+            // Agent position is valid, add it
+            AgentPlacement agent;
+            agent.x = x;
+            agent.y = y;
+            agent.angle = angle;
+            agentPlacements.push_back(agent);
+            placedSuccessfully = true;
+        }
+
+        // If we couldn't place this agent after all attempts, stop trying to place more
+        if (!placedSuccessfully) {
+            break;
+        }
+    }
+    return agentPlacements;
+}
+
+static void generateLevel(Engine &ctx, const std::vector<BarrierPlacement> &barrierPlacements, const std::vector<CubePlacement> &cubePlacements)
 {
     // some cubes
-    int32_t numCubes = randIntBetween(ctx, consts::minCubes, consts::maxCubes);
-    for (CountT i = 0; i < numCubes; i++) {
-        float x = randBetween(ctx, -10.0f, 10.0f);
-        float y = 10.0f * i + 5.0f;
-        float scale = 1.0f;
-        Entity cube = makeCube(ctx, x, y, scale);
+    for (CountT i = 0; i < static_cast<int32_t>(cubePlacements.size()); i++) {
+        Entity cube = makeCube(ctx, cubePlacements[i]);
         ctx.data().cubes[i] = cube;
     }
-    for (int32_t i = numCubes; i < consts::maxCubes; i++) {
+    for (int32_t i = static_cast<int32_t>(cubePlacements.size()); i < consts::maxCubes; i++) {
         ctx.data().cubes[i] = Entity::none();
     }
 
-
     // some barriers
-    int32_t numBarriers = randIntBetween(ctx, consts::minBarriers, consts::maxBarriers);
-    for (int32_t i = 0; i < numBarriers; i++) {
-        float x = randBetween(ctx, -10.0f, 10.0f);
-        float y = -10.0f * i - 5.0f;
-        float length = 10.0f;
-        Entity barrier = makeBarrier(ctx, x, y, length, WallDirection::Horizontal);
+    for (int32_t i = 0; i < static_cast<int32_t>(barrierPlacements.size()); i++) {
+        Entity barrier = makeBarrier(ctx, barrierPlacements[i]);
         ctx.data().barriers[i] = barrier;
     }
-    for (int32_t i = numBarriers; i < consts::maxBarriers; i++) {
+    for (int32_t i = static_cast<int32_t>(barrierPlacements.size()); i < consts::maxBarriers; i++) {
         ctx.data().barriers[i] = Entity::none();
     }
 }
@@ -403,8 +824,21 @@ static void generateLevel(Engine &ctx)
 // Randomly generate a new world for a training episode
 void generateWorld(Engine &ctx)
 {
-    resetPersistentEntities(ctx);
-    generateLevel(ctx);
+    int32_t attemptedNumCubes = randIntBetween(ctx, consts::minCubes, consts::maxCubes);
+    int32_t attemptedNumBarriers = randIntBetween(ctx, consts::minBarriers, consts::maxBarriers);
+    int32_t attemptedNumAgents = randIntBetween(ctx, consts::minAgents, consts::maxAgents);
+    // note: these counts may be inaccurate after we try to place objects
+
+    // determine placements of objects
+    const auto &macguffinPlacement = determineMacGuffinPlacement(ctx);
+    const auto &goalPlacement = determineGoalPlacement(ctx, macguffinPlacement);
+    const auto &barrierPlacements = determineBarrierPlacements(ctx, attemptedNumBarriers, macguffinPlacement, goalPlacement);
+    const auto &cubePlacements = determineCubePlacements(ctx, attemptedNumCubes, macguffinPlacement, goalPlacement, barrierPlacements);
+    const auto &agentPlacements = determineAgentPlacements(ctx, attemptedNumAgents, macguffinPlacement, goalPlacement, barrierPlacements, cubePlacements);
+
+    // actual make/reset entities
+    resetPersistentEntities(ctx, macguffinPlacement, goalPlacement, agentPlacements);
+    generateLevel(ctx, barrierPlacements, cubePlacements);
 }
 
 }

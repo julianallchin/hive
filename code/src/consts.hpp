@@ -24,12 +24,43 @@ inline constexpr madrona::CountT maxTotalEntities =
 
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
-inline constexpr float worldWidth = 20.f;
-inline constexpr float wallWidth = 1.f;
+inline constexpr float worldWidth = 40.f;
+
+// inline constexpr float wallWidth = 1.f;
+inline constexpr float borderWidth = 0.5f;
+inline constexpr float borderHeight = 5.0f;
+inline constexpr float minBorderSpawnBuffer = 3.0f;
+inline constexpr float maxBorderSpawnBuffer = 6.0f;
+inline constexpr int maxWallPlacementAttempts = 30;
+
 inline constexpr float barrierWidth = 1.f;
 inline constexpr float barrierHeight = 3.f;
+inline constexpr float minBarrierLength = 5.0f;
+inline constexpr float maxBarrierLength = 30.0f;
+inline constexpr float barrierMacguffinBuffer = 1.0f;
+inline constexpr float barrierGoalBuffer = 5.0f;
+inline constexpr float barrierBarrierBuffer = 3.0f;
+inline constexpr int maxBarrierPlacementAttempts = 30;
+
+inline constexpr float cubeSize = 3.f;
+inline constexpr float cubeMacguffinBuffer = 1.0f;
+inline constexpr float cubeBarrierBuffer = 1.0f;
+inline constexpr float cubeCubeBuffer = 1.0f;
+inline constexpr float movableObjectSize = 2.0f;
+inline constexpr float cubeMinScaleFactor = 0.5f;
+inline constexpr float cubeMaxScaleFactor = 2.0f;
+inline constexpr int maxCubePlacementAttempts = 30;
+
 inline constexpr float agentRadius = 1.f;
+inline constexpr float agentSize = (2 * agentRadius);
+inline constexpr float agentMacguffinBuffer = 0.0f;
+inline constexpr float agentCubeBuffer = 0.0f;
+inline constexpr float agentBarrierBuffer = 0.0f;
+inline constexpr float agentAgentBuffer = 0.0f;
+inline constexpr int maxAgentPlacementAttemptsPerAgent = 30;
+
 inline constexpr float macguffinSize = 5.0f;
+
 inline constexpr float goalSize = 3.0f;
 
 // Each unit of distance forward (+ y axis) rewards the agents by this amount
@@ -60,6 +91,14 @@ inline constexpr float deltaT = 0.04f;
 // Number of physics substeps
 inline constexpr madrona::CountT numPhysicsSubsteps = 4.f;
 
+// mesh default values
+// (when an object is created, its true size is the scale param * default mesh size)
+// don't touch these unless you use different meshes (ie .obj files)
+inline constexpr float cubeMeshSize = 2.0f;
+inline constexpr float agentMeshSize = 2.5f;
+inline constexpr float wallMeshHeight = 2.5f;   // length and width are 1       
+inline constexpr float wallMeshX = 1.0f;
+inline constexpr float wallMeshY = 1.0f;
 }
 
 }
