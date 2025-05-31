@@ -354,7 +354,7 @@ namespace madEscape
             };
         };
 
-        setupHull(SimObject::Cube, 0.075f, {
+        setupHull(SimObject::Cube, consts::cubeInverseMass, {
                                                .muS = 0.5f,
                                                .muD = 0.75f,
                                            });
@@ -364,12 +364,12 @@ namespace madEscape
                                             .muD = 0.5f,
                                         });
 
-        setupHull(SimObject::Agent, 1.f, {
+        setupHull(SimObject::Agent, consts::agentInverseMass, {
                                              .muS = 0.5f,
                                              .muD = 0.5f,
                                          });
 
-        setupHull(SimObject::MacGuffin, 0.05f, {
+        setupHull(SimObject::MacGuffin, consts::macguffinInverseMass, {
                                                     .muS = 0.5f,
                                                     .muD = 0.75f,
                                                 });
