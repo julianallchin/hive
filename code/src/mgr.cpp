@@ -665,7 +665,7 @@ namespace madEscape
     Tensor Manager::activeAgentsTensor() const
     {
         return impl_->exportTensor(ExportID::Active,
-                                   TensorElementType::UInt8,
+                                   TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
                                        consts::maxAgents,
