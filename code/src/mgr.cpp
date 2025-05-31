@@ -423,8 +423,7 @@ namespace madEscape
         const Manager::Config &mgr_cfg)
     {
         Sim::Config sim_cfg;
-        // sim_cfg.autoReset = mgr_cfg.autoReset;
-        sim_cfg.autoReset = consts::autoReset;
+        sim_cfg.autoReset = mgr_cfg.autoReset;
         sim_cfg.initRandKey = rand::initKey(mgr_cfg.randSeed);
 
         switch (mgr_cfg.execMode)

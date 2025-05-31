@@ -21,8 +21,6 @@ inline constexpr int32_t maxBarriers = 3;
 inline constexpr madrona::CountT maxTotalEntities = 
         maxAgents + maxCubes + maxBarriers + 6; // 6 for 4 side walls + floor + episodeTracker
 
-inline constexpr bool autoReset = true;
-
 // Various world / entity size parameters
 inline constexpr float worldLength = 40.f;
 inline constexpr float worldWidth = 40.f;
