@@ -22,27 +22,26 @@ enum class TaskGraphID : uint32_t {
 // for each component exported to the training code.
 enum class ExportID : uint32_t {
     Reset,
+    NumAnts,
     Action,
     Reward,
     Done,
-    SelfObservation,
+    Observation,
     Lidar,
     StepsRemaining,
-    NumAgents,
     NumExports,
 };
 
 // Stores values for the ObjectID component that links entities to
 // render / physics assets.
 enum class SimObject : uint32_t {
-    Cube,
+    Ant,
+    Macguffin,
+    Goal,  // Visual representation of the goal
     Wall,
-    Agent,
-    MacGuffin,
-    Goal,
-    Plane, // IMPORTANT (UNFORTUNATELY): because the code that imports meshes is a little bit funky,
-           // you must import things without meshes (eg Plane) last.
-    NumObjects
+    Plane,
+    MovableObject,
+    NumObjects,
 };
 
 // The Sim class encapsulates the per-world state of the simulation.
@@ -58,8 +57,14 @@ struct Sim : public madrona::WorldBase {
         RandKey initRandKey;
         madrona::phys::ObjectManager *rigidBodyObjMgr;
         const madrona::render::RenderECSBridge *renderBridge;
+        // Entity count randomization parameters
+        uint32_t minAntsRand;
+        uint32_t maxAntsRand;
+        uint32_t minMovableObjectsRand;
+        uint32_t maxMovableObjectsRand;
+        uint32_t minWallsRand;
+        uint32_t maxWallsRand;
     };
-
 
     // This class would allow per-world custom data to be passed into
     // simulator initialization, but that isn't necessary in this environment
@@ -81,7 +86,7 @@ struct Sim : public madrona::WorldBase {
     // can contain per-world initialization data, created in (src/mgr.cpp)
     Sim(Engine &ctx,
         const Config &cfg,
-        const WorldInit &worldInit);
+        const WorldInit &);
 
     // The base random key that episode random keys are split off of
     madrona::RandKey initRandKey;
@@ -97,29 +102,41 @@ struct Sim : public madrona::WorldBase {
     uint32_t curWorldEpisode;
     // Random number generator state
     madrona::RNG rng;
+    
+    // Randomization parameters for entity counts
+    uint32_t minAntsRand;
+    uint32_t maxAntsRand;
+    uint32_t minMovableObjectsRand;
+    uint32_t maxMovableObjectsRand;
+    uint32_t minWallsRand;
+    uint32_t maxWallsRand;
 
     // Floor plane entity, constant across all episodes.
-    Entity floorPlane;
+    Entity floorPlane; // persistent
 
-    // Border wall entities define play area. These are constant across all episodes.
-    Entity borders[4];
+    // Border wall entities: 3 walls to the left, up and down that define
+    // play area. These are constant across all episodes.
+    Entity borders[4]; // persistent
 
-    // non-physical entity tracking reward, done, and stepsRemaining. persists across episodes (and reset at start)
-    Entity episodeTracker;
-
-    // agents try to move this to the goal. persists across episodes (and reset at start)
+    // Macguffin entity
     Entity macguffin;
 
-    // target location for the macguffin. persists across episdoes (and reset at start)s
+    // Goal entity
     Entity goal;
 
-    // Agent entity references. This entities live across all episodes
-    // and are just reset to the start of the level on reset.
-    Entity agents[consts::maxAgents];
+    // Ant entities
+    Entity ants[consts::maxAnts];
+    // CountT numAnts; // this is instead stored as a singleton
 
-    Entity cubes[consts::maxCubes];
+    // Movable object entities
+    Entity movableObjects[consts::maxMovableObjects];
+    size_t numMovableObjects;
 
-    Entity barriers[consts::maxBarriers];
+    // PhysicsEntity entities
+    Entity walls[consts::maxWalls];
+    size_t numWalls;
+
+    Entity levelState;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {

@@ -10,7 +10,6 @@
 
 #include <array>
 #include <charconv>
-#include <iostream>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -83,7 +82,7 @@ namespace madEscape
                                                                  .agentViewWidth = mgr_cfg.batchRenderViewWidth,
                                                                  .agentViewHeight = mgr_cfg.batchRenderViewHeight,
                                                                  .numWorlds = mgr_cfg.numWorlds,
-                                                                 .maxViewsPerWorld = consts::maxAgents,
+                                                                 .maxViewsPerWorld = consts::maxAnts,
                                                                  .maxInstancesPerWorld = 1000,
                                                                  .execMode = mgr_cfg.execMode,
                                                                  .voxelCfg = {},
@@ -95,20 +94,20 @@ namespace madEscape
         Config cfg;
         PhysicsLoader physicsLoader;
         WorldReset *worldResetBuffer;
-        Action *agentActionsBuffer;
+        Action *actionsBuffer;
         Optional<RenderGPUState> renderGPUState;
         Optional<render::RenderManager> renderMgr;
 
         inline Impl(const Manager::Config &mgr_cfg,
                     PhysicsLoader &&phys_loader,
                     WorldReset *reset_buffer,
-                    Action *action_buffer,
+                    Action *actionsBuffer,
                     Optional<RenderGPUState> &&render_gpu_state,
                     Optional<render::RenderManager> &&render_mgr)
             : cfg(mgr_cfg),
               physicsLoader(std::move(phys_loader)),
               worldResetBuffer(reset_buffer),
-              agentActionsBuffer(action_buffer),
+              actionsBuffer(actionsBuffer),
               renderGPUState(std::move(render_gpu_state)),
               renderMgr(std::move(render_mgr))
         {
@@ -135,12 +134,12 @@ namespace madEscape
         inline CPUImpl(const Manager::Config &mgr_cfg,
                        PhysicsLoader &&phys_loader,
                        WorldReset *reset_buffer,
-                       Action *action_buffer,
+                       Action *actionsBuffer,
                        Optional<RenderGPUState> &&render_gpu_state,
                        Optional<render::RenderManager> &&render_mgr,
                        TaskGraphT &&cpu_exec)
             : Impl(mgr_cfg, std::move(phys_loader),
-                   reset_buffer, action_buffer,
+                   reset_buffer, actionsBuffer,
                    std::move(render_gpu_state), std::move(render_mgr)),
               cpuExec(std::move(cpu_exec))
         {
@@ -171,12 +170,12 @@ namespace madEscape
         inline CUDAImpl(const Manager::Config &mgr_cfg,
                         PhysicsLoader &&phys_loader,
                         WorldReset *reset_buffer,
-                        Action *action_buffer,
+                        Action *actionsBuffer,
                         Optional<RenderGPUState> &&render_gpu_state,
                         Optional<render::RenderManager> &&render_mgr,
                         MWCudaExecutor &&gpu_exec)
             : Impl(mgr_cfg, std::move(phys_loader),
-                   reset_buffer, action_buffer,
+                   reset_buffer, actionsBuffer,
                    std::move(render_gpu_state), std::move(render_mgr)),
               gpuExec(std::move(gpu_exec)),
               stepGraph(gpuExec.buildLaunchGraphAllTaskGraphs())
@@ -205,14 +204,14 @@ namespace madEscape
         StackAlloc tmp_alloc;
 
         std::array<std::string, (size_t)SimObject::NumObjects> render_asset_paths;
-        render_asset_paths[(size_t)SimObject::Cube] =
+        render_asset_paths[(size_t)SimObject::MovableObject] =
             (std::filesystem::path(DATA_DIR) / "cube_render.obj").string();
         render_asset_paths[(size_t)SimObject::Wall] =
             (std::filesystem::path(DATA_DIR) / "wall_render.obj").string();
-        render_asset_paths[(size_t)SimObject::Agent] =
-            (std::filesystem::path(DATA_DIR) / "agent_render.obj").string();
-        render_asset_paths[(size_t)SimObject::MacGuffin] =
+        render_asset_paths[(size_t)SimObject::Macguffin] =
             (std::filesystem::path(DATA_DIR) / "cube_render.obj").string();
+        render_asset_paths[(size_t)SimObject::Ant] =
+            (std::filesystem::path(DATA_DIR) / "agent_render.obj").string();
         render_asset_paths[(size_t)SimObject::Goal] =
             (std::filesystem::path(DATA_DIR) / "cube_render.obj").string();
         render_asset_paths[(size_t)SimObject::Plane] =
@@ -236,37 +235,37 @@ namespace madEscape
         }
 
         auto materials = std::to_array<imp::SourceMaterial>({
-            {render::rgb8ToFloat(191, 108, 10), -1, 0.8f, 0.2f},
+            {render::rgb8ToFloat(130, 82, 1), -1, 0.8f, 0.2f}, // Brown for movable objects
             {
                 math::Vector4{0.4f, 0.4f, 0.4f, 0.0f},
                 -1,
                 0.8f,
                 0.2f,
-            },
+            }, // Gray for walls
             {
-                math::Vector4{1.f, 1.f, 1.f, 0.0f},
+                math::Vector4{0.1f, 0.1f, 0.1f, 0.0f},
                 1,
                 0.5f,
                 1.0f,
-            },
-            {render::rgb8ToFloat(230, 230, 230), -1, 0.8f, 1.0f},
+            },                                                    // Black for ants
+            {render::rgb8ToFloat(230, 230, 230), -1, 0.8f, 1.0f}, // White for ant details
             {
                 math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},
                 0,
                 0.8f,
                 0.2f,
-            },
-            {render::rgb8ToFloat(230, 20, 20), -1, 0.8f, 1.0f},
-            {render::rgb8ToFloat(20, 230, 20), -1, 0.8f, 1.0f},
+            },                                                  // Earth for plane
+            {render::rgb8ToFloat(230, 20, 20), -1, 0.8f, 1.0f}, // Red for macguffin
+            {render::rgb8ToFloat(20, 230, 20), -1, 0.8f, 1.0f}, // Green for goal
         });
 
         // Override materials
-        render_assets->objects[(CountT)SimObject::Cube].meshes[0].materialIDX = 0;
+        render_assets->objects[(CountT)SimObject::MovableObject].meshes[0].materialIDX = 0;
         render_assets->objects[(CountT)SimObject::Wall].meshes[0].materialIDX = 1;
-        render_assets->objects[(CountT)SimObject::Agent].meshes[0].materialIDX = 2;
-        render_assets->objects[(CountT)SimObject::Agent].meshes[1].materialIDX = 3;
-        render_assets->objects[(CountT)SimObject::Agent].meshes[2].materialIDX = 3;
-        render_assets->objects[(CountT)SimObject::MacGuffin].meshes[0].materialIDX = 5;
+        render_assets->objects[(CountT)SimObject::Macguffin].meshes[0].materialIDX = 5;
+        render_assets->objects[(CountT)SimObject::Ant].meshes[0].materialIDX = 2;
+        render_assets->objects[(CountT)SimObject::Ant].meshes[1].materialIDX = 3;
+        render_assets->objects[(CountT)SimObject::Ant].meshes[2].materialIDX = 3;
         render_assets->objects[(CountT)SimObject::Goal].meshes[0].materialIDX = 6;
         render_assets->objects[(CountT)SimObject::Plane].meshes[0].materialIDX = 4;
 
@@ -291,32 +290,52 @@ namespace madEscape
 
     static void loadPhysicsObjects(PhysicsLoader &loader)
     {
-        std::array<std::string, (size_t)SimObject::NumObjects - 1> asset_paths;
-        asset_paths[(size_t)SimObject::Cube] =
-            (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
-        asset_paths[(size_t)SimObject::Wall] =
-            (std::filesystem::path(DATA_DIR) / "wall_collision.obj").string();
-        asset_paths[(size_t)SimObject::Agent] =
-            (std::filesystem::path(DATA_DIR) / "agent_collision_simplified.obj").string();
-        asset_paths[(size_t)SimObject::MacGuffin] =
-            (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
-        asset_paths[(size_t)SimObject::Goal] =
-            (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string();
-
-        std::array<const char *, (size_t)SimObject::NumObjects - 1> asset_cstrs;
-        for (size_t i = 0; i < asset_paths.size(); i++)
-        {
-            asset_cstrs[i] = asset_paths[i].c_str();
+        // Set up asset paths for each SimObject
+        // We need to map our SimObject enum to the appropriate collision meshes
+        // Original mapping:
+        // - Cube -> MovableObject
+        // - Wall -> PhysicsEntity
+        // - Door -> PhysicsEntity (using wall collision)
+        // - Agent -> Ant
+        // - Button -> Macguffin
+        // - Plane -> Plane (handled separately)
+        
+        // We'll use a vector to store only the paths we need
+        std::vector<std::string> asset_paths;
+        std::vector<SimObject> path_mapping;
+        
+        // Define the mapping from SimObject to asset paths
+        // The order here determines the order in the asset_paths array
+        std::vector<std::pair<SimObject, std::string>> object_paths = {
+            {SimObject::Ant, "agent_collision_simplified.obj"},
+            {SimObject::MovableObject, "cube_collision.obj"},
+            {SimObject::Wall, "wall_collision.obj"},
+            {SimObject::Macguffin, "cube_collision.obj"},
+            {SimObject::Goal, "cube_collision.obj"}
+        };
+        
+        // Initialize the mapping and paths
+        for (const auto &[obj, path] : object_paths) {
+            path_mapping.push_back(obj);
+            asset_paths.push_back((std::filesystem::path(DATA_DIR) / path).string());
         }
 
-        imp::AssetImporter importer;
+        // Convert paths to C strings for the importer
+        std::vector<const char *> asset_cstrs;
+        for (const auto &path : asset_paths) {
+            asset_cstrs.push_back(path.c_str());
+        }
 
+        // Import the collision meshes
+        imp::AssetImporter importer;
         char import_err_buffer[4096];
+        
+
         auto imported_src_hulls = importer.importFromDisk(
             asset_cstrs, import_err_buffer, true);
 
-        if (!imported_src_hulls.has_value())
-        {
+        if (!imported_src_hulls.has_value()) {
+            printf("Failed to import source hulls: %s\n", import_err_buffer);
             FATAL("%s", import_err_buffer);
         }
 
@@ -327,15 +346,26 @@ namespace madEscape
         HeapArray<SourceCollisionObject> src_objs(
             (CountT)SimObject::NumObjects);
 
+        // Create a mapping from SimObject to imported object index
+        std::unordered_map<SimObject, size_t> obj_to_import_idx;
+        for (size_t i = 0; i < path_mapping.size(); i++) {
+            obj_to_import_idx[path_mapping[i]] = i;
+        }
+
         auto setupHull = [&](SimObject obj_id,
                              float inv_mass,
-                             RigidBodyFrictionData friction)
-        {
-            auto meshes = imported_src_hulls->objects[(CountT)obj_id].meshes;
+                             RigidBodyFrictionData friction) {
+            // Skip if this object type doesn't have a corresponding imported mesh
+            if (obj_to_import_idx.find(obj_id) == obj_to_import_idx.end()) {
+                printf("Warning: No mesh for SimObject %d\n", (int)obj_id);
+                return;
+            }
+
+            size_t import_idx = obj_to_import_idx[obj_id];
+            auto meshes = imported_src_hulls->objects[import_idx].meshes;
             DynArray<SourceCollisionPrimitive> prims(meshes.size());
 
-            for (const imp::SourceMesh &mesh : meshes)
-            {
+            for (const imp::SourceMesh &mesh : meshes) {
                 src_convex_hulls.push_back(mesh);
                 prims.push_back({
                     .type = CollisionPrimitive::Type::Hull,
@@ -354,30 +384,32 @@ namespace madEscape
             };
         };
 
-        setupHull(SimObject::Cube, consts::cubeInverseMass, {
-                                               .muS = 0.5f,
-                                               .muD = 0.75f,
-                                           });
+        setupHull(SimObject::MovableObject, consts::movableObjectInverseMass, {
+                                                      .muS = 0.5f,
+                                                      .muD = 0.75f,
+                                                  });
 
         setupHull(SimObject::Wall, 0.f, {
-                                            .muS = 0.5f,
-                                            .muD = 0.5f,
-                                        });
+            .muS = 0.5f,
+            .muD = 0.5f,
+        });
 
-        setupHull(SimObject::Agent, consts::agentInverseMass, {
-                                             .muS = 0.5f,
-                                             .muD = 0.5f,
-                                         });
+        setupHull(SimObject::Macguffin, consts::macguffinInverseMass, {
+                                                   // Macguffin is harder to move, meant for multiple ants
+                                                   .muS = 0.6f,
+                                                   .muD = 0.7f,
+        });
 
-        setupHull(SimObject::MacGuffin, consts::macguffinInverseMass, {
-                                                    .muS = 0.5f,
-                                                    .muD = 0.75f,
-                                                });
+        setupHull(SimObject::Ant, consts::antInverseMass, {
+            .muS = 0.5f,
+            .muD = 0.5f,
+        });
 
-        setupHull(SimObject::Goal, 0.0f, {
-                                            .muS = 0.5f,
-                                            .muD = 0.5f,
-                                        });
+        setupHull(SimObject::Goal, 0.f, {
+                                            // Goal has no mass, it's just visual            .muS = 0.0f,
+            .muS = 0.0f,
+            .muD = 0.0f
+        });
 
         SourceCollisionPrimitive plane_prim{
             .type = CollisionPrimitive::Type::Plane,
@@ -409,11 +441,11 @@ namespace madEscape
             FATAL("Invalid collision hull input");
         }
 
-        // This is a bit hacky, but in order to make sure the agents
+        // This is a bit hacky, but in order to make sure the ants
         // remain controllable by the policy, they are only allowed to
         // rotate around the Z axis (infinite inertia in x & y axes)
-        rigid_body_assets.metadatas[(CountT)SimObject::Agent].mass.invInertiaTensor.x = 0.f;
-        rigid_body_assets.metadatas[(CountT)SimObject::Agent].mass.invInertiaTensor.y = 0.f;
+        rigid_body_assets.metadatas[(CountT)SimObject::Ant].mass.invInertiaTensor.x = 0.f;
+        rigid_body_assets.metadatas[(CountT)SimObject::Ant].mass.invInertiaTensor.y = 0.f;
 
         loader.loadRigidBodies(rigid_body_assets);
         free(rigid_body_data);
@@ -423,9 +455,29 @@ namespace madEscape
         const Manager::Config &mgr_cfg)
     {
         Sim::Config sim_cfg;
-        // sim_cfg.autoReset = mgr_cfg.autoReset;
-        sim_cfg.autoReset = consts::autoReset;
+        sim_cfg.autoReset = mgr_cfg.autoReset;
         sim_cfg.initRandKey = rand::initKey(mgr_cfg.randSeed);
+
+        // Pass randomization parameters
+        // validate ant params
+        assert(mgr_cfg.minAntsRand <= mgr_cfg.maxAntsRand);
+        assert(mgr_cfg.minAntsRand >= consts::minAnts);
+        assert(mgr_cfg.maxAntsRand <= consts::maxAnts);
+        // validate movable object params
+        assert(mgr_cfg.minMovableObjectsRand <= mgr_cfg.maxMovableObjectsRand);
+        assert(mgr_cfg.minMovableObjectsRand >= consts::minMovableObjects);
+        assert(mgr_cfg.maxMovableObjectsRand <= consts::maxMovableObjects);
+        // validate wall params
+        assert(mgr_cfg.minWallsRand <= mgr_cfg.maxWallsRand);
+        assert(mgr_cfg.minWallsRand >= consts::minWalls);
+        assert(mgr_cfg.maxWallsRand <= consts::maxWalls);
+        // pass to sim
+        sim_cfg.minAntsRand = mgr_cfg.minAntsRand;
+        sim_cfg.maxAntsRand = mgr_cfg.maxAntsRand;
+        sim_cfg.minMovableObjectsRand = mgr_cfg.minMovableObjectsRand;
+        sim_cfg.maxMovableObjectsRand = mgr_cfg.maxMovableObjectsRand;
+        sim_cfg.minWallsRand = mgr_cfg.minWallsRand;
+        sim_cfg.maxWallsRand = mgr_cfg.maxWallsRand;
 
         switch (mgr_cfg.execMode)
         {
@@ -608,7 +660,7 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAgents,
+                                       consts::maxAnts,
                                        4,
                                    });
     }
@@ -631,15 +683,27 @@ namespace madEscape
                                    });
     }
 
-    Tensor Manager::selfObservationTensor() const
+    Tensor Manager::observationTensor() const
     {
-        return impl_->exportTensor(ExportID::SelfObservation,
+        return impl_->exportTensor(ExportID::Observation,
                                    TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAgents,
-                                       9,
+                                       consts::maxAnts,
+                                       8,
                                    });
+    }
+
+    Tensor Manager::numAntsTensor() const
+    {
+        // Return information about how many ants are active in each world
+        // This is used by the Python code to mask observations/actions for inactive ants
+        return impl_->exportTensor(ExportID::NumAnts,
+                                  TensorElementType::Int32,
+                                  {
+                                      impl_->cfg.numWorlds,
+                                      1,
+                                  });
     }
 
     Tensor Manager::lidarTensor() const
@@ -647,7 +711,7 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAgents,
+                                       consts::maxAnts,
                                        consts::numLidarSamples,
                                        2,
                                    });
@@ -663,23 +727,13 @@ namespace madEscape
                                    });
     }
 
-    Tensor Manager::numAgentsTensor() const
-    {
-        return impl_->exportTensor(ExportID::NumAgents,
-                                   TensorElementType::Int32,
-                                   {
-                                       impl_->cfg.numWorlds,
-                                       1,
-                                   });
-    }
-
     Tensor Manager::rgbTensor() const
     {
         const uint8_t *rgb_ptr = impl_->renderMgr->batchRendererRGBOut();
 
         return Tensor((void *)rgb_ptr, TensorElementType::UInt8, {
                                                                      impl_->cfg.numWorlds,
-                                                                     consts::maxAgents,
+                                                                     consts::maxAnts,
                                                                      impl_->cfg.batchRenderViewHeight,
                                                                      impl_->cfg.batchRenderViewWidth,
                                                                      4,
@@ -693,7 +747,7 @@ namespace madEscape
 
         return Tensor((void *)depth_ptr, TensorElementType::Float32, {
                                                                          impl_->cfg.numWorlds,
-                                                                         consts::maxAgents,
+                                                                         consts::maxAnts,
                                                                          impl_->cfg.batchRenderViewHeight,
                                                                          impl_->cfg.batchRenderViewWidth,
                                                                          1,
@@ -736,8 +790,8 @@ namespace madEscape
             .grab = grab,
         };
 
-        auto *action_ptr = impl_->agentActionsBuffer +
-                           world_idx * consts::maxAgents + agent_idx;
+        auto *action_ptr = impl_->actionsBuffer +
+                           world_idx * consts::maxAnts + agent_idx;
 
         if (impl_->cfg.execMode == ExecMode::CUDA)
         {
