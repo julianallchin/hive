@@ -109,7 +109,7 @@ struct MacGuffinState{};
 
 // whether a given Agent is alive
 struct Active{
-    uint8_t v;
+    int32_t v;
 };
 
 // This enum is used to track the type of each entity for the purposes of
