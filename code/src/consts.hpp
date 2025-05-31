@@ -52,9 +52,9 @@ inline constexpr float cubeMinScaleFactor = 0.5f;
 inline constexpr float cubeMaxScaleFactor = 2.0f;
 inline constexpr int maxCubePlacementAttempts = 30;
 
-inline constexpr float agentRadius = 4.f;
+inline constexpr float agentRadius = 0.5f;
 inline constexpr float agentSize = (2 * agentRadius);
-inline constexpr float agentInverseMass = 1.0f;
+inline constexpr float agentInverseMass = 5.0f;
 inline constexpr float agentMacguffinBuffer = 0.0f;
 inline constexpr float agentCubeBuffer = 0.0f;
 inline constexpr float agentBarrierBuffer = 0.0f;

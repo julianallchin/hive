@@ -154,6 +154,11 @@ inline void grabSystem(Engine &ctx,
                        Action action,
                        GrabState &grab)
 {
+    // lowkey don't edit these values unless you know what you're doing
+    const float GRAB_RANGE = consts::agentRadius + 1.0f;
+    const float GRAB_POINT_FORWARD_OFFSET = 1.25f;
+    const float GRAB_POINT_UP_OFFSET = 0.5f;
+
     if (action.grab == 0) {
         return;
     }
@@ -172,11 +177,11 @@ inline void grabSystem(Engine &ctx,
     float hit_t;
     Vector3 hit_normal;
 
-    Vector3 ray_o = pos + 0.5f * math::up;
+    Vector3 ray_o = pos + GRAB_POINT_UP_OFFSET * math::up;
     Vector3 ray_d = rot.rotateVec(math::fwd);
 
     Entity grab_entity =
-        bvh.traceRay(ray_o, ray_d, &hit_t, &hit_normal, 2.0f);
+        bvh.traceRay(ray_o, ray_d, &hit_t, &hit_normal, GRAB_RANGE);
 
     if (grab_entity == Entity::none()) {
         return;
@@ -195,7 +200,7 @@ inline void grabSystem(Engine &ctx,
     Vector3 other_pos = ctx.get<Position>(grab_entity);
     Quat other_rot = ctx.get<Rotation>(grab_entity);
 
-    Vector3 r1 = 1.25f * math::fwd + 0.5f * math::up;
+    Vector3 r1 = GRAB_POINT_FORWARD_OFFSET * math::fwd + GRAB_POINT_UP_OFFSET * math::up;
 
     Vector3 hit_pos = ray_o + ray_d * hit_t;
     Vector3 r2 =
@@ -204,7 +209,7 @@ inline void grabSystem(Engine &ctx,
     Quat attach1 = { 1, 0, 0, 0 };
     Quat attach2 = (other_rot.inv() * rot).normalize();
 
-    float separation = hit_t - 1.25f;
+    float separation = hit_t - GRAB_POINT_FORWARD_OFFSET;
 
     grab.constraintEntity = PhysicsSystem::makeFixedJoint(ctx,
         e, grab_entity, attach1, attach2, r1, r2, separation);
@@ -596,7 +601,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
 Sim::Sim(Engine &ctx,
          const Config &cfg,
-         const WorldInit &worldInit)
+         const WorldInit &)
     : WorldBase(ctx)
 {
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,

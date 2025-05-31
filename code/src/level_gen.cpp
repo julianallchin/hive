@@ -7,11 +7,6 @@ using namespace madrona;
 using namespace madrona::math;
 using namespace madrona::phys;
 
-static inline float randInRangeCentered(Engine &ctx, float range)
-{
-    return ctx.data().rng.sampleUniform() * range - range / 2.f;
-}
-
 static inline float randBetween(Engine &ctx, float min, float max)
 {
     return ctx.data().rng.sampleUniform() * (max - min) + min;
@@ -577,7 +572,7 @@ static std::vector<CubePlacement> determineCubePlacements(
 Engine &ctx,
 int32_t numCubes,
 const MacGuffinPlacement &macguffinPlacement, 
-const GoalPlacement &goalPlacement, 
+const GoalPlacement &, 
 const std::vector<BarrierPlacement> &barrierPlacements) {
 
     std::vector<CubePlacement> cubePlacements;
