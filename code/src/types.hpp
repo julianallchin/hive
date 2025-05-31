@@ -74,9 +74,12 @@ struct SelfObservation {
     float globalX;
     float globalY;
     float globalZ;
-    float maxY;
     float theta;
     float isGrabbing;
+    float polarToMacguffinR;     // Distance to macguffin
+    float polarToMacguffinTheta; // Angle to macguffin (egocentric)
+    float polarToGoalR;          // Distance to goal
+    float polarToGoalTheta;      // Angle to goal (egocentric)
 };
 
 // The state of the world is passed to each agent in terms of egocentric

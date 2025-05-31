@@ -250,6 +250,22 @@ static inline float computeZAngle(Quat q)
     return atan2f(siny_cosp, cosy_cosp);
 }
 
+// Translate xy delta to polar observations for learning.
+static inline PolarObservation xyToPolar(Vector3 v)
+{
+    Vector2 xy{v.x, v.y};
+
+    float r = xy.length();
+
+    // Note that this is angle off y-forward
+    float theta = atan2f(xy.x, xy.y);
+
+    return PolarObservation{
+        .r = distObs(r),
+        .theta = angleObs(theta),
+    };
+}
+
 // This system packages all the egocentric observations together 
 // for the policy inputs.
 inline void collectObservationsSystem(Engine &ctx,
@@ -261,10 +277,32 @@ inline void collectObservationsSystem(Engine &ctx,
     self_obs.globalX = globalPosObs(pos.x);
     self_obs.globalY = globalPosObs(pos.y);
     self_obs.globalZ = globalPosObs(pos.z);
-    self_obs.maxY = globalPosObs(pos.y >= self_obs.maxY ? pos.y : self_obs.maxY);
     self_obs.theta = angleObs(computeZAngle(rot));
     self_obs.isGrabbing = grab.constraintEntity != Entity::none() ?
         1.f : 0.f;
+
+    // Get positions of important objects
+    Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
+    Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
+
+    // Calculate vectors to important objects in world space
+    Vector3 to_macguffin = macguffin_pos - pos;
+    Vector3 to_goal = goal_pos - pos;
+
+    // Convert to ant's local coordinate system
+    Quat to_view = rot.inv();
+    Vector3 local_to_macguffin = to_view.rotateVec(to_macguffin);
+    Vector3 local_to_goal = to_view.rotateVec(to_goal);
+
+    // Convert to polar coordinates for observations
+    PolarObservation polar_to_macguffin = xyToPolar(local_to_macguffin);
+    PolarObservation polar_to_goal = xyToPolar(local_to_goal);
+
+    // Store polar observations
+    self_obs.polarToMacguffinR = polar_to_macguffin.r;
+    self_obs.polarToMacguffinTheta = polar_to_macguffin.theta;
+    self_obs.polarToGoalR = polar_to_goal.r;
+    self_obs.polarToGoalTheta = polar_to_goal.theta;
 }
 
 // Launches consts::numLidarSamples per agent.

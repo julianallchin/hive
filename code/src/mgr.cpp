@@ -257,7 +257,7 @@ namespace madEscape
                 0.2f,
             },
             {render::rgb8ToFloat(230, 20, 20), -1, 0.8f, 1.0f},
-            {render::rgb8ToFloat(230, 230, 20), -1, 0.8f, 1.0f},
+            {render::rgb8ToFloat(20, 230, 20), -1, 0.8f, 1.0f},
         });
 
         // Override materials
@@ -637,7 +637,7 @@ namespace madEscape
                                    {
                                        impl_->cfg.numWorlds,
                                        consts::maxAgents,
-                                       6,
+                                       9,
                                    });
     }
 
