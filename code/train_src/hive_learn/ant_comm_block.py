@@ -8,18 +8,18 @@ class AntCommBlock(nn.Module):
     * If act_dim == 0 the logits slice is empty (critic-only copy).
     * The block also owns the cmd linear that turns LSTM h_t into c_t.
     """
-    def __init__(self, obs_dim, act_dim, msg_dim,
-                 hid_dim, heads, lstm_dim,
-                 out_dim, cmd_dim):
+    def __init__(self, obs_dim, out_dim, msg_dim,
+                 ant_trunk_hid_dim, heads, lstm_dim,
+                 cmd_dim):
         super().__init__()
-        self.act_dim  = act_dim
+        self.out_dim  = out_dim
         self.msg_dim  = msg_dim
         self.cmd_dim  = cmd_dim
 
         # ── per-ant trunk ───────────────────────────────────────────────
         self.trunk = nn.Sequential(
-            nn.Linear(obs_dim, hid_dim), nn.ReLU(),
-            nn.Linear(hid_dim, act_dim + msg_dim), nn.ReLU()
+            nn.Linear(obs_dim, ant_trunk_hid_dim), nn.ReLU(),
+            nn.Linear(ant_trunk_hid_dim, act_dim + msg_dim), nn.ReLU()
         )
 
         # ── comms + memory ─────────────────────────────────────────────
@@ -27,11 +27,10 @@ class AntCommBlock(nn.Module):
         self.lstm = LSTM(msg_dim, lstm_dim, 1)
 
         # ── global heads ───────────────────────────────────────────────
-        self.head = nn.Sequential(
+        self.cmd_head = nn.Sequential(
             nn.Linear(lstm_dim, lstm_dim), nn.ReLU(),
-            nn.Linear(lstm_dim, out_dim)
+            nn.Linear(lstm_dim, cmd_dim)
         )
-        self.cmd_head = nn.Linear(lstm_dim, cmd_dim)
 
         self.hidden_shape = (2, 1, lstm_dim)   # for RecurrentStateConfig
 

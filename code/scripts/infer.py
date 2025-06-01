@@ -38,7 +38,7 @@ sim = madrona_escape_room.SimManager(
     auto_reset = True,
 )
 
-obs, num_obs_features = setup_obs(sim)
+obs, num_obs_features, active_agents = setup_obs(sim)
 policy = make_policy(num_obs_features, args.num_channels, args.separate_value)
 
 weights = LearningState.load_policy_weights(args.ckpt_path)
