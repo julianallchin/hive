@@ -14,7 +14,7 @@ from hive_learn.rnn import LSTM
 import math
 import torch
 
-from hive_learn.actor_encoder import HiveEncoder
+from hive_learn.hive_encoder import HiveEncoder
 
 # Modified to ignore partner, door, and room entity obs
 def setup_obs(sim):
@@ -79,12 +79,12 @@ def process_obs(self_obs, lidar, steps_remaining, ids, active_agents):
     assert(not torch.isnan(active_agents).any())
     assert(not torch.isinf(active_agents).any())
     
-    return torch.cat([
+    return (torch.cat([
         self_obs.view(self_obs.shape[0], -1),
         lidar.view(lidar.shape[0], -1),
         steps_remaining.float() / Consts.MAX_STEPS, # TODO: should scale by sim length
         ids,
-    ], dim=1), active_agents
+    ], dim=1), active_agents)
 
 def make_policy(num_obs_features):
     cfg = ModelConfig(

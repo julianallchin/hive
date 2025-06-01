@@ -268,11 +268,13 @@ class BackboneSeparate(Backbone):
         else:
             self.package_rnn_states = lambda a, c: ()
 
+        print("rnn state shapes", rnn_state_shapes)
         self.recurrent_cfg = RecurrentStateConfig(rnn_state_shapes)
 
     def forward(self, rnn_states, *obs_in):
         with torch.no_grad():
             processed_obs = self.process_obs(*obs_in)
+
 
         actor_features, new_actor_rnn_states = self.actor_encoder(
             self.extract_actor_rnn_state(rnn_states),
@@ -315,6 +317,9 @@ class BackboneSeparate(Backbone):
     def fwd_rollout(self, rnn_states_out, rnn_states_in, *obs_in):
         with torch.no_grad():
             processed_obs = self.process_obs(*obs_in)
+
+        print("actor rnn state shape", len(rnn_states_in), rnn_states_in[0].shape)
+        
 
         actor_features = self.actor_encoder.fwd_inplace(
             self.extract_actor_rnn_state(rnn_states_out),
