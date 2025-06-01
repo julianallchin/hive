@@ -52,9 +52,14 @@ class SimInterface:
 
 @dataclass(frozen=True)
 class ModelConfig:
-    hidden_act_dim: int
-    msg_dim: int
-    ant_trunk_hid_dim: int
+    pre_act_dim: int # ouput of ant mlp, input to actor
+    msg_dim: int 
+    ant_trunk_hid_dim: int # hidden dim of ant trunk mlp
     heads: int
     lstm_dim: int
-    hidden_out_dim: int
+    cmd_dim: int # command dim
+
+@dataclass(frozen=True)
+class Consts:
+    MAX_AGENTS: int = 100
+    MAX_STEPS: int = 200

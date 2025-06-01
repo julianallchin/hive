@@ -1,7 +1,7 @@
 import torch
-import madrona_escape_room
 
-from madrona_escape_room_learn import (
+import madrona_escape_room
+from hive_learn import (
     train, profile, TrainConfig, PPOConfig, SimInterface,
 )
 

@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(lldb) Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/code/build/viewer",
+      "args": ["1"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "setupCommands": [
+        {
+          "description": "Break only in my src/viewer.cpp at line 204",
+          "text": "breakpoint set --file \"${workspaceFolder}/code/src/viewer.cpp\" --line 185",
+          "ignoreFailures": false
+        }
+      ]
+    }
+  ]
+}

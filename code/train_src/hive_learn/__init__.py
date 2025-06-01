@@ -1,15 +1,17 @@
-from madrona_escape_room_learn.train import train
-from madrona_escape_room_learn.learning_state import LearningState
-from madrona_escape_room_learn.cfg import TrainConfig, PPOConfig, SimInterface
-from madrona_escape_room_learn.action import DiscreteActionDistributions
-from madrona_escape_room_learn.actor_critic import (
+from hive_learn.train import train
+from hive_learn.learning_state import LearningState
+from hive_learn.cfg import TrainConfig, PPOConfig, SimInterface
+from hive_learn.action import DiscreteActionDistributions
+from hive_learn.actor_critic import (
         ActorCritic, DiscreteActor, Critic,
         BackboneEncoder, RecurrentBackboneEncoder,
         Backbone, BackboneShared, BackboneSeparate,
     )
-from madrona_escape_room_learn.profile import profile
-import madrona_escape_room_learn.models
-import madrona_escape_room_learn.rnn
+from hive_learn.ant_comm_block import AntCommBlock
+from hive_learn.backbone import HiveBackbone
+from hive_learn.profile import profile
+import hive_learn.models
+import hive_learn.rnn
 
 __all__ = [
         "train", "LearningState", "models", "rnn",
@@ -18,4 +20,6 @@ __all__ = [
         "ActorCritic", "DiscreteActor", "Critic",
         "BackboneEncoder", "RecurrentBackboneEncoder",
         "Backbone", "BackboneShared", "BackboneSeparate",
+        "AntCommBlock",
+        "HiveBackbone",
     ]

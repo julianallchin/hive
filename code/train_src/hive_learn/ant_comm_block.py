@@ -8,36 +8,25 @@ class AntCommBlock(nn.Module):
     * If act_dim == 0 the logits slice is empty (critic-only copy).
     * The block also owns the cmd linear that turns LSTM h_t into c_t.
     """
-    def __init__(self, obs_dim, out_dim, msg_dim,
+    def __init__(self, obs_dim, pre_action_dim, msg_dim,
                  ant_trunk_hid_dim, heads, lstm_dim,
                  cmd_dim):
         super().__init__()
-        self.out_dim  = out_dim
+        self.pre_action_dim  = pre_action_dim
         self.msg_dim  = msg_dim
         self.cmd_dim  = cmd_dim
 
         # ── per-ant trunk ───────────────────────────────────────────────
         self.trunk = nn.Sequential(
             nn.Linear(obs_dim, ant_trunk_hid_dim), nn.ReLU(),
-            nn.Linear(ant_trunk_hid_dim, act_dim + msg_dim), nn.ReLU()
+            nn.Linear(ant_trunk_hid_dim, pre_action_dim + msg_dim), nn.ReLU()
         )
 
         # ── comms + memory ─────────────────────────────────────────────
         self.attn = nn.MultiheadAttention(msg_dim, heads, batch_first=True)
         self.lstm = LSTM(msg_dim, lstm_dim, 1)
 
-        # ── global heads ───────────────────────────────────────────────
-        self.cmd_head = nn.Sequential(
-            nn.Linear(lstm_dim, lstm_dim), nn.ReLU(),
-            nn.Linear(lstm_dim, cmd_dim)
-        )
-
         self.hidden_shape = (2, 1, lstm_dim)   # for RecurrentStateConfig
-
-    # ───────────────────────────────────────────────────────────────────
-    @staticmethod
-    def _pad_mask(alive, N):
-        return (~alive.bool()).view(-1, N)
 
     def forward(self, rnn_state, flat_obs, flat_alive, N_ants):
         """
@@ -47,9 +36,9 @@ class AntCommBlock(nn.Module):
         """
         y = self.trunk(flat_obs)                       # [B*N, act+msg]
 
-        if self.act_dim:
-            logits = y[:, :self.act_dim]               # slice ①
-            msg    = y[:,  self.act_dim:]              # slice ②
+        if self.pre_action_dim:
+            logits = y[:, :self.pre_action_dim]               # slice ①
+            msg    = y[:,  self.pre_action_dim:]              # slice ②
         else:
             logits = y.new_zeros(y.shape[0], 0)
             msg    = y                                 # critic keeps all

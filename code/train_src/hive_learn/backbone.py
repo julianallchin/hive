@@ -14,7 +14,7 @@ class HiveBackbone(Backbone):
 
         obs_dim_with_cmd = base_obs_dim + cfg.cmd_dim
 
-        self.actor_blk  = AntCommBlock(obs_dim_with_cmd, cfg.out_dim,
+        self.actor_blk  = AntCommBlock(obs_dim_with_cmd, cfg.hidden_act_dim,
                                        cfg.msg_dim, cfg.ant_trunk_hid_dim,
                                        cfg.heads, cfg.lstm_dim,
                                        cfg.cmd_dim)
@@ -133,12 +133,20 @@ class HiveBackbone(Backbone):
         # Run both blocks
         actor_state, critic_state = self._split_state(rnn_states_in)
         
-        logits, _, new_a_state = self.actor_blk(
+        logits, actor_h, new_a_state = self.actor_blk(
             actor_state, flat_in, active, N_ants)
             
-        _, critic_value_feat, _, new_c_state = self.critic_blk(
+        critic_logits, critic_value_feat, new_c_state = self.critic_blk(
             critic_state, flat_in, active, N_ants)
-
+        
+        # Reshape critic_value_feat to aggregate per-world values
+        # This ensures critic will output a tensor with the right shape for values_out
+        # critic_value_feat shape is [B*N, lstm_dim], need to reshape to [B, lstm_dim]
+        B = base.shape[0] // active.shape[0]  # Get batch size (num_worlds)
+        if B > 1 or N_ants > 1:
+            # Reshape to [B, N, lstm_dim] and average over agents
+            critic_value_feat = critic_value_feat.reshape(B, N_ants, -1).mean(dim=1)
+        
         # Update RNN state if output is provided
         if rnn_states_out is not None:
             rnn_states_out[0][...] = new_a_state
