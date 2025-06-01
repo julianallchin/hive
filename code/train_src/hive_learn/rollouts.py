@@ -7,6 +7,7 @@ from .cfg import SimInterface
 from .actor_critic import ActorCritic, RecurrentStateConfig
 from .profile import profile
 from .moving_avg import EMANormalizer
+from .cfg import Consts
 
 @dataclass(frozen = True)
 class Rollouts:
@@ -90,7 +91,7 @@ class RolloutManager:
         for rnn_state_shape in recurrent_cfg.shapes:
             # expand shape to batch size
             batched_state_shape = (*rnn_state_shape[0:2],
-                sim.actions.shape[0], rnn_state_shape[2])
+                sim.actions.shape[0] // Consts.MAX_AGENTS, rnn_state_shape[2])
 
             rnn_end_state = torch.zeros(
                 batched_state_shape, dtype=amp.compute_dtype, device=dev)

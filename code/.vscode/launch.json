@@ -1,0 +1,23 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Train",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "scripts/train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--num-worlds",
+        "1024",
+        "--num-updates",
+        "1000",
+        "--ckpt-dir",
+        "build/ckpts"
+      ]
+    }
+  ]
+}

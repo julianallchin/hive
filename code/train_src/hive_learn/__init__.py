@@ -7,8 +7,7 @@ from hive_learn.actor_critic import (
         BackboneEncoder, RecurrentBackboneEncoder,
         Backbone, BackboneShared, BackboneSeparate,
     )
-from hive_learn.ant_comm_block import AntCommBlock
-from hive_learn.backbone import HiveBackbone
+from hive_learn.hive_block import HiveBlock
 from hive_learn.profile import profile
 import hive_learn.models
 import hive_learn.rnn
@@ -20,6 +19,5 @@ __all__ = [
         "ActorCritic", "DiscreteActor", "Critic",
         "BackboneEncoder", "RecurrentBackboneEncoder",
         "Backbone", "BackboneShared", "BackboneSeparate",
-        "AntCommBlock",
-        "HiveBackbone",
+        "HiveBlock",
     ]
