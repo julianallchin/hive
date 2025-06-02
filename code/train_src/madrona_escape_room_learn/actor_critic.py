@@ -60,6 +60,8 @@ class MaskedDiscreteActor(nn.Module):
         input: (features, mask)
         features: [N, A, ?]
         mask: [N, A, 1]
+
+        output: DiscreteActionDistributions with batch_shape [N * A, ?]
         """
         features, mask = input
 
@@ -76,10 +78,12 @@ class MaskedDiscreteActor(nn.Module):
         
         # TODO: actually mask the logits
         
-        actionDists = DiscreteActionDistributions(
-                self.actions_num_buckets, logits=logits)
+        action_dists = DiscreteActionDistributions(
+                self.actions_num_buckets, logits=flattened_logits)
 
-        return actionDists
+        
+
+        return action_dists
 
 
 class Critic(nn.Module):
