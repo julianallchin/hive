@@ -72,14 +72,14 @@ class MaskedDiscreteActor(nn.Module):
         assert(len(mask.shape) == 3)
 
         logits = self.impl(features) # [N, A, ?]
-        flattened_logits = logits.view(logits.shape[0] * logits.shape[1], -1) # [N * A, ?]
+        # flattened_logits = logits.view(logits.shape[0] * logits.shape[1], -1) # [N * A, ?]
 
-        flattened_mask = mask.view(mask.shape[0] * mask.shape[1]) # [N * A]
+        # flattened_mask = mask.view(mask.shape[0] * mask.shape[1]) # [N * A]
         
         # TODO: actually mask the logits
         
         action_dists = DiscreteActionDistributions(
-                self.actions_num_buckets, logits=flattened_logits)
+                self.actions_num_buckets, logits=logits)
 
         
 

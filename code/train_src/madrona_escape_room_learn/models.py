@@ -266,4 +266,4 @@ class HiveEncoderRNN(nn.Module):
         
         return primary_output, new_a_state
 
-            
+    def fwd_sequence(self, in_sequences, start_hidden, sequence_breaks)
