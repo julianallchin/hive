@@ -44,14 +44,16 @@ policy = make_policy(num_obs_features, args.num_channels, args.separate_value)
 weights = LearningState.load_policy_weights(args.ckpt_path)
 policy.load_state_dict(weights)
 
+# todo: similar logic as train.py (and for the rest of the file)
 actions = sim.action_tensor().to_torch()
 dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
 
-# Flatten N, A, ... tensors to N * A, ...
-actions = actions.view(-1, *actions.shape[2:])
-dones  = dones.view(-1, *dones.shape[2:])
-rewards = rewards.view(-1, *rewards.shape[2:])
+# Shouldn't do this; we have one model per world, not one per agent
+# # Flatten N, A, ... tensors to N * A, ...
+# actions = actions.view(-1, *actions.shape[2:])
+# dones  = dones.view(-1, *dones.shape[2:])
+# rewards = rewards.view(-1, *rewards.shape[2:])
 
 cur_rnn_states = []
 

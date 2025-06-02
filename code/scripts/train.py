@@ -85,8 +85,8 @@ arg_parser.add_argument('--entropy-loss-coef', type=float, default=0.01)
 arg_parser.add_argument('--value-loss-coef', type=float, default=0.5)
 arg_parser.add_argument('--clip-value-loss', action='store_true')
 
-arg_parser.add_argument('--num-channels', type=int, default=256)
-arg_parser.add_argument('--separate-value', action='store_true')
+# arg_parser.add_argument('--num-channels', type=int, default=256)
+# arg_parser.add_argument('--separate-value', action='store_true')
 arg_parser.add_argument('--fp16', action='store_true')
 
 arg_parser.add_argument('--gpu-sim', action='store_true')
@@ -114,16 +114,33 @@ else:
 ckpt_dir.mkdir(exist_ok=True, parents=True)
 
 obs, num_obs_features = setup_obs(sim)
-policy = make_policy(num_obs_features, args.num_channels, args.separate_value)
+policy = make_policy(num_obs_features)
 
 actions = sim.action_tensor().to_torch()
+assert actions.shape[0] == args.num_worlds
 dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
 
-# Flatten N, A, ... tensors to N * A, ...
-actions = actions.view(-1, *actions.shape[2:])
-dones  = dones.view(-1, *dones.shape[2:])
-rewards = rewards.view(-1, *rewards.shape[2:])
+
+# We dont do this. original code had these as [N, A, ...], but we just have
+# [N, ...] because we have one of these per world, while they had one per agent.
+# It should be one per instance of the model.
+
+# DONT NEED THIS AT ALL ACTUALLY IM PRETTY SURE, NOT EVEN FOR ACTIONS
+# # However, for actions, we have num_agents agents per world in a SINGLE model,
+# # so we have [N, A, ...]. We must flatten this, but the world/num_models dimension
+# # should be untouched. [N, A, ...] -> [N, A * shape[1], ...]
+# # TODO: maybe we have to move the A dimension of actions later
+# assert actions.shape[0] == args.num_worlds
+# assert actions.shape[1] == Consts.MAX_AGENTS
+# actions = actions.flatten(start_dim=1, end_dim=2)
+# assert actions.shape[0] == args.num_worlds
+
+# # Originally: Flatten N, A, ... tensors to N * A, ...
+# actions = actions.view(-1, *actions.shape[2:])
+# dones  = dones.view(-1, *dones.shape[2:])
+# rewards = rewards.view(-1, *rewards.shape[2:])
+
 
 if args.restore:
     restore_ckpt = ckpt_dir / f"{args.restore}.pth"

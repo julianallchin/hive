@@ -48,3 +48,19 @@ class SimInterface:
     actions: torch.Tensor
     dones: torch.Tensor
     rewards: torch.Tensor
+
+@dataclass(frozen=True)
+class ModelConfig:
+    pre_act_dim: int = 8 # ouput of ant mlp, input to actor
+    msg_dim: int = 8
+    aggr_msg_dim: int = 32 # the result of attention message dim
+    ant_trunk_hid_dim: int = 256 # hidden dim of ant trunk mlp
+    heads: int = 4
+    lstm_dim: int = 128
+    cmd_dim: int = 16 # command dim
+    attn_embed_dim: int = 64
+
+@dataclass(frozen=True)
+class Consts:
+    MAX_AGENTS: int = 100
+    MAX_STEPS: int = 200

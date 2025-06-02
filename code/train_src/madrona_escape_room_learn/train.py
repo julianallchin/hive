@@ -302,12 +302,12 @@ def _update_loop(update_iter_fn : Callable,
                  gpu_sync_fn : Callable,
                  user_cb : Callable,
                  cfg : TrainConfig,
-                 num_agents: int,
+                 num_models: int,
                  sim : SimInterface,
                  rollout_mgr : RolloutManager,
                  learning_state : LearningState,
                  start_update_idx : int):
-    num_train_seqs = num_agents * cfg.num_bptt_chunks
+    num_train_seqs = num_models * cfg.num_bptt_chunks
     assert(num_train_seqs % cfg.ppo.num_mini_batches == 0)
 
     advantages = torch.zeros_like(rollout_mgr.rewards)
@@ -344,7 +344,7 @@ def train(dev, sim, cfg, actor_critic, update_cb, restore_ckpt=None):
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    num_agents = sim.actions.shape[0]
+    num_models = sim.actions.shape[0]
 
     actor_critic = actor_critic.to(dev)
 
@@ -384,7 +384,7 @@ def train(dev, sim, cfg, actor_critic, update_cb, restore_ckpt=None):
         gpu_sync_fn=gpu_sync_fn,
         user_cb=update_cb,
         cfg=cfg,
-        num_agents=num_agents,
+        num_models=num_models,
         sim=sim,
         rollout_mgr=rollout_mgr,
         learning_state=learning_state,
