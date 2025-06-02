@@ -177,9 +177,11 @@ class HiveEncoderRNN(nn.Module):
     def __init__(self, obs_dim, pre_act_dim):
         super().__init__()
 
+        self.num_layers = 1
         self.hidden_shape = (2, 1, ModelConfig.lstm_dim) # correct!
         self.obs_dim = obs_dim
         self.pre_act_dim = pre_act_dim
+        
 
         # Ant MLP -> Attention -> LSTM
         self.hive_block = HiveBlock(obs_dim, pre_act_dim)
@@ -204,7 +206,6 @@ class HiveEncoderRNN(nn.Module):
         """
 
         # obs [N, A * features per ant]; active agents is [N, A]
-        print(processed_obs.shape)
         assert processed_obs.shape[1] == Consts.MAX_AGENTS
         assert(processed_obs.shape[2] == self.obs_dim + 1)
 
@@ -266,4 +267,27 @@ class HiveEncoderRNN(nn.Module):
         
         return primary_output, new_a_state
 
-    def fwd_sequence(self, in_sequences, start_hidden, sequence_breaks)
+    def fwd_sequence(self, in_sequences, start_hidden, sequence_breaks):
+        seq_len = in_sequences.shape[0]
+
+        hidden_dim_per_layer = start_hidden.shape[-1]
+
+        zero_hidden = torch.zeros((2, self.num_layers, 1,
+                                   hidden_dim_per_layer),
+                                  device=start_hidden.device,
+                                  dtype=start_hidden.dtype)
+
+        out_sequences = []
+
+        cur_hidden = start_hidden
+        for i in range(seq_len):
+            cur_features = in_sequences[i]
+            cur_breaks = sequence_breaks[i]
+
+            out, new_hidden = self.forward(cur_features, cur_hidden)
+            out_sequences.append(out)
+
+            cur_hidden = torch.where(
+                cur_breaks.bool(), zero_hidden, new_hidden)
+
+        return torch.stack(out_sequences, dim=0)
