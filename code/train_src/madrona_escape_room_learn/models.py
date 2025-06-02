@@ -259,8 +259,8 @@ class HiveEncoderRNN(nn.Module):
         assert len(new_a_state.shape) == 4
 
         if self.pre_act_dim > 0:
-            primary_output = (logits, active_agents)
-            # shape: ([N, A, pre_act_dim], [N, A, 1])
+            primary_output = torch.cat([logits, active_agents], dim=2)
+            # shape: [N, A, pre_act_dim + 1]. last 1 in last dim is active_agents mask
         else:
             primary_output = lstm_hidden
             # shape: [N, H]

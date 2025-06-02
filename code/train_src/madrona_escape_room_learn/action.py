@@ -29,19 +29,19 @@ class DiscreteActionDistributions:
         torch.stack(log_probs, dim=2, out=log_probs_out)
 
     def action_stats(self, actions):
-        print("fix the shapes; takes in flattened [N * A] (probably), needs to output unflattened [N, A]")
-        raise NotImplementedError
+        # print("fix the shapes; takes in flattened [N * A] (probably), needs to output unflattened [N, A]")
+        # raise NotImplementedError
         
         log_probs = []
         entropies = []
         for i, dist in enumerate(self.dists):
-            log_probs.append(dist.log_prob(actions[:, i]))
+            log_probs.append(dist.log_prob(actions[:, :, i]))
             entropies.append(dist.entropy())
 
         return torch.stack(log_probs, dim=2), torch.stack(entropies, dim=1)
 
     def probs(self):
-        print("fix the shapes; takes in flattened [N * A] (probably), needs to output unflattened [N, A]")
-        raise NotImplementedError
+        # print("fix the shapes; takes in flattened [N * A] (probably), needs to output unflattened [N, A]")
+        # raise NotImplementedError
 
         return [dist.probs for dist in self.dists]

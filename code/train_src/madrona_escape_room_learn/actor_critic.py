@@ -57,13 +57,12 @@ class MaskedDiscreteActor(nn.Module):
 
     def forward(self, input):
         """
-        input: (features, mask)
-        features: [N, A, ?]
-        mask: [N, A, 1]
+        input: [N, A, pre_act_dim + 1] where the 1 is for active_agents mask. (other rows are logits)
 
         output: DiscreteActionDistributions with batch_shape [N * A, ?]
         """
-        features, mask = input
+        features = input[:, :, :-1]
+        mask = input[:, :, -1:]
 
         assert features.shape[0] == mask.shape[0]
         assert features.shape[1] == mask.shape[1] == Consts.MAX_AGENTS
