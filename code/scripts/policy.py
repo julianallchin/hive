@@ -84,7 +84,7 @@ def process_obs(self_obs, lidar, steps_remaining, ids, active_agents):
     obs_tensor = torch.cat([
         self_obs.view(self_obs.shape[0] // Consts.MAX_AGENTS, Consts.MAX_AGENTS, -1),
         lidar.view(lidar.shape[0] // Consts.MAX_AGENTS, Consts.MAX_AGENTS, -1),
-        steps_remaining.float() / Consts.MAX_STEPS,
+        steps_remaining.view(steps_remaining.shape[0] // Consts.MAX_AGENTS, Consts.MAX_AGENTS, -1).float() / Consts.MAX_STEPS,
         ids.view(ids.shape[0] // Consts.MAX_AGENTS, Consts.MAX_AGENTS, -1),
     ], dim=2)
 

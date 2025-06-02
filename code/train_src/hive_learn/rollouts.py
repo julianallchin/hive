@@ -179,9 +179,6 @@ class RolloutManager:
 
                     for rnn_states in rnn_states_cur_in:
                         rnn_states.masked_fill_(cur_dones_store, 0)
-                        # TODO: todo
-                        # rnn_states.masked_fill_(
-                        #     cur_active_agents_store == 0, 0)
 
                 profile.gpu_measure(sync=True)
 
