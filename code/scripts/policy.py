@@ -1,15 +1,11 @@
 from madrona_escape_room_learn import (
-    ActorCritic, DiscreteActor, Critic, 
-    BackboneShared, BackboneSeparate,
-    BackboneEncoder, RecurrentBackboneEncoder,
+    ActorCritic, MaskedDiscreteActor, Critic, BackboneSeparate, RecurrentBackboneEncoder,
 )
 
 from madrona_escape_room_learn.models import (
-    MLP, LinearLayerDiscreteActor, LinearLayerCritic,
+    HiveEncoderRNN, MaskedLinearLayerDiscreteActor, LinearLayerCritic,
 )
-
-from madrona_escape_room_learn.rnn import LSTM
-from .cfg import ModelConfig, Consts
+from madrona_escape_room_learn.cfg import ModelConfig, Consts
 
 import math
 import torch
@@ -94,7 +90,7 @@ def process_obs(self_obs, lidar, steps_remaining, ids, active_agents):
         steps_remaining.view(N, A, -1).float() / Consts.MAX_STEPS,
         ids.view(N, A, -1),
         active_agents.view(N, A, -1),
-    ], dim=3)
+    ], dim=2)
 
 def make_policy(num_obs_features):
 
@@ -116,9 +112,9 @@ def make_policy(num_obs_features):
 
     return ActorCritic(
         backbone = backbone,
-        actor = LinearLayerDiscreteActor(
+        actor = MaskedLinearLayerDiscreteActor(
             [4, 8, 5, 2],
-            ModelConfig.lstm_dim,
+            ModelConfig.pre_act_dim,
         ),
         critic = LinearLayerCritic(ModelConfig.lstm_dim),
     )

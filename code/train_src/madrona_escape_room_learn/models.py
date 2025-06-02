@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .action import DiscreteActionDistributions
-from .actor_critic import ActorCritic, DiscreteActor, Critic
+from .actor_critic import ActorCritic, MaskedDiscreteActor, Critic
 from .cfg import ModelConfig, Consts
 
 # class MLP(nn.Module):
@@ -32,7 +32,17 @@ from .cfg import ModelConfig, Consts
 #     def forward(self, inputs):
 #         return self.net(inputs)
 
-class LinearLayerDiscreteActor(DiscreteActor):
+# class LinearLayerDiscreteActor(DiscreteActor):
+#     def __init__(self, actions_num_buckets, in_channels):
+#         total_action_dim = sum(actions_num_buckets)
+#         impl = nn.Linear(in_channels, total_action_dim)
+
+#         super().__init__(actions_num_buckets, impl)
+
+#         nn.init.orthogonal_(self.impl.weight, gain=0.01)
+#         nn.init.constant_(self.impl.bias, 0)
+
+class MaskedLinearLayerDiscreteActor(MaskedDiscreteActor):
     def __init__(self, actions_num_buckets, in_channels):
         total_action_dim = sum(actions_num_buckets)
         impl = nn.Linear(in_channels, total_action_dim)
@@ -187,14 +197,14 @@ class HiveEncoderRNN(nn.Module):
         h_prev = lstm_state[0, 0]            # shape [B, H]
         return self.cmd_head(h_prev)  # (actor & critic share cmd)
         
-    def forward(self, rnn_states_in, processed_obs):
+    def forward(self, processed_obs, rnn_states_in):
         """
-        rnn_states_out : (2,1,B,H)  from LSTM   (can be None at t=0)
-        rnn_states_in  : (2,1,B,H)  from LSTM   (can be None at t=0)
         processed_obs         : [N, A, obs_dim + 1]    (+1 is for active_agents mask)
+        rnn_states_in         : (2,1,B,H)  from LSTM   (can be None at t=0)
         """
 
         # obs [N, A * features per ant]; active agents is [N, A]
+        print(processed_obs.shape)
         assert processed_obs.shape[1] == Consts.MAX_AGENTS
         assert(processed_obs.shape[2] == self.obs_dim + 1)
 
@@ -248,8 +258,8 @@ class HiveEncoderRNN(nn.Module):
         assert len(new_a_state.shape) == 4
 
         if self.pre_act_dim > 0:
-            primary_output = logits
-            # shape: [N, A, pre_act_dim]
+            primary_output = (logits, active_agents)
+            # shape: ([N, A, pre_act_dim], [N, A, 1])
         else:
             primary_output = lstm_hidden
             # shape: [N, H]

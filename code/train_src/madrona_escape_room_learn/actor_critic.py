@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 from .action import DiscreteActionDistributions
 from .profile import profile
-from . import Consts
+from .cfg import Consts
 
 class Backbone(nn.Module):
     def __init__(self):
@@ -35,18 +35,51 @@ class Backbone(nn.Module):
         raise NotImplementedError
 
 
-class DiscreteActor(nn.Module):
+# class DiscreteActor(nn.Module):
+#     def __init__(self, actions_num_buckets, impl):
+#         super().__init__()
+
+#         self.actions_num_buckets = actions_num_buckets
+#         self.impl = impl
+
+#     def forward(self, features_in):
+#         logits = self.impl(features_in)
+
+#         return DiscreteActionDistributions(
+#                 self.actions_num_buckets, logits=logits)
+
+class MaskedDiscreteActor(nn.Module):
     def __init__(self, actions_num_buckets, impl):
         super().__init__()
 
         self.actions_num_buckets = actions_num_buckets
         self.impl = impl
 
-    def forward(self, features_in):
-        logits = self.impl(features_in)
+    def forward(self, input):
+        """
+        input: (features, mask)
+        features: [N, A, ?]
+        mask: [N, A, 1]
+        """
+        features, mask = input
 
-        return DiscreteActionDistributions(
+        assert features.shape[0] == mask.shape[0]
+        assert features.shape[1] == mask.shape[1] == Consts.MAX_AGENTS
+        assert mask.shape[2] == 1
+        assert(len(features.shape) == 3)
+        assert(len(mask.shape) == 3)
+
+        logits = self.impl(features) # [N, A, ?]
+        flattened_logits = logits.view(logits.shape[0] * logits.shape[1], -1) # [N * A, ?]
+
+        flattened_mask = mask.view(mask.shape[0] * mask.shape[1]) # [N * A]
+        
+        # TODO: actually mask the logits
+        
+        actionDists = DiscreteActionDistributions(
                 self.actions_num_buckets, logits=logits)
+
+        return actionDists
 
 
 class Critic(nn.Module):
