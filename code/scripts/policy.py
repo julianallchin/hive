@@ -40,18 +40,18 @@ def setup_obs(sim):
 
     # We want id tensor to be [N, A]
     id_tensor = id_tensor.to(device=self_obs_tensor.device)
-    id_tensor = id_tensor.view(1, A).expand(N, A)
+    id_tensor = id_tensor.view(1, A).expand(N, A).reshape(N * A, 1)
     
     # Handle steps_remaining_tensor which is [num_worlds, 1]
     # Need to expand it to match the batch size by repeating for each agent
-    steps_remaining_expanded = steps_remaining_tensor.view(N, 1).expand(N, A)
+    steps_remaining_expanded = steps_remaining_tensor.view(N, 1, 1).expand(N, A, 1).reshape(N * A, 1, 1)
     
     # Handle active_agents_tensor which is [num_worlds, num_agents]
     active_agents_expanded = active_agents_tensor.view(N, A)
     
     obs_tensors = [
-        self_obs_tensor.view(batch_size, *self_obs_tensor.shape[1:]),
-        lidar_tensor.view(batch_size, *lidar_tensor.shape[1:]),
+        self_obs_tensor.view(batch_size * A, *self_obs_tensor.shape[2:]),
+        lidar_tensor.view(batch_size * A, *lidar_tensor.shape[2:]),
         steps_remaining_expanded,
         id_tensor,
     ]
@@ -82,22 +82,22 @@ def process_obs(self_obs, lidar, steps_remaining, ids, active_agents):
     assert(not torch.isinf(active_agents).any())
     
     obs_tensor = torch.cat([
-        self_obs.view(self_obs.shape[0], -1),
-        lidar.view(lidar.shape[0], -1),
+        self_obs.view(self_obs.shape[0] // Consts.MAX_AGENTS, Consts.MAX_AGENTS, -1),
+        lidar.view(lidar.shape[0] // Consts.MAX_AGENTS, Consts.MAX_AGENTS, -1),
         steps_remaining.float() / Consts.MAX_STEPS,
-        ids,
-    ], dim=1)
+        ids.view(ids.shape[0] // Consts.MAX_AGENTS, Consts.MAX_AGENTS, -1),
+    ], dim=2)
 
     return (obs_tensor, active_agents)
 
 def make_policy(num_obs_features):
     actor_encoder = HiveEncoder(
-        num_obs_features // Consts.MAX_AGENTS,
+        num_obs_features,
         ModelConfig.pre_act_dim,
     )
 
     critic_encoder = HiveEncoder(
-        num_obs_features // Consts.MAX_AGENTS,
+        num_obs_features,
         0,
     )
 

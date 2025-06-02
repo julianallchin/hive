@@ -92,7 +92,7 @@ class HiveEncoder(nn.Module):
             rnn_states_out[...] = new_a_state
 
         if self.pre_act_dim > 0:
-            return logits
+            return logits.view(logits.shape[0] * logits.shape[1], logits.shape[2])
         else:
             return lstm_hidden
 

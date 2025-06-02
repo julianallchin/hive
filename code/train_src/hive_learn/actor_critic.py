@@ -94,10 +94,10 @@ class ActorCritic(nn.Module):
             rnn_states_out, rnn_states_in, *obs_in)
 
         action_dists = self.actor(actor_features)
-        values = self.critic(critic_features)
+        values = self.critic(critic_features) # correct shape
 
         action_dists.sample(actions_out, log_probs_out)
-        values_out[...] = values
+        values_out[...] = values # values out has wrong shape
 
     def fwd_update(self, rnn_states, sequence_breaks, rollout_actions, *obs):
         actor_features, critic_features = self.backbone.fwd_sequence(

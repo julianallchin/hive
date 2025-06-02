@@ -121,9 +121,9 @@ dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
 
 # Flatten N, A, ... tensors to N * A, ...
-actions = actions.view(-1, *actions.shape[2:])
-dones  = dones.view(-1, *dones.shape[2:])
-rewards = rewards.view(-1, *rewards.shape[2:])
+actions = actions.view(-1, *actions.shape[2:]) # combine num_agents into actions for total actions
+# dones  = dones.view(-1, *dones.shape[2:]) # already 1 per world
+# rewards = rewards.view(-1, *rewards.shape[2:])
 
 if args.restore:
     restore_ckpt = ckpt_dir / f"{args.restore}.pth"

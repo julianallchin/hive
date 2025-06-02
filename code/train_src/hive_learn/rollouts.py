@@ -58,7 +58,7 @@ class RolloutManager:
 
         self.active_agents = torch.zeros(
             (num_bptt_chunks, num_bptt_steps, *sim.active_agents.shape),
-            dtype=torch.bool, device=dev)
+            dtype=torch.int32, device=dev)
 
         self.rewards = torch.zeros(
             (num_bptt_chunks, num_bptt_steps, *sim.rewards.shape),
@@ -179,8 +179,9 @@ class RolloutManager:
 
                     for rnn_states in rnn_states_cur_in:
                         rnn_states.masked_fill_(cur_dones_store, 0)
-                        rnn_states.masked_fill_(
-                            ~cur_active_agents_store, 0)
+                        # TODO: todo
+                        # rnn_states.masked_fill_(
+                        #     cur_active_agents_store == 0, 0)
 
                 profile.gpu_measure(sync=True)
 
@@ -210,7 +211,7 @@ class RolloutManager:
             actions = self.actions,
             log_probs = self.log_probs, 
             dones = self.dones,
-            active_agents = self.active_agents,
+            # active_agents = self.active_agents,
             rewards = self.rewards,
             values = self.values,
             bootstrap_values = self.bootstrap_values,
