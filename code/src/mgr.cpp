@@ -661,6 +661,7 @@ namespace madEscape
                                    {
                                        impl_->cfg.numWorlds,
                                        1,
+                                       1,
                                    });
     }
 

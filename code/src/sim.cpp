@@ -409,11 +409,11 @@ inline void rewardSystem(Engine &ctx,
 
     out_reward.v = r;
 
-    // If steps remaining is zero, mark as done
-    if (--steps_remaining.t <= 0)
-    {
-        done.v = 1;
-    }
+    // // If steps remaining is zero, mark as done
+    // if (--steps_remaining.t <= 0)
+    // {
+    //     done.v = 1;
+    // }
 
     // // Get positions of macguffin and goal
     // Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
