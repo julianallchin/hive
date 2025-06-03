@@ -430,12 +430,6 @@ inline void rewardSystem(Engine &ctx,
     out_reward.v = step_reward + goal_reward + exist_penalty;
 
 
-    // If steps remaining is zero, mark as done
-    if (--steps_remaining.t <= 0)
-    {
-        done.v = 1;
-    }
-
     // Store current distance for next step
     reward_helper.prev_dist = dist;
 }
