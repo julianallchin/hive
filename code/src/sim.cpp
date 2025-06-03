@@ -388,7 +388,7 @@ inline void rewardSystem(Engine &ctx,
     }
 
     float r = 0;
-    // average of distances to target
+    // negative average of distances to target
     for (int32_t i = 0; i < consts::maxAgents; i++)
     {
         Entity agent = ctx.data().agents[i];
@@ -400,7 +400,10 @@ inline void rewardSystem(Engine &ctx,
         Vector3 agent_pos = ctx.get<Position>(agent);
         Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
         float dist = (agent_pos - goal_pos).length();
-        r += dist;
+        if (dist >= 5.0f)
+        {
+            r -= dist;
+        }
     }
     r /= consts::maxAgents;
 

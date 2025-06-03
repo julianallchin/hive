@@ -188,33 +188,35 @@ class HiveEncoderRNN(nn.Module):
         
 
         # Ant MLP -> Attention -> LSTM
-        self.hive_block = HiveBlock(obs_dim, pre_act_dim)
+        # self.hive_block = HiveBlock(obs_dim, pre_act_dim)
 
-        # Command MLP
-        self.cmd_head = nn.Sequential(
-            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
-            nn.Linear(ModelConfig.lstm_dim, ModelConfig.cmd_dim)
-        )
+        # # Command MLP
+        # self.cmd_head = nn.Sequential(
+        #     nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
+        #     nn.Linear(ModelConfig.lstm_dim, ModelConfig.cmd_dim)
+        # )
 
-        self.testing_actor_mlp = nn.Sequential(
-            nn.Linear(self.obs_dim * Consts.MAX_AGENTS, ModelConfig.lstm_dim), nn.ReLU(),
-            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
-            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
-            nn.Linear(ModelConfig.lstm_dim, self.pre_act_dim)
-        )
-        self.testing_critic_mlp = nn.Sequential(
-            nn.Linear(self.obs_dim * Consts.MAX_AGENTS, ModelConfig.lstm_dim), nn.ReLU(),
-            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
-            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
-            nn.Linear(ModelConfig.lstm_dim, 1)
-        )
+        
+        if (self.pre_act_dim > 0): # actor
+            self.testing_actor_mlp = nn.Sequential(
+                nn.Linear(self.obs_dim, 128), nn.ReLU(),
+                nn.Linear(128, 128), nn.ReLU(),
+                nn.Linear(128, 128), nn.ReLU(),
+                nn.Linear(128, self.pre_act_dim)
+            )
+        else:
+            self.testing_critic_mlp = nn.Sequential(
+                nn.Linear(self.obs_dim * Consts.MAX_AGENTS, 128), nn.ReLU(),
+                nn.Linear(128, 128), nn.ReLU(),
+                nn.Linear(128, ModelConfig.lstm_dim)
+            )
 
-    def _compute_cmd_prev(self, lstm_state):
-        """cmd_{t-1} = cmd_head(h_{t-1}); if state is None -> zeros"""
-        if lstm_state is None:
-            return torch.zeros(1, ModelConfig.cmd_dim, device=lstm_state.device)
-        h_prev = lstm_state[0, 0]            # shape [B, H]
-        return self.cmd_head(h_prev)  # (actor & critic share cmd)
+    # def _compute_cmd_prev(self, lstm_state):
+    #     """cmd_{t-1} = cmd_head(h_{t-1}); if state is None -> zeros"""
+    #     if lstm_state is None:
+    #         return torch.zeros(1, ModelConfig.cmd_dim, device=lstm_state.device)
+    #     h_prev = lstm_state[0, 0]            # shape [B, H]
+    #     return self.cmd_head(h_prev)  # (actor & critic share cmd)
         
     def forward(self, processed_obs, rnn_states_in):
         """
@@ -227,6 +229,7 @@ class HiveEncoderRNN(nn.Module):
             - [N, H] (if pre_act_dim == 0; ie critic)
             new_a_state: (2,1,B,H)
         """
+
 
         # obs [N, A * features per ant]; active agents is [N, A]
         assert processed_obs.shape[1] == Consts.MAX_AGENTS
@@ -246,32 +249,31 @@ class HiveEncoderRNN(nn.Module):
         # TODO: remove (and comment back in real code). temporarily testing simple model.
         assert(active_agents[:, :, :] == 1).all() # TODO: remove (after we add dynamic agent number. temporarily testing that all agents are on)
         if (self.pre_act_dim > 0): # actor
-            flattened_obs = obs.view(obs.shape[0], -1)
-            assert flattened_obs.shape[0] == obs.shape[0]
-            assert flattened_obs.shape[1] == Consts.MAX_AGENTS * self.obs_dim
-
-            action_logits = self.testing_actor_mlp(flattened_obs) # [N, A * pre_act_dim]
+            action_logits = self.testing_actor_mlp(obs) # [N, A, pre_act_dim]
             assert action_logits.shape[0] == obs.shape[0]
-            assert action_logits.shape[1] == Consts.MAX_AGENTS * self.pre_act_dim
+            assert action_logits.shape[1] == Consts.MAX_AGENTS
+            assert action_logits.shape[2] == self.pre_act_dim
 
-            reshaped_active_agents = active_agents.view(active_agents.shape[0], -1)
-            assert reshaped_active_agents.shape[0] == obs.shape[0]
-            assert reshaped_active_agents.shape[1] == Consts.MAX_AGENTS
-            out = torch.cat([action_logits, reshaped_active_agents], dim=1)
+            unflattened_out = torch.cat([action_logits, active_agents], dim=2)
+
+            assert unflattened_out.shape[0] == obs.shape[0]
+            assert unflattened_out.shape[1] == Consts.MAX_AGENTS
+            assert unflattened_out.shape[2] == self.pre_act_dim + 1
+
+            out = unflattened_out.view(unflattened_out.shape[0], -1)
+
             assert out.shape[0] == obs.shape[0]
             assert out.shape[1] == Consts.MAX_AGENTS * (self.pre_act_dim + 1)
+
         else: # critic
-            flattened_obs = obs.view(obs.shape[0], -1)
+            flattened_obs = obs.reshape(obs.shape[0], -1)
             assert flattened_obs.shape[0] == obs.shape[0]
             assert flattened_obs.shape[1] == Consts.MAX_AGENTS * self.obs_dim
+            assert(len(flattened_obs.shape) == 2)
 
-            value = self.testing_critic_mlp(flattened_obs) # [N, 1]
-            assert value.shape[0] == obs.shape[0]
-            assert value.shape[1] == 1
-            
-            out = value.view(obs.shape[0], -1)
+            out = self.testing_critic_mlp(flattened_obs) # [N, A * obs_dim] -> [N, H]
             assert out.shape[0] == obs.shape[0]
-            assert out.shape[1] == 1
+            assert out.shape[1] == ModelConfig.lstm_dim
             
         new_a_state = torch.zeros(2, 1, obs.shape[0], ModelConfig.lstm_dim, device=obs.device)
         return out, new_a_state
