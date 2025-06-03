@@ -6,31 +6,31 @@ from .action import DiscreteActionDistributions
 from .actor_critic import ActorCritic, MaskedDiscreteActor, Critic
 from .cfg import ModelConfig, Consts
 
-# class MLP(nn.Module):
-#     def __init__(self, input_dim, num_channels, num_layers):
-#         super().__init__()
+class MLP(nn.Module):
+    def __init__(self, input_dim, num_channels, num_layers):
+        super().__init__()
 
-#         layers = [
-#             nn.Linear(input_dim, num_channels),
-#             nn.LayerNorm(num_channels),
-#             nn.ReLU(),
-#         ]
-#         for i in range(num_layers - 1):
-#             layers.append(nn.Linear(num_channels, num_channels))
-#             layers.append(nn.LayerNorm(num_channels))
-#             layers.append(nn.ReLU())
+        layers = [
+            nn.Linear(input_dim, num_channels),
+            nn.LayerNorm(num_channels),
+            nn.ReLU(),
+        ]
+        for i in range(num_layers - 1):
+            layers.append(nn.Linear(num_channels, num_channels))
+            layers.append(nn.LayerNorm(num_channels))
+            layers.append(nn.ReLU())
 
-#         self.net = nn.Sequential(*layers)
+        self.net = nn.Sequential(*layers)
 
-#         for layer in self.net:
-#             if isinstance(layer, nn.Linear):
-#                 nn.init.kaiming_normal_(
-#                     layer.weight, nn.init.calculate_gain("relu"))
-#                 if layer.bias is not None:
-#                     nn.init.constant_(layer.bias, val=0)
+        for layer in self.net:
+            if isinstance(layer, nn.Linear):
+                nn.init.kaiming_normal_(
+                    layer.weight, nn.init.calculate_gain("relu"))
+                if layer.bias is not None:
+                    nn.init.constant_(layer.bias, val=0)
 
-#     def forward(self, inputs):
-#         return self.net(inputs)
+    def forward(self, inputs):
+        return self.net(inputs)
 
 # class LinearLayerDiscreteActor(DiscreteActor):
 #     def __init__(self, actions_num_buckets, in_channels):
@@ -110,9 +110,9 @@ class HiveBlock(nn.Module):
         logits = y[:, :, :self.pre_act_dim]
         msg    = y[:, :, self.pre_act_dim:]
 
-        helper = msg.reshape(y.shape[0], -1)
-        helper2= helper[:, :ModelConfig.lstm_dim]
-        return logits, helper2, torch.zeros(2, 1, y.shape[0], ModelConfig.lstm_dim).to(y.device)
+        # helper = msg.reshape(y.shape[0], -1)
+        # helper2= helper[:, :ModelConfig.lstm_dim]
+        # return logits, helper2, torch.zeros(2, 1, y.shape[0], ModelConfig.lstm_dim).to(y.device)
 
         assert logits.shape[0] == hidden_state.shape[2]
         assert logits.shape[1] == Consts.MAX_AGENTS
@@ -196,6 +196,19 @@ class HiveEncoderRNN(nn.Module):
             nn.Linear(ModelConfig.lstm_dim, ModelConfig.cmd_dim)
         )
 
+        self.testing_actor_mlp = nn.Sequential(
+            nn.Linear(self.obs_dim * Consts.MAX_AGENTS, ModelConfig.lstm_dim), nn.ReLU(),
+            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
+            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
+            nn.Linear(ModelConfig.lstm_dim, self.pre_act_dim)
+        )
+        self.testing_critic_mlp = nn.Sequential(
+            nn.Linear(self.obs_dim * Consts.MAX_AGENTS, ModelConfig.lstm_dim), nn.ReLU(),
+            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
+            nn.Linear(ModelConfig.lstm_dim, ModelConfig.lstm_dim), nn.ReLU(),
+            nn.Linear(ModelConfig.lstm_dim, 1)
+        )
+
     def _compute_cmd_prev(self, lstm_state):
         """cmd_{t-1} = cmd_head(h_{t-1}); if state is None -> zeros"""
         if lstm_state is None:
@@ -207,6 +220,12 @@ class HiveEncoderRNN(nn.Module):
         """
         processed_obs         : [N, A, obs_dim + 1]    (+1 is for active_agents mask)
         rnn_states_in         : (2,1,B,H)  from LSTM   (can be None at t=0)
+
+        returns:
+            primary_output: 
+            - [N, A * (pre_act_dim + 1)] (if pre_act_dim > 0; ie actor. +1 is for active_agents mask)
+            - [N, H] (if pre_act_dim == 0; ie critic)
+            new_a_state: (2,1,B,H)
         """
 
         # obs [N, A * features per ant]; active agents is [N, A]
@@ -221,58 +240,94 @@ class HiveEncoderRNN(nn.Module):
         assert active_agents.shape[1] == Consts.MAX_AGENTS
         assert obs.shape[2] == self.obs_dim
         assert active_agents.shape[2] == 1
-
-        N = obs.shape[0]
-
-        # cmd_prev should return [N, ModelConfig.cmd_dim]
-        cmd_prev = self._compute_cmd_prev(rnn_states_in)
-        assert cmd_prev.shape[0] == N
-        assert cmd_prev.shape[1] == ModelConfig.cmd_dim
+        assert (active_agents[:, :, 0] == 1).all() # at least one active agent in all envs
         
-        # make a copy for each agent
-        expanded_cmd_prev = cmd_prev.view(N, 1, ModelConfig.cmd_dim).expand(N, Consts.MAX_AGENTS, -1)
-        # [N, A, cmd_dim]
-        assert expanded_cmd_prev.shape[0] == N
-        assert expanded_cmd_prev.shape[1] == Consts.MAX_AGENTS
-        assert expanded_cmd_prev.shape[2] == ModelConfig.cmd_dim
-        assert len(expanded_cmd_prev.shape) == 3
-
-        # now concat the obs and the command
-        flat_in = torch.cat([obs, expanded_cmd_prev], dim=2) # [N, A, obs_dim + cmd_dim]
-        assert flat_in.shape[0] == N
-        assert flat_in.shape[1] == Consts.MAX_AGENTS
-        assert flat_in.shape[2] == self.obs_dim + ModelConfig.cmd_dim
-
-        logits, lstm_hidden, new_a_state = self.hive_block(
-            rnn_states_in,
-            flat_in, active_agents)
-
-        assert logits.shape[0] == N
-        assert logits.shape[1] == Consts.MAX_AGENTS
-        assert logits.shape[2] == self.pre_act_dim
-        assert len(logits.shape) == 3
-
-        assert lstm_hidden.shape[0] == N
-        assert lstm_hidden.shape[1] == ModelConfig.lstm_dim
-        assert len(lstm_hidden.shape) == 2
-
-        assert new_a_state.shape[0] == 2
-        assert new_a_state.shape[1] == 1
-        assert new_a_state.shape[2] == N
-        assert new_a_state.shape[3] == ModelConfig.lstm_dim
-        assert len(new_a_state.shape) == 4
-
-        if self.pre_act_dim > 0:
-            primary_output_by_agent = torch.cat([logits, active_agents], dim=2)
-            primary_output = primary_output_by_agent.view(N, -1) # one (combined) action per world
-            assert primary_output.shape[0] == N
-            assert primary_output.shape[1] == Consts.MAX_AGENTS * (self.pre_act_dim + 1)
-            # shape: [N, A * (pre_act_dim + 1)]. last 1 in last dim is active_agents mask
-        else:
-            primary_output = lstm_hidden
-            # shape: [N, H]
         
-        return primary_output, new_a_state
+        # TODO: remove (and comment back in real code). temporarily testing simple model.
+        assert(active_agents[:, :, :] == 1).all() # TODO: remove (after we add dynamic agent number. temporarily testing that all agents are on)
+        if (self.pre_act_dim > 0): # actor
+            flattened_obs = obs.view(obs.shape[0], -1)
+            assert flattened_obs.shape[0] == obs.shape[0]
+            assert flattened_obs.shape[1] == Consts.MAX_AGENTS * self.obs_dim
+
+            action_logits = self.testing_actor_mlp(flattened_obs) # [N, A * pre_act_dim]
+            assert action_logits.shape[0] == obs.shape[0]
+            assert action_logits.shape[1] == Consts.MAX_AGENTS * self.pre_act_dim
+
+            reshaped_active_agents = active_agents.view(active_agents.shape[0], -1)
+            assert reshaped_active_agents.shape[0] == obs.shape[0]
+            assert reshaped_active_agents.shape[1] == Consts.MAX_AGENTS
+            out = torch.cat([action_logits, reshaped_active_agents], dim=1)
+            assert out.shape[0] == obs.shape[0]
+            assert out.shape[1] == Consts.MAX_AGENTS * (self.pre_act_dim + 1)
+        else: # critic
+            flattened_obs = obs.view(obs.shape[0], -1)
+            assert flattened_obs.shape[0] == obs.shape[0]
+            assert flattened_obs.shape[1] == Consts.MAX_AGENTS * self.obs_dim
+
+            value = self.testing_critic_mlp(flattened_obs) # [N, 1]
+            assert value.shape[0] == obs.shape[0]
+            assert value.shape[1] == 1
+            
+            out = value.view(obs.shape[0], -1)
+            assert out.shape[0] == obs.shape[0]
+            assert out.shape[1] == 1
+            
+        new_a_state = torch.zeros(2, 1, obs.shape[0], ModelConfig.lstm_dim, device=obs.device)
+        return out, new_a_state
+        
+
+        # N = obs.shape[0]
+
+        # # cmd_prev should return [N, ModelConfig.cmd_dim]
+        # cmd_prev = self._compute_cmd_prev(rnn_states_in)
+        # assert cmd_prev.shape[0] == N
+        # assert cmd_prev.shape[1] == ModelConfig.cmd_dim
+        
+        # # make a copy for each agent
+        # expanded_cmd_prev = cmd_prev.view(N, 1, ModelConfig.cmd_dim).expand(N, Consts.MAX_AGENTS, -1)
+        # # [N, A, cmd_dim]
+        # assert expanded_cmd_prev.shape[0] == N
+        # assert expanded_cmd_prev.shape[1] == Consts.MAX_AGENTS
+        # assert expanded_cmd_prev.shape[2] == ModelConfig.cmd_dim
+        # assert len(expanded_cmd_prev.shape) == 3
+
+        # # now concat the obs and the command
+        # flat_in = torch.cat([obs, expanded_cmd_prev], dim=2) # [N, A, obs_dim + cmd_dim]
+        # assert flat_in.shape[0] == N
+        # assert flat_in.shape[1] == Consts.MAX_AGENTS
+        # assert flat_in.shape[2] == self.obs_dim + ModelConfig.cmd_dim
+
+        # logits, lstm_hidden, new_a_state = self.hive_block(
+        #     rnn_states_in,
+        #     flat_in, active_agents)
+
+        # assert logits.shape[0] == N
+        # assert logits.shape[1] == Consts.MAX_AGENTS
+        # assert logits.shape[2] == self.pre_act_dim
+        # assert len(logits.shape) == 3
+
+        # assert lstm_hidden.shape[0] == N
+        # assert lstm_hidden.shape[1] == ModelConfig.lstm_dim
+        # assert len(lstm_hidden.shape) == 2
+
+        # assert new_a_state.shape[0] == 2
+        # assert new_a_state.shape[1] == 1
+        # assert new_a_state.shape[2] == N
+        # assert new_a_state.shape[3] == ModelConfig.lstm_dim
+        # assert len(new_a_state.shape) == 4
+
+        # if self.pre_act_dim > 0:
+        #     primary_output_by_agent = torch.cat([logits, active_agents], dim=2)
+        #     primary_output = primary_output_by_agent.view(N, -1) # one (combined) action per world
+        #     assert primary_output.shape[0] == N
+        #     assert primary_output.shape[1] == Consts.MAX_AGENTS * (self.pre_act_dim + 1)
+        #     # shape: [N, A * (pre_act_dim + 1)]. last 1 in last dim is active_agents mask
+        # else:
+        #     primary_output = lstm_hidden
+        #     # shape: [N, H]
+        
+        # return primary_output, new_a_state
 
     def fwd_sequence(self, in_sequences, start_hidden, sequence_breaks):
         seq_len = in_sequences.shape[0]
