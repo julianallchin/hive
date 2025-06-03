@@ -6,16 +6,28 @@ using namespace madrona;
 using namespace madrona::math;
 using namespace madrona::phys;
 
+namespace consts {
+
+inline constexpr float doorWidth = consts::worldWidth / 3.f;
+
+}
+
+enum class RoomType : uint32_t {
+    SingleButton,
+    DoubleButton,
+    CubeBlocking,
+    CubeButtons,
+    NumTypes,
+};
+
+static inline float randInRangeCentered(Engine &ctx, float range)
+{
+    return ctx.data().rng.sampleUniform() * range - range / 2.f;
+}
+
 static inline float randBetween(Engine &ctx, float min, float max)
 {
     return ctx.data().rng.sampleUniform() * (max - min) + min;
-}
-
-// Returns a random integer between min and max (inclusive)
-static inline int randIntBetween(Engine &ctx, int min, int max)
-{
-    float rand_float = ctx.data().rng.sampleUniform() * (max + 1 - min) + min;
-    return static_cast<int>(rand_float);
 }
 
 // Initialize the basic components needed for physics rigid body entities
@@ -63,6 +75,8 @@ static void registerRigidBodyEntity(
 // All these entities persist across all episodes.
 void createPersistentEntities(Engine &ctx)
 {
+    ctx.data().worldData = ctx.makeEntity<WorldData>();
+
     // Create the floor entity, just a simple static plane.
     ctx.data().floorPlane = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
@@ -75,14 +89,14 @@ void createPersistentEntities(Engine &ctx)
         ResponseType::Static);
 
     // Create the outer wall entities
-    // Bottom
+    // Behind
     ctx.data().borders[0] = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
         ctx,
         ctx.data().borders[0],
         Vector3 {
             0,
-            -consts::worldLength / 2.f,
+            -consts::wallWidth / 2.f,
             0,
         },
         Quat { 1, 0, 0, 0 },
@@ -90,9 +104,9 @@ void createPersistentEntities(Engine &ctx)
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            (consts::worldWidth + consts::borderWidth) / consts::wallMeshX, // add borderwidth for no jagged corners
-            consts::borderWidth / consts::wallMeshY,
-            consts::borderHeight / consts::wallMeshHeight
+            consts::worldWidth + consts::wallWidth * 2,
+            consts::wallWidth,
+            2.f,
         });
 
     // Right
@@ -101,27 +115,7 @@ void createPersistentEntities(Engine &ctx)
         ctx,
         ctx.data().borders[1],
         Vector3 {
-            consts::worldWidth / 2.f,
-            0,
-            0,
-        },
-        Quat { 1, 0, 0, 0 },
-        SimObject::Wall,
-        EntityType::Wall,
-        ResponseType::Static,
-        Diag3x3 {
-            consts::borderWidth / consts::wallMeshX,
-            (consts::worldLength + consts::borderWidth) / consts::wallMeshY, // add borderwidth for no jagged corners
-            consts::borderHeight / consts::wallMeshHeight,
-        });
-
-    // Left
-    ctx.data().borders[2] = ctx.makeRenderableEntity<PhysicsEntity>();
-    setupRigidBodyEntity(
-        ctx,
-        ctx.data().borders[2],
-        Vector3 {
-            0,
+            consts::worldWidth / 2.f + consts::wallWidth / 2.f,
             consts::worldLength / 2.f,
             0,
         },
@@ -130,19 +124,19 @@ void createPersistentEntities(Engine &ctx)
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            (consts::worldWidth + consts::borderWidth) / consts::wallMeshX, // add borderwidth for no jagged corners
-            consts::borderWidth / consts::wallMeshY,
-            consts::borderHeight / consts::wallMeshHeight,
+            consts::wallWidth,
+            consts::worldLength,
+            2.f,
         });
 
-    // Top
-    ctx.data().borders[3] = ctx.makeRenderableEntity<PhysicsEntity>();
+    // Left
+    ctx.data().borders[2] = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
         ctx,
-        ctx.data().borders[3],
+        ctx.data().borders[2],
         Vector3 {
-            -consts::worldWidth / 2.f,
-            0,
+            -consts::worldWidth / 2.f - consts::wallWidth / 2.f,
+            consts::worldLength / 2.f,
             0,
         },
         Quat { 1, 0, 0, 0 },
@@ -150,48 +144,15 @@ void createPersistentEntities(Engine &ctx)
         EntityType::Wall,
         ResponseType::Static,
         Diag3x3 {
-            consts::borderWidth / consts::wallMeshX,
-            (consts::worldLength + consts::borderWidth) / consts::wallMeshY, // add borderwidth for no jagged corners
-            consts::borderHeight / consts::wallMeshHeight,
+            consts::wallWidth,
+            consts::worldLength,
+            2.f,
         });
 
-    // initialized on reset
-    ctx.data().episodeTracker = ctx.makeEntity<EpisodeTracker>();
-
-    // MacGuffin
-    ctx.data().macguffin = ctx.makeRenderableEntity<PhysicsEntity>();
-    setupRigidBodyEntity(
-        ctx,
-        ctx.data().macguffin,
-        Vector3 {0, 0, 0},  // position is reset on level start
-        Quat {1, 0, 0, 0 },
-        SimObject::MacGuffin,
-        EntityType::MacGuffin,
-        ResponseType::Dynamic,
-        Diag3x3 {
-            consts::macguffinSize / consts::cubeMeshSize,
-            consts::macguffinSize / consts::cubeMeshSize,
-            consts::macguffinSize / consts::cubeMeshSize
-        });
-
-    // Goal
-    Entity goal = ctx.data().goal = ctx.makeRenderableEntity<Goal>();
-    ctx.get<Rotation>(goal) = Quat {1, 0, 0, 0};
-    ctx.get<Scale>(goal) = Diag3x3 {
-        consts::goalSize / consts::cubeMeshSize,
-        consts::goalSize / consts::cubeMeshSize,
-        0.1f };
-    ctx.get<ObjectID>(goal) = ObjectID { (int32_t)SimObject::Goal };
-    ctx.get<EntityType>(goal) = EntityType::Goal;
-    // position to be initialized on level reset
-
-    // Agents
-    // Note that this leaves a lot of components
+    // Create agent entities. Note that this leaves a lot of components
     // uninitialized, these will be set during world generation, which is
     // called for every episode.
-    // We create the max number, even if all are not used. This is because agents
-    // must persist between episodes or else you can't export their data (for some reason)
-    for (CountT i = 0; i < consts::maxAgents; ++i) {
+    for (CountT i = 0; i < consts::numAgents; ++i) {
         Entity agent = ctx.data().agents[i] =
             ctx.makeRenderableEntity<Agent>();
 
@@ -199,662 +160,479 @@ void createPersistentEntities(Engine &ctx)
         if (ctx.data().enableRender) {
             render::RenderingSystem::attachEntityToView(ctx,
                     agent,
-                    100.f,
-                    .25f * consts::agentSize,
-                    0.5 * consts::agentSize * math::up);
+                    100.f, 0.001f,
+                    1.5f * math::up);
         }
 
-        ctx.get<Scale>(agent) = Diag3x3 {
-            consts::agentSize / consts::agentMeshSize,
-            consts::agentSize / consts::agentMeshSize,
-            consts::agentSize / consts::agentMeshSize };
+        ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
         ctx.get<ObjectID>(agent) = ObjectID { (int32_t)SimObject::Agent };
         ctx.get<ResponseType>(agent) = ResponseType::Dynamic;
         ctx.get<GrabState>(agent).constraintEntity = Entity::none();
         ctx.get<EntityType>(agent) = EntityType::Agent;
     }
+
+    // Populate OtherAgents component, which maintains a reference to the
+    // other agents in the world for each agent.
+    for (CountT i = 0; i < consts::numAgents; i++) {
+        Entity cur_agent = ctx.data().agents[i];
+
+        OtherAgents &other_agents = ctx.get<OtherAgents>(cur_agent);
+        CountT out_idx = 0;
+        for (CountT j = 0; j < consts::numAgents; j++) {
+            if (i == j) {
+                continue;
+            }
+
+            Entity other_agent = ctx.data().agents[j];
+            other_agents.e[out_idx++] = other_agent;
+        }
+    }
 }
-
-
-// Enum to identify which border/wall
-enum class Border {
-    Top = 0,
-    Right = 1,
-    Bottom = 2,
-    Left = 3
-};
-
-// Structure to hold barrier placement information
-struct BarrierPlacement {
-    float x;
-    float y;
-    float width;
-    float height;
-};
-
-struct CubePlacement {
-    float x;
-    float y;
-    float scale;
-};
-
-struct AgentPlacement {
-    float x;
-    float y;
-    float angle;
-};
-
-struct MacGuffinPlacement {
-    float x;
-    float y;
-    Border wall; // Which wall/border it's placed along
-};
-
-struct GoalPlacement {
-    float x;
-    float y;
-    Border wall; // Which wall/border it's placed along
-};
-
-struct LevelPlacements {
-    BarrierPlacement barrierPlacements[consts::maxBarriers];
-    int32_t numBarriers;
-
-    CubePlacement cubePlacements[consts::maxCubes];
-    int32_t numCubes;
-
-    AgentPlacement agentPlacements[consts::maxAgents];
-    int32_t numAgents;
-
-    MacGuffinPlacement macguffinPlacement;
-
-    GoalPlacement goalPlacement;
-};
 
 // Although agents and walls persist between episodes, we still need to
 // re-register them with the broadphase system and, in the case of the agents,
 // reset their positions.
-static void resetPersistentEntities(Engine &ctx,
-                                    const LevelPlacements &levelPlacements)
+static void resetPersistentEntities(Engine &ctx)
 {
-    // floor
+    ctx.get<StepsRemaining>(ctx.data().worldData).t = consts::episodeLen;
+    ctx.get<Done>(ctx.data().worldData).v = 0;
+
     registerRigidBodyEntity(ctx, ctx.data().floorPlane, SimObject::Plane);
 
-    // borders
-    for (CountT i = 0; i < 4; i++) {
-        Entity wall_entity = ctx.data().borders[i];
-        registerRigidBodyEntity(ctx, wall_entity, SimObject::Wall);
-    }
-    
-    // MacGuffin
-    Entity macguffin = ctx.data().macguffin;
-    Vector3 macguffin_pos{levelPlacements.macguffinPlacement.x, levelPlacements.macguffinPlacement.y, 0.0f};
-    registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
-    ctx.get<Position>(macguffin) = macguffin_pos;
-    ctx.get<Rotation>(macguffin) = Quat {1, 0, 0, 0};
-    ctx.get<Velocity>(macguffin) = { Vector3::zero(), Vector3::zero()};
-    ctx.get<ExternalForce>(macguffin) = Vector3::zero();
-    ctx.get<ExternalTorque>(macguffin) = Vector3::zero();
+     for (CountT i = 0; i < 3; i++) {
+         Entity wall_entity = ctx.data().borders[i];
+         registerRigidBodyEntity(ctx, wall_entity, SimObject::Wall);
+     }
 
-    // Goal
-    Entity goal = ctx.data().goal;
-    Vector3 goal_pos{levelPlacements.goalPlacement.x, levelPlacements.goalPlacement.y, 0.0f};
-    ctx.get<Position>(goal) = goal_pos;
+     for (CountT i = 0; i < consts::numAgents; i++) {
+         Entity agent_entity = ctx.data().agents[i];
+         registerRigidBodyEntity(ctx, agent_entity, SimObject::Agent);
 
-    // Episode Tracker
-    Entity episodeTracker = ctx.data().episodeTracker;
-    ctx.get<StepsRemaining>(episodeTracker).t = consts::episodeLen;
-    ctx.get<RewardHelper>(episodeTracker).starting_dist = -1.0f; // initialized in rewardsystem
-    ctx.get<RewardHelper>(episodeTracker).prev_dist = -1.0f; // initialized in rewardsystem
+         // Place the agents near the starting wall
+         Vector3 pos {
+             randInRangeCentered(ctx, 
+                 consts::worldWidth / 2.f - 2.5f * consts::agentRadius),
+             randBetween(ctx, consts::agentRadius * 1.1f,  2.f),
+             0.f,
+         };
 
-    // NumAgents
-    int32_t numAgents = levelPlacements.numAgents;
+         if (i % 2 == 0) {
+             pos.x += consts::worldWidth / 4.f;
+         } else {
+             pos.x -= consts::worldWidth / 4.f;
+         }
 
-    // Agents
-    for (int32_t i = 0; i < consts::maxAgents; i++) {
-        // for every ant, set most things to the default values
-        Entity agent_entity = ctx.data().agents[i];
-        registerRigidBodyEntity(ctx, agent_entity, SimObject::Agent);
-        auto &grab_state = ctx.get<GrabState>(agent_entity);
-        if (grab_state.constraintEntity != Entity::none()) {
-            ctx.destroyEntity(grab_state.constraintEntity);
-            grab_state.constraintEntity = Entity::none();
-        }
-        ctx.get<Velocity>(agent_entity) = {
-            Vector3::zero(),
-            Vector3::zero(),
-        };
-        ctx.get<ExternalForce>(agent_entity) = Vector3::zero();
-        ctx.get<ExternalTorque>(agent_entity) = Vector3::zero();
-        ctx.get<Action>(agent_entity) = Action {
-            .moveAmount = 0,
-            .moveAngle = 0,
-            .rotate = consts::numTurnBuckets / 2,
-            .grab = 0,
-        };
-        // set positions and alive status of the agent's we'll actually use
-        if (i < numAgents) {
-            // Place the agents near the starting wall
-            ctx.get<Position>(agent_entity) = Vector3 {
-                levelPlacements.agentPlacements[i].x,
-                levelPlacements.agentPlacements[i].y,
-                0.0f,
-            };
-            ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
-                levelPlacements.agentPlacements[i].angle, math::up);
-            ctx.get<Active>(agent_entity).v = 1;
-        }
-        // for the rest of the ants, they go to jail
-        else {
-            ctx.get<Position>(agent_entity) = Vector3 {
-                consts::worldWidth / 2.0f + (50.0f + 2 * consts::agentSize) * i,
-                0.0f,
-                0.0f,
-            };
-            ctx.get<Rotation>(agent_entity) = Quat{ 1, 0, 0, 0};
-            ctx.get<Active>(agent_entity).v = 0;
-        }
-    }
-        
+         ctx.get<Position>(agent_entity) = pos;
+         ctx.get<Rotation>(agent_entity) = Quat::angleAxis(
+             randInRangeCentered(ctx, math::pi / 4.f),
+             math::up);
+
+         auto &grab_state = ctx.get<GrabState>(agent_entity);
+         if (grab_state.constraintEntity != Entity::none()) {
+             ctx.destroyEntity(grab_state.constraintEntity);
+             grab_state.constraintEntity = Entity::none();
+         }
+
+         ctx.get<Progress>(agent_entity).maxY = pos.y;
+
+         ctx.get<Velocity>(agent_entity) = {
+             Vector3::zero(),
+             Vector3::zero(),
+         };
+         ctx.get<ExternalForce>(agent_entity) = Vector3::zero();
+         ctx.get<ExternalTorque>(agent_entity) = Vector3::zero();
+         ctx.get<Action>(agent_entity) = Action {
+             .moveAmount = 0,
+             .moveAngle = 0,
+             .rotate = consts::numTurnBuckets / 2,
+             .grab = 0,
+         };
+     }
+}
+
+// Builds the two walls & door that block the end of the challenge room
+static void makeEndWall(Engine &ctx,
+                        Room &room,
+                        CountT room_idx)
+{
+    float y_pos = consts::roomLength * (room_idx + 1) -
+        consts::wallWidth / 2.f;
+
+    // Quarter door of buffer on both sides, place door and then build walls
+    // up to the door gap on both sides
+    float door_center = randBetween(ctx, 0.75f * consts::doorWidth, 
+        consts::worldWidth - 0.75f * consts::doorWidth);
+    float left_len = door_center - 0.5f * consts::doorWidth;
+    Entity left_wall = ctx.makeRenderableEntity<PhysicsEntity>();
+    setupRigidBodyEntity(
+        ctx,
+        left_wall,
+        Vector3 {
+            (-consts::worldWidth + left_len) / 2.f,
+            y_pos,
+            0,
+        },
+        Quat { 1, 0, 0, 0 },
+        SimObject::Wall,
+        EntityType::Wall,
+        ResponseType::Static,
+        Diag3x3 {
+            left_len,
+            consts::wallWidth,
+            1.75f,
+        });
+    registerRigidBodyEntity(ctx, left_wall, SimObject::Wall);
+
+    float right_len =
+        consts::worldWidth - door_center - 0.5f * consts::doorWidth;
+    Entity right_wall = ctx.makeRenderableEntity<PhysicsEntity>();
+    setupRigidBodyEntity(
+        ctx,
+        right_wall,
+        Vector3 {
+            (consts::worldWidth - right_len) / 2.f,
+            y_pos,
+            0,
+        },
+        Quat { 1, 0, 0, 0 },
+        SimObject::Wall,
+        EntityType::Wall,
+        ResponseType::Static,
+        Diag3x3 {
+            right_len,
+            consts::wallWidth,
+            1.75f,
+        });
+    registerRigidBodyEntity(ctx, right_wall, SimObject::Wall);
+
+    Entity door = ctx.makeRenderableEntity<DoorEntity>();
+    setupRigidBodyEntity(
+        ctx,
+        door,
+        Vector3 {
+            door_center - consts::worldWidth / 2.f,
+            y_pos,
+            0,
+        },
+        Quat { 1, 0, 0, 0 },
+        SimObject::Door,
+        EntityType::Door,
+        ResponseType::Static,
+        Diag3x3 {
+            consts::doorWidth * 0.8f,
+            consts::wallWidth,
+            1.75f,
+        });
+    registerRigidBodyEntity(ctx, door, SimObject::Door);
+    ctx.get<OpenState>(door).isOpen = false;
+
+    room.walls[0] = left_wall;
+    room.walls[1] = right_wall;
+    room.door = door;
+}
+
+static Entity makeButton(Engine &ctx,
+                         float button_x,
+                         float button_y)
+{
+    Entity button = ctx.makeRenderableEntity<ButtonEntity>();
+    ctx.get<Position>(button) = Vector3 {
+        button_x,
+        button_y,
+        0.f,
+    };
+    ctx.get<Rotation>(button) = Quat { 1, 0, 0, 0 };
+    ctx.get<Scale>(button) = Diag3x3 {
+        consts::buttonWidth,
+        consts::buttonWidth,
+        0.2f,
+    };
+    ctx.get<ObjectID>(button) = ObjectID { (int32_t)SimObject::Button };
+    ctx.get<ButtonState>(button).isPressed = false;
+    ctx.get<EntityType>(button) = EntityType::Button;
+
+    return button;
 }
 
 static Entity makeCube(Engine &ctx,
-                       const CubePlacement &placement)
+                       float cube_x,
+                       float cube_y,
+                       float scale = 1.f)
 {
     Entity cube = ctx.makeRenderableEntity<PhysicsEntity>();
     setupRigidBodyEntity(
         ctx,
         cube,
         Vector3 {
-            placement.x,
-            placement.y,
-            0
+            cube_x,
+            cube_y,
+            1.f * scale,
         },
         Quat { 1, 0, 0, 0 },
         SimObject::Cube,
         EntityType::Cube,
         ResponseType::Dynamic,
-        Diag3x3{
-            consts::cubeSize * placement.scale / consts::cubeMeshSize,
-            consts::cubeSize * placement.scale / consts::cubeMeshSize,
-            consts::cubeSize * placement.scale / consts::cubeMeshSize});
+        Diag3x3 {
+            scale,
+            scale,
+            scale,
+        });
     registerRigidBodyEntity(ctx, cube, SimObject::Cube);
+
     return cube;
 }
 
-static Entity makeBarrier(Engine &ctx,
-                       const BarrierPlacement &placement)
+static void setupDoor(Engine &ctx,
+                      Entity door,
+                      Span<const Entity> buttons,
+                      bool is_persistent)
 {
-    Entity barrier = ctx.makeRenderableEntity<PhysicsEntity>();
-    setupRigidBodyEntity(
-        ctx,
-        barrier,
-        Vector3 { placement.x, placement.y, 0 },
-        Quat { 1, 0, 0, 0 },
-        SimObject::Wall,
-        EntityType::Wall,
-        ResponseType::Static,
-        Diag3x3 {
-            placement.width / consts::wallMeshX,
-            placement.height / consts::wallMeshY,
-            consts::barrierHeight / consts::wallMeshHeight
-        });
-    registerRigidBodyEntity(ctx, barrier, SimObject::Wall);
-    return barrier;
+    DoorProperties &props = ctx.get<DoorProperties>(door);
+
+    for (CountT i = 0; i < buttons.size(); i++) {
+        props.buttons[i] = buttons[i];
+    }
+    props.numButtons = (int32_t)buttons.size();
+    props.isPersistent = is_persistent;
 }
 
-// Determine a suitable position for the macguffin
-// nothing needs to have been previously placed
-static void determineMacGuffinPlacement(Engine &ctx, LevelPlacements &levelPlacements) {
-    // Choose a border randomly
-    Border border = static_cast<Border>(randIntBetween(ctx, 0, 3));
-    
-    // Buffer from the wall to ensure the macguffin doesn't clip into the border
-    float buffer = 0.5f * consts::macguffinSize + 0.5f * consts::borderWidth;
-    
-    // Room boundaries accounting for the border walls
-    float minX = -consts::worldWidth / 2.0f + buffer;
-    float maxX = consts::worldWidth / 2.0f - buffer;
-    float minY = -consts::worldLength / 2.0f + buffer;
-    float maxY = consts::worldLength / 2.0f - buffer;
-    
-    // Starting position
-    float x = 0.0f;
-    float y = 0.0f;
-    
-    // Place the macguffin near the chosen border
-    float offset = randBetween(ctx, consts::minBorderSpawnBuffer, consts::maxBorderSpawnBuffer);
-    switch (border) {
-        case Border::Top: // Top border
-            x = randBetween(ctx, minX, maxX);
-            y = maxY - offset; // 0-3 units from the border
-            break;
-        case Border::Right: // Right border
-            x = maxX - offset; // 0-3 units from the border
-            y = randBetween(ctx, minY, maxY);
-            break;
-        case Border::Bottom: // Bottom border
-            x = randBetween(ctx, minX, maxX);
-            y = minY + offset; // 0-3 units from the border
-            break;
-        case Border::Left: // Left border
-            x = minX + offset; // 0-3 units from the border
-            y = randBetween(ctx, minY, maxY);
-            break;
-    }
-    
-    levelPlacements.macguffinPlacement = MacGuffinPlacement{x, y, border};
-}
-
-// Determine a suitable position for the goal along the perimeter of the room
-// assumes macguffin has already been placed
-static void determineGoalPlacement(Engine &ctx, LevelPlacements& levelPlacements) {
-    // Place goal on the opposite wall
-    Border goalWall = static_cast<Border>((static_cast<int>(levelPlacements.macguffinPlacement.wall) + 2) % 4);
-    
-    // Buffer from the wall to ensure the goal doesn't clip into the border
-    float buffer = 0.5f * consts::goalSize + 0.5f * consts::borderWidth;
-    
-    // Room boundaries accounting for the border walls
-    float minX = -consts::worldWidth / 2.0f + buffer;
-    float maxX = consts::worldWidth / 2.0f - buffer;
-    float minY = -consts::worldLength / 2.0f + buffer;
-    float maxY = consts::worldLength / 2.0f - buffer;
-    
-    // Starting position
-    float x = 0.0f;
-    float y = 0.0f;
-    
-    // Place the goal near the chosen border
-    float offset = randBetween(ctx, consts::minBorderSpawnBuffer, consts::maxBorderSpawnBuffer);
-    switch (goalWall) {
-        case Border::Top: // Top border
-            x = randBetween(ctx, minX, maxX);
-            y = maxY - offset;
-            break;
-        case Border::Right: // Right border
-            x = maxX - offset;
-            y = randBetween(ctx, minY, maxY);
-            break;
-        case Border::Bottom: // Bottom border
-            x = randBetween(ctx, minX, maxX);
-            y = minY + offset;
-            break;
-        case Border::Left: // Left border
-            x = minX + offset;
-            y = randBetween(ctx, minY, maxY);
-            break;
-    }
-    
-    levelPlacements.goalPlacement = GoalPlacement{x, y, goalWall};
-}
-
-static void determineBarrierPlacements(Engine &ctx, const int32_t numBarriers, LevelPlacements &levelPlacements) {    
-    levelPlacements.numBarriers = 0;
-
-    if (numBarriers <= 0) {
-        return;
-    }
-    
-    // Room boundaries
-    float minX = -consts::worldWidth / 2.0f + consts::borderWidth / 2.0f;
-    float maxX = consts::worldWidth / 2.0f - consts::borderWidth / 2.0f;
-    float minY = -consts::worldLength / 2.0f + consts::borderWidth / 2.0f;
-    float maxY = consts::worldLength / 2.0f - consts::borderWidth / 2.0f;
-
-    // Try up to the maximum number of attempts for barrier placement
-    int attempt = 0;
-    levelPlacements.numBarriers = 0;
-
-    while (levelPlacements.numBarriers < numBarriers && attempt < consts::maxBarrierPlacementAttempts) {
-        attempt++;
-
-        // Decide if barrier will be horizontal or vertical
-        bool isHorizontal = randBetween(ctx, 0.0f, 1.0f) < 0.5f;
-
-        // Barrier size
-        float barrierLength = randBetween(ctx, consts::minBarrierLength, consts::maxBarrierLength);
-        float barrierWidth = consts::borderWidth;
-
-        // Determine barrier position
-        float x = 0.0f;
-        float y = 0.0f;
-        float width = 0.0f;
-        float height = 0.0f;
-        
-        if (isHorizontal) {
-            // Horizontal barrier
-            width = barrierLength;
-            height = barrierWidth;
-
-            // Random position within room bounds
-            x = randBetween(ctx, minX + width/2, maxX - width/2);
-            y = randBetween(ctx, minY + height/2, maxY - height/2);
-        } else {
-            // Vertical barrier
-            width = barrierWidth;
-            height = barrierLength;
-
-            // Random position within room bounds
-            x = randBetween(ctx, minX + width/2, maxX - width/2);
-            y = randBetween(ctx, minY + height/2, maxY - height/2);
-        }
-        
-        bool overlapsWithMacguffin =
-        (std::abs(x - levelPlacements.macguffinPlacement.x) < (width / 2.0f + consts::macguffinSize / 2.0f) + consts::barrierMacguffinBuffer) &&
-        (std::abs(y - levelPlacements.macguffinPlacement.y) < (height / 2.0f + consts::macguffinSize / 2.0f) + consts::barrierMacguffinBuffer);
-
-        
-        if (overlapsWithMacguffin) {
-            continue; // Skip this attempt
-        }
-        
-        bool overlapsWithGoal =
-        (std::abs(x - levelPlacements.goalPlacement.x) < (width / 2.0f + consts::goalSize / 2.0f) + consts::barrierGoalBuffer) &&
-        (std::abs(y - levelPlacements.goalPlacement.y) < (height / 2.0f + consts::goalSize / 2.0f) + consts::barrierGoalBuffer);
-
-        if (overlapsWithGoal) {
-            continue; // Skip this attempt
-        }
-
-        // Check if barrier overlaps with existing barriers
-        bool overlapsWithBarrier = false;
-        for (int32_t i = 0; i < levelPlacements.numBarriers; i++) {
-            const BarrierPlacement &existingBarrier = levelPlacements.barrierPlacements[i];
-            // Simple overlap check (approximate)
-            if (std::abs(x - existingBarrier.x) < (width + existingBarrier.width) / 2 + consts::barrierBarrierBuffer &&
-                std::abs(y - existingBarrier.y) < (height + existingBarrier.height) / 2 + consts::barrierBarrierBuffer) {
-                overlapsWithBarrier = true;
-                break;
-            }
-        }
-
-        if (overlapsWithBarrier) {
-            break;
-        }
-
-        BarrierPlacement barrier;
-        barrier.x = x;
-        barrier.y = y;
-        barrier.width = width;
-        barrier.height = height;
-
-        levelPlacements.barrierPlacements[levelPlacements.numBarriers] = barrier;
-        levelPlacements.numBarriers++;
-    }
-}
-
-static void determineCubePlacements(Engine &ctx, const int32_t numCubes, LevelPlacements &levelPlacements) {
-    levelPlacements.numCubes = 0;
-
-    if (numCubes <= 0) {
-        return;
-    }
-
-    // Define world edges (absolute edges of the simulation area)
-    const float worldEdgeMinX = -consts::worldWidth / 2.0f;
-    const float worldEdgeMaxX =  consts::worldWidth / 2.0f;
-    const float worldEdgeMinY = -consts::worldLength / 2.0f;
-    const float worldEdgeMaxY =  consts::worldLength / 2.0f;
-
-    // Define placement boundaries (inside the border walls)
-    const float placementBoundMinX = worldEdgeMinX + consts::borderWidth / 2.0f;
-    const float placementBoundMaxX = worldEdgeMaxX - consts::borderWidth / 2.0f;
-    const float placementBoundMinY = worldEdgeMinY + consts::borderWidth / 2.0f;
-    const float placementBoundMaxY = worldEdgeMaxY - consts::borderWidth / 2.0f;
-    
-    int attempt = 0;
-
-    while (levelPlacements.numCubes < numCubes && attempt < consts::maxCubePlacementAttempts) {
-        attempt++;
-
-        // Random scale for the cube
-        float scale = randBetween(ctx, consts::cubeMinScaleFactor, consts::cubeMaxScaleFactor);
-
-        // Current cube's half-extent (assuming consts::cubeSize is base half-width/radius)
-        float currentCubeHalfExtent = consts::cubeSize * scale / 2.0f;
-        float macguffinHalfExtent = consts::macguffinSize / 2.0f;
-
-        // Determine valid range for placing the center of the cube
-        float placeableMinX = placementBoundMinX + currentCubeHalfExtent;
-        float placeableMaxX = placementBoundMaxX - currentCubeHalfExtent;
-        float placeableMinY = placementBoundMinY + currentCubeHalfExtent;
-        float placeableMaxY = placementBoundMaxY - currentCubeHalfExtent;
-
-        // If the placeable area is invalid (e.g., cube too large for the space), skip or break.
-        if (placeableMinX >= placeableMaxX || placeableMinY >= placeableMaxY) {
-            // This might happen if world is too small or objects too large relative to consts::borderWidth
-            // Or if numCubes is very high and remaining space is fragmented.
-            // Depending on desired behavior, could log an error or simply stop trying.
-            break; 
-        }
-
-        // Random position for the center of the cube
-        float x = randBetween(ctx, placeableMinX, placeableMaxX);
-        float y = randBetween(ctx, placeableMinY, placeableMaxY);
-        
-        // --- Overlap Checks using AABB ---
-
-        // 1. Check overlap with Macguffin
-        bool overlapsWithMacguffin =
-            (std::abs(x - levelPlacements.macguffinPlacement.x) < (currentCubeHalfExtent + macguffinHalfExtent + consts::cubeMacguffinBuffer)) &&
-            (std::abs(y - levelPlacements.macguffinPlacement.y) < (currentCubeHalfExtent + macguffinHalfExtent + consts::cubeMacguffinBuffer));
-
-        if (overlapsWithMacguffin) {
-            continue; // Skip this attempt, try a new placement
-        }
-
-        // its fine to overlap with goal
-
-        // 3. Check overlap with Barriers
-        bool objectOverlapsWithBarrier = false;
-        for (int32_t i = 0; i < levelPlacements.numBarriers; i++) {
-            const BarrierPlacement barrier = levelPlacements.barrierPlacements[i];
-
-            float barrierHalfWidth = barrier.width / 2.0f;
-            float barrierHalfHeight = barrier.height / 2.0f;
-
-            if ((std::abs(x - barrier.x) < (currentCubeHalfExtent + barrierHalfWidth + consts::cubeBarrierBuffer)) &&
-                (std::abs(y - barrier.y) < (currentCubeHalfExtent + barrierHalfHeight + consts::cubeBarrierBuffer))) {
-                objectOverlapsWithBarrier = true;
-                break; // Found an overlap with a barrier
-            }
-        }
-        if (objectOverlapsWithBarrier) {
-            continue; // Skip this attempt
-        }
-
-        // 4. Check overlap with existing Cubes
-        bool overlapsWithExistingCube = false;
-        for (int32_t i = 0; i < levelPlacements.numCubes; i++) {
-            const CubePlacement &existingCube = levelPlacements.cubePlacements[i];
-            float existingCubeHalfExtent = consts::cubeSize * existingCube.scale;
-
-            if ((std::abs(x - existingCube.x) < (currentCubeHalfExtent + existingCubeHalfExtent + consts::cubeCubeBuffer)) &&
-                (std::abs(y - existingCube.y) < (currentCubeHalfExtent + existingCubeHalfExtent + consts::cubeCubeBuffer))) {
-                overlapsWithExistingCube = true;
-                break; // Found an overlap with another cube
-            }
-        }
-        if (overlapsWithExistingCube) {
-            continue; // Skip this attempt
-        }
-        
-        // If all checks passed, the placement is valid
-        CubePlacement cubePlacement;
-        cubePlacement.x = x;
-        cubePlacement.y = y;
-        cubePlacement.scale = scale;
-
-        levelPlacements.cubePlacements[levelPlacements.numCubes] = cubePlacement;
-        levelPlacements.numCubes++;
-    }
-}
-
-
-static void determineAgentPlacements(Engine &ctx, int32_t numAgents, LevelPlacements &levelPlacements) {
-    levelPlacements.numAgents = 0;
-
-    // Get how many agents we need to place
-    if (numAgents <= 0) {
-        return;
-    }
-    
-    // Room boundaries
-    float minX = -consts::worldWidth / 2.0f;
-    float maxX = consts::worldWidth / 2.0f;
-    float minY = -consts::worldLength / 2.0f;
-    float maxY = consts::worldLength / 2.0f;
-
-    float borderBuffer = consts::borderWidth / 2.0f + consts::agentSize / 2.0f;
-
-    
-    // Adjusted room boundaries accounting for border walls
-    float adjustedMinX = minX + borderBuffer;
-    float adjustedMaxX = maxX - borderBuffer;
-    float adjustedMinY = minY + borderBuffer;
-    float adjustedMaxY = maxY - borderBuffer;
-
-    // Try up to the maximum number of attempts per agent
-
-    // Try to place each agent
-    for (int32_t agentIndex = 0; agentIndex < numAgents; agentIndex++) {
-        int attempts = 0;
-        bool placedSuccessfully = false;
-        
-        while (!placedSuccessfully && attempts < consts::maxAgentPlacementAttemptsPerAgent) {
-            attempts++;
-            
-            // Random position within adjusted room bounds
-            float x = randBetween(ctx, adjustedMinX, adjustedMaxX);
-            float y = randBetween(ctx, adjustedMinY, adjustedMaxY);
-            
-            // Random angle (orientation)
-            float angle = randBetween(ctx, 0.0f, 2.0f * 3.14159f);  // 0 to 2π radians
-
-            // Check if agent overlaps with macguffin
-            bool overlapsWithMacguffin = false;
-            if (std::abs(x - levelPlacements.macguffinPlacement.x) < (consts::agentSize / 2.0f + consts::macguffinSize / 2.0f + consts::agentMacguffinBuffer) &&
-                std::abs(y - levelPlacements.macguffinPlacement.y) < (consts::agentSize / 2.0f + consts::macguffinSize / 2.0f + consts::agentMacguffinBuffer)) {
-                overlapsWithMacguffin = true;
-            }
-            
-            if (overlapsWithMacguffin) {
-                continue; // Skip this attempt
-            }
-
-            // its's fine if they spawn on the goal; don't check that
-
-            // Check if agent overlaps with walls
-            bool overlapsWithBarrier = false;
-            for (int32_t i = 0; i < levelPlacements.numBarriers; i++) {
-                const BarrierPlacement &barrier = levelPlacements.barrierPlacements[i];
-                // Simple box-based distance check
-                if (std::abs(x - barrier.x) < (consts::agentSize / 2.0f + barrier.width / 2.0f + consts::agentBarrierBuffer) &&
-                    std::abs(y - barrier.y) < (consts::agentSize / 2.0f + barrier.height / 2.0f + consts::agentBarrierBuffer)) {
-                    overlapsWithBarrier = true;
-                    break;
-                }
-            }
-
-            if (overlapsWithBarrier) {
-                continue; // Skip this attempt
-            }
-
-            // Check if agent overlaps with cubes
-            bool overlapsWithCube = false;
-            // for (const auto &cube : cubePlacements) {
-            for (int32_t i = 0; i < levelPlacements.numCubes; i++) {
-                const CubePlacement &cube = levelPlacements.cubePlacements[i];
-                // Simple box-based distance check
-                if (std::abs(x - cube.x) < (consts::agentSize / 2.0f + consts::movableObjectSize * cube.scale / 2.0f + consts::agentBarrierBuffer) &&
-                    std::abs(y - cube.y) < (consts::agentSize / 2.0f + consts::movableObjectSize * cube.scale / 2.0f + consts::agentBarrierBuffer)) {
-                    overlapsWithCube = true;
-                    break;
-                }
-            }
-
-            if (overlapsWithCube) {
-                continue; // Skip this attempt
-            }
-
-            // Check if agent overlaps with already placed agents
-            bool overlapsWithAgent = false;
-            // for (const auto &existingAgent : agentPlacements) {
-            for (int32_t i = 0; i < levelPlacements.numAgents; i++) {
-                const AgentPlacement &existingAgent = levelPlacements.agentPlacements[i];
-
-                float distToAgent = std::sqrt(
-                    std::pow(x - existingAgent.x, 2) +
-                    std::pow(y - existingAgent.y, 2));
-
-                if (distToAgent < consts::agentSize + consts::agentAgentBuffer) {
-                    overlapsWithAgent = true;
-                    break;
-                }
-            }
-
-            if (overlapsWithAgent) {
-                continue;
-            }
-
-            // Agent position is valid, add it
-            AgentPlacement agent;
-            agent.x = x;
-            agent.y = y;
-            agent.angle = angle;
-            levelPlacements.agentPlacements[levelPlacements.numAgents] = agent;
-            levelPlacements.numAgents++;
-            placedSuccessfully = true;
-        }
-
-        // If we couldn't place this agent after all attempts, stop trying to place more
-        if (!placedSuccessfully) {
-            break;
-        }
-    }
-}
-
-static void generateLevel(Engine &ctx, const LevelPlacements &levelPlacements)
+// A room with a single button that needs to be pressed, the door stays open.
+static CountT makeSingleButtonRoom(Engine &ctx,
+                                   Room &room,
+                                   float y_min,
+                                   float y_max)
 {
-    // some cubes
-    for (CountT i = 0; i < levelPlacements.numCubes; i++) {
-        Entity cube = makeCube(ctx, levelPlacements.cubePlacements[i]);
-        ctx.data().cubes[i] = cube;
-    }
-    for (int32_t i = levelPlacements.numCubes; i < consts::maxCubes; i++) {
-        ctx.data().cubes[i] = Entity::none();
+    float button_x = randInRangeCentered(ctx,
+        consts::worldWidth / 2.f - consts::buttonWidth);
+    float button_y = randBetween(ctx, y_min + consts::roomLength / 4.f,
+        y_max - consts::wallWidth - consts::buttonWidth / 2.f);
+
+    Entity button = makeButton(ctx, button_x, button_y);
+
+    setupDoor(ctx, room.door, { button }, true);
+
+    room.entities[0] = button;
+
+    return 1;
+}
+
+// A room with two buttons that need to be pressed simultaneously,
+// the door stays open.
+static CountT makeDoubleButtonRoom(Engine &ctx,
+                                   Room &room,
+                                   float y_min,
+                                   float y_max)
+{
+    float a_x = randBetween(ctx,
+        -consts::worldWidth / 2.f + consts::buttonWidth,
+        -consts::buttonWidth);
+
+    float a_y = randBetween(ctx,
+        y_min + consts::roomLength / 4.f,
+        y_max - consts::wallWidth - consts::buttonWidth / 2.f);
+
+    Entity a = makeButton(ctx, a_x, a_y);
+
+    float b_x = randBetween(ctx,
+        consts::buttonWidth,
+        consts::worldWidth / 2.f - consts::buttonWidth);
+
+    float b_y = randBetween(ctx,
+        y_min + consts::roomLength / 4.f,
+        y_max - consts::wallWidth - consts::buttonWidth / 2.f);
+
+    Entity b = makeButton(ctx, b_x, b_y);
+
+    setupDoor(ctx, room.door, { a, b }, true);
+
+    room.entities[0] = a;
+    room.entities[1] = b;
+
+    return 2;
+}
+
+// This room has 3 cubes blocking the exit door as well as two buttons.
+// The agents either need to pull the middle cube out of the way and
+// open the door or open the door with the buttons and push the cubes
+// into the next room.
+static CountT makeCubeBlockingRoom(Engine &ctx,
+                                   Room &room,
+                                   float y_min,
+                                   float y_max)
+{
+    float button_a_x = randBetween(ctx,
+        -consts::worldWidth / 2.f + consts::buttonWidth,
+        -consts::buttonWidth - consts::worldWidth / 4.f);
+
+    float button_a_y = randBetween(ctx,
+        y_min + consts::buttonWidth,
+        y_max - consts::roomLength / 4.f);
+
+    Entity button_a = makeButton(ctx, button_a_x, button_a_y);
+
+    float button_b_x = randBetween(ctx,
+        consts::buttonWidth + consts::worldWidth / 4.f,
+        consts::worldWidth / 2.f - consts::buttonWidth);
+
+    float button_b_y = randBetween(ctx,
+        y_min + consts::buttonWidth,
+        y_max - consts::roomLength / 4.f);
+
+    Entity button_b = makeButton(ctx, button_b_x, button_b_y);
+
+    setupDoor(ctx, room.door, { button_a, button_b }, true);
+
+    Vector3 door_pos = ctx.get<Position>(room.door);
+
+    float cube_a_x = door_pos.x - 3.f;
+    float cube_a_y = door_pos.y - 2.f;
+
+    Entity cube_a = makeCube(ctx, cube_a_x, cube_a_y, 1.5f);
+
+    float cube_b_x = door_pos.x;
+    float cube_b_y = door_pos.y - 2.f;
+
+    Entity cube_b = makeCube(ctx, cube_b_x, cube_b_y, 1.5f);
+
+    float cube_c_x = door_pos.x + 3.f;
+    float cube_c_y = door_pos.y - 2.f;
+
+    Entity cube_c = makeCube(ctx, cube_c_x, cube_c_y, 1.5f);
+
+    room.entities[0] = button_a;
+    room.entities[1] = button_b;
+    room.entities[2] = cube_a;
+    room.entities[3] = cube_b;
+    room.entities[4] = cube_c;
+
+    return 5;
+}
+
+// This room has 2 buttons and 2 cubes. The buttons need to remain pressed
+// for the door to stay open. To progress, the agents must push at least one
+// cube onto one of the buttons, or more optimally, both.
+static CountT makeCubeButtonsRoom(Engine &ctx,
+                                  Room &room,
+                                  float y_min,
+                                  float y_max)
+{
+    float button_a_x = randBetween(ctx,
+        -consts::worldWidth / 2.f + consts::buttonWidth,
+        -consts::buttonWidth - consts::worldWidth / 4.f);
+
+    float button_a_y = randBetween(ctx,
+        y_min + consts::buttonWidth,
+        y_max - consts::roomLength / 4.f);
+
+    Entity button_a = makeButton(ctx, button_a_x, button_a_y);
+
+    float button_b_x = randBetween(ctx,
+        consts::buttonWidth + consts::worldWidth / 4.f,
+        consts::worldWidth / 2.f - consts::buttonWidth);
+
+    float button_b_y = randBetween(ctx,
+        y_min + consts::buttonWidth,
+        y_max - consts::roomLength / 4.f);
+
+    Entity button_b = makeButton(ctx, button_b_x, button_b_y);
+
+    setupDoor(ctx, room.door, { button_a, button_b }, false);
+
+    float cube_a_x = randBetween(ctx,
+        -consts::worldWidth / 4.f,
+        -1.5f);
+
+    float cube_a_y = randBetween(ctx,
+        y_min + 2.f,
+        y_max - consts::wallWidth - 2.f);
+
+    Entity cube_a = makeCube(ctx, cube_a_x, cube_a_y, 1.5f);
+
+    float cube_b_x = randBetween(ctx,
+        1.5f,
+        consts::worldWidth / 4.f);
+
+    float cube_b_y = randBetween(ctx,
+        y_min + 2.f,
+        y_max - consts::wallWidth - 2.f);
+
+    Entity cube_b = makeCube(ctx, cube_b_x, cube_b_y, 1.5f);
+
+    room.entities[0] = button_a;
+    room.entities[1] = button_b;
+    room.entities[2] = cube_a;
+    room.entities[3] = cube_b;
+
+    return 4;
+}
+
+// Make the doors and separator walls at the end of the room
+// before delegating to specific code based on room_type.
+static void makeRoom(Engine &ctx,
+                     LevelState &level,
+                     CountT room_idx,
+                     RoomType room_type)
+{
+    Room &room = level.rooms[room_idx];
+    makeEndWall(ctx, room, room_idx);
+
+    float room_y_min = room_idx * consts::roomLength;
+    float room_y_max = (room_idx + 1) * consts::roomLength;
+
+    CountT num_room_entities;
+    switch (room_type) {
+    case RoomType::SingleButton: {
+        num_room_entities =
+            makeSingleButtonRoom(ctx, room, room_y_min, room_y_max);
+    } break;
+    case RoomType::DoubleButton: {
+        num_room_entities =
+            makeDoubleButtonRoom(ctx, room, room_y_min, room_y_max);
+    } break;
+    case RoomType::CubeBlocking: {
+        num_room_entities =
+            makeCubeBlockingRoom(ctx, room, room_y_min, room_y_max);
+    } break;
+    case RoomType::CubeButtons: {
+        num_room_entities =
+            makeCubeButtonsRoom(ctx, room, room_y_min, room_y_max);
+    } break;
+    default: MADRONA_UNREACHABLE();
     }
 
-    // some barriers
-    for (int32_t i = 0; i < levelPlacements.numBarriers; i++) {
-        Entity barrier = makeBarrier(ctx, levelPlacements.barrierPlacements[i]);
-        ctx.data().barriers[i] = barrier;
+    // Need to set any extra entities to type none so random uninitialized data
+    // from prior episodes isn't exported to pytorch as agent observations.
+    for (CountT i = num_room_entities; i < consts::maxEntitiesPerRoom; i++) {
+        room.entities[i] = Entity::none();
     }
-    for (int32_t i = levelPlacements.numBarriers; i < consts::maxBarriers; i++) {
-        ctx.data().barriers[i] = Entity::none();
+}
+
+static void generateLevel(Engine &ctx)
+{
+    LevelState &level = ctx.singleton<LevelState>();
+
+    // For training simplicity, define a fixed sequence of levels.
+    makeRoom(ctx, level, 0, RoomType::DoubleButton);
+    makeRoom(ctx, level, 1, RoomType::CubeBlocking);
+    makeRoom(ctx, level, 2, RoomType::CubeButtons);
+
+#if 0
+    // An alternative implementation could randomly select the type for each
+    // room rather than a fixed progression of challenge difficulty
+    for (CountT i = 0; i < consts::numRooms; i++) {
+        RoomType room_type = (RoomType)(
+            ctx.data().rng.sampleI32(0, (uint32_t)RoomType::NumTypes));
+
+        makeRoom(ctx, level, i, room_type);
     }
+#endif
 }
 
 // Randomly generate a new world for a training episode
 void generateWorld(Engine &ctx)
 {
-    int32_t attemptedNumCubes = randIntBetween(ctx, consts::minCubes, consts::maxCubes);
-    int32_t attemptedNumBarriers = randIntBetween(ctx, consts::minBarriers, consts::maxBarriers);
-    int32_t attemptedNumAgents = randIntBetween(ctx, consts::minAgents, consts::maxAgents);
-    // note: these counts may be inaccurate after we try to place objects
-
-    // determine placements of objects
-    LevelPlacements levelPlacements;
-    determineMacGuffinPlacement(ctx, levelPlacements);
-    determineGoalPlacement(ctx, levelPlacements);
-    determineBarrierPlacements(ctx, attemptedNumBarriers, levelPlacements);
-    determineCubePlacements(ctx, attemptedNumCubes, levelPlacements);
-    determineAgentPlacements(ctx, attemptedNumAgents, levelPlacements);
-
-    // actual make/reset entities
-    resetPersistentEntities(ctx, levelPlacements);
-    generateLevel(ctx, levelPlacements);
+    resetPersistentEntities(ctx);
+    generateLevel(ctx);
 }
 
 }

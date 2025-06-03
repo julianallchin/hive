@@ -24,23 +24,30 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
 
     registry.registerComponent<Action>();
     registry.registerComponent<SelfObservation>();
-    registry.registerComponent<GrabState>();
-    registry.registerComponent<Lidar>();
-    registry.registerComponent<Active>();
-    registry.registerComponent<EntityType>();
+    registry.registerComponent<TrueReward>();
     registry.registerComponent<Reward>();
-    registry.registerComponent<RewardHelper>();
     registry.registerComponent<Done>();
+    registry.registerComponent<GrabState>();
+    registry.registerComponent<Progress>();
+    registry.registerComponent<OtherAgents>();
+    registry.registerComponent<PartnerObservations>();
+    registry.registerComponent<RoomEntityObservations>();
+    registry.registerComponent<DoorObservation>();
+    registry.registerComponent<ButtonState>();
+    registry.registerComponent<OpenState>();
+    registry.registerComponent<DoorProperties>();
+    registry.registerComponent<Lidar>();
     registry.registerComponent<StepsRemaining>();
-    registry.registerComponent<MacGuffinState>();
+    registry.registerComponent<EntityType>();
 
     registry.registerSingleton<WorldReset>();
+    registry.registerSingleton<LevelState>();
 
     registry.registerArchetype<Agent>();
     registry.registerArchetype<PhysicsEntity>();
-    registry.registerArchetype<EpisodeTracker>();
-    registry.registerArchetype<MacGuffin>();
-    registry.registerArchetype<Goal>();
+    registry.registerArchetype<DoorEntity>();
+    registry.registerArchetype<ButtonEntity>();
+    registry.registerArchetype<WorldData>();
 
 
     registry.exportSingleton<WorldReset>(
@@ -49,30 +56,37 @@ void Sim::registerTypes(ECSRegistry &registry, const Config &cfg)
         (uint32_t)ExportID::Action);
     registry.exportColumn<Agent, SelfObservation>(
         (uint32_t)ExportID::SelfObservation);
+    registry.exportColumn<Agent, PartnerObservations>(
+        (uint32_t)ExportID::PartnerObservations);
+    registry.exportColumn<Agent, RoomEntityObservations>(
+        (uint32_t)ExportID::RoomEntityObservations);
+    registry.exportColumn<Agent, DoorObservation>(
+        (uint32_t)ExportID::DoorObservation);
     registry.exportColumn<Agent, Lidar>(
         (uint32_t)ExportID::Lidar);
-    registry.exportColumn<Agent, Active>(
-        (uint32_t)ExportID::Active);
-    registry.exportColumn<EpisodeTracker, Reward>(
-        (uint32_t)ExportID::Reward);
-    registry.exportColumn<EpisodeTracker, Done>(
-        (uint32_t)ExportID::Done);
-    registry.exportColumn<EpisodeTracker, StepsRemaining>(
+    registry.exportColumn<WorldData, StepsRemaining>(
         (uint32_t)ExportID::StepsRemaining);
+    registry.exportColumn<WorldData, TrueReward>(
+        (uint32_t)ExportID::Reward);
+    registry.exportColumn<WorldData, Done>(
+        (uint32_t)ExportID::Done);
 }
 
 static inline void cleanupWorld(Engine &ctx)
 {
-    // destroy non-persistent entities
-    for (CountT i = 0; i < consts::maxCubes; i++) {
-        if (ctx.data().cubes[i] != Entity::none()) {
-            ctx.destroyRenderableEntity(ctx.data().cubes[i]);
+    // Destroy current level entities
+    LevelState &level = ctx.singleton<LevelState>();
+    for (CountT i = 0; i < consts::numRooms; i++) {
+        Room &room = level.rooms[i];
+        for (CountT j = 0; j < consts::maxEntitiesPerRoom; j++) {
+            if (room.entities[j] != Entity::none()) {
+                ctx.destroyRenderableEntity(room.entities[j]);
+            }
         }
-    }
-    for (CountT i = 0; i < consts::maxBarriers; i++) {
-        if (ctx.data().barriers[i] != Entity::none()) {
-            ctx.destroyRenderableEntity(ctx.data().barriers[i]);
-        }
+
+        ctx.destroyRenderableEntity(room.walls[0]);
+        ctx.destroyRenderableEntity(room.walls[1]);
+        ctx.destroyRenderableEntity(room.door);
     }
 }
 
@@ -97,10 +111,12 @@ inline void resetSystem(Engine &ctx, WorldReset &reset)
 {
     int32_t should_reset = reset.reset;
     if (ctx.data().autoReset) {
-        Entity episodeTracker = ctx.data().episodeTracker;
-        Done done = ctx.get<Done>(episodeTracker);
-        if (done.v) {
-            should_reset = 1;
+        for (CountT i = 0; i < consts::numAgents; i++) {
+            Entity agent = ctx.data().agents[i];
+            Done done = ctx.get<Done>(agent);
+            if (done.v) {
+                should_reset = 1;
+            }
         }
     }
 
@@ -120,8 +136,8 @@ inline void movementSystem(Engine &,
                            ExternalForce &external_force,
                            ExternalTorque &external_torque)
 {
-    constexpr float move_max = consts::agentMoveSpeed;
-    constexpr float turn_max = consts::agentTurnSpeed; // these scale with mass apparently
+    constexpr float move_max = 1000;
+    constexpr float turn_max = 320;
 
     Quat cur_rot = rot;
 
@@ -154,11 +170,6 @@ inline void grabSystem(Engine &ctx,
                        Action action,
                        GrabState &grab)
 {
-    // lowkey don't edit these values unless you know what you're doing
-    const float GRAB_RANGE = consts::agentRadius + 1.0f;
-    const float GRAB_POINT_FORWARD_OFFSET = 1.25f;
-    const float GRAB_POINT_UP_OFFSET = 0.5f;
-
     if (action.grab == 0) {
         return;
     }
@@ -177,11 +188,11 @@ inline void grabSystem(Engine &ctx,
     float hit_t;
     Vector3 hit_normal;
 
-    Vector3 ray_o = pos + GRAB_POINT_UP_OFFSET * math::up;
+    Vector3 ray_o = pos + 0.5f * math::up;
     Vector3 ray_d = rot.rotateVec(math::fwd);
 
     Entity grab_entity =
-        bvh.traceRay(ray_o, ray_d, &hit_t, &hit_normal, GRAB_RANGE);
+        bvh.traceRay(ray_o, ray_d, &hit_t, &hit_normal, 2.0f);
 
     if (grab_entity == Entity::none()) {
         return;
@@ -200,7 +211,7 @@ inline void grabSystem(Engine &ctx,
     Vector3 other_pos = ctx.get<Position>(grab_entity);
     Quat other_rot = ctx.get<Rotation>(grab_entity);
 
-    Vector3 r1 = GRAB_POINT_FORWARD_OFFSET * math::fwd + GRAB_POINT_UP_OFFSET * math::up;
+    Vector3 r1 = 1.25f * math::fwd + 0.5f * math::up;
 
     Vector3 hit_pos = ray_o + ray_d * hit_t;
     Vector3 r2 =
@@ -209,10 +220,79 @@ inline void grabSystem(Engine &ctx,
     Quat attach1 = { 1, 0, 0, 0 };
     Quat attach2 = (other_rot.inv() * rot).normalize();
 
-    float separation = hit_t - GRAB_POINT_FORWARD_OFFSET;
+    float separation = hit_t - 1.25f;
 
     grab.constraintEntity = PhysicsSystem::makeFixedJoint(ctx,
         e, grab_entity, attach1, attach2, r1, r2, separation);
+}
+
+// Animates the doors opening and closing based on OpenState
+inline void setDoorPositionSystem(Engine &,
+                                  Position &pos,
+                                  OpenState &open_state)
+{
+    if (open_state.isOpen) {
+        // Put underground
+        if (pos.z > -4.5f) {
+            pos.z += -consts::doorSpeed * consts::deltaT;
+        }
+    }
+    else if (pos.z < 0.0f) {
+        // Put back on surface
+        pos.z += consts::doorSpeed * consts::deltaT;
+    }
+    
+    if (pos.z >= 0.0f) {
+        pos.z = 0.0f;
+    }
+}
+
+
+// Checks if there is an entity standing on the button and updates
+// ButtonState if so.
+inline void buttonSystem(Engine &ctx,
+                         Position pos,
+                         ButtonState &state)
+{
+    AABB button_aabb {
+        .pMin = pos + Vector3 { 
+            -consts::buttonWidth / 2.f, 
+            -consts::buttonWidth / 2.f,
+            0.f,
+        },
+        .pMax = pos + Vector3 { 
+            consts::buttonWidth / 2.f, 
+            consts::buttonWidth / 2.f,
+            0.25f
+        },
+    };
+
+    bool button_pressed = false;
+    PhysicsSystem::findEntitiesWithinAABB(
+            ctx, button_aabb, [&](Entity) {
+        button_pressed = true;
+    });
+
+    state.isPressed = button_pressed;
+}
+
+// Check if all the buttons linked to the door are pressed and open if so.
+// Optionally, close the door if the buttons aren't pressed.
+inline void doorOpenSystem(Engine &ctx,
+                           OpenState &open_state,
+                           const DoorProperties &props)
+{
+    bool all_pressed = true;
+    for (int32_t i = 0; i < props.numButtons; i++) {
+        Entity button = props.buttons[i];
+        all_pressed = all_pressed && ctx.get<ButtonState>(button).isPressed;
+    }
+
+    if (all_pressed) {
+        open_state.isOpen = true;
+    } else if (!props.isPersistent) {
+        open_state.isOpen = false;
+    }
 }
 
 // Make the agents easier to control by zeroing out their velocity
@@ -243,6 +323,22 @@ static inline float angleObs(float v)
     return v / math::pi;
 }
 
+// Translate xy delta to polar observations for learning.
+static inline PolarObservation xyToPolar(Vector3 v)
+{
+    Vector2 xy { v.x, v.y };
+
+    float r = xy.length();
+
+    // Note that this is angle off y-forward
+    float theta = atan2f(xy.x, xy.y);
+
+    return PolarObservation {
+        .r = distObs(r),
+        .theta = angleObs(theta),
+    };
+}
+
 static inline float encodeType(EntityType type)
 {
     return (float)type / (float)EntityType::NumTypes;
@@ -255,59 +351,79 @@ static inline float computeZAngle(Quat q)
     return atan2f(siny_cosp, cosy_cosp);
 }
 
-// Translate xy delta to polar observations for learning.
-static inline PolarObservation xyToPolar(Vector3 v)
-{
-    Vector2 xy{v.x, v.y};
-
-    float r = xy.length();
-
-    // Note that this is angle off y-forward
-    float theta = atan2f(xy.x, xy.y);
-
-    return PolarObservation{
-        .r = distObs(r),
-        .theta = angleObs(theta),
-    };
-}
-
 // This system packages all the egocentric observations together 
 // for the policy inputs.
 inline void collectObservationsSystem(Engine &ctx,
                                       Position pos,
                                       Rotation rot,
+                                      const Progress &progress,
                                       const GrabState &grab,
-                                      SelfObservation &self_obs)
+                                      const OtherAgents &other_agents,
+                                      SelfObservation &self_obs,
+                                      PartnerObservations &partner_obs,
+                                      RoomEntityObservations &room_ent_obs,
+                                      DoorObservation &door_obs)
 {
+    CountT cur_room_idx = CountT(pos.y / consts::roomLength);
+    cur_room_idx = std::max(CountT(0), 
+        std::min(consts::numRooms - 1, cur_room_idx));
+
+    self_obs.roomX = pos.x / (consts::worldWidth / 2.f);
+    self_obs.roomY = (pos.y - cur_room_idx * consts::roomLength) /
+        consts::roomLength;
     self_obs.globalX = globalPosObs(pos.x);
     self_obs.globalY = globalPosObs(pos.y);
     self_obs.globalZ = globalPosObs(pos.z);
+    self_obs.maxY = globalPosObs(progress.maxY);
     self_obs.theta = angleObs(computeZAngle(rot));
     self_obs.isGrabbing = grab.constraintEntity != Entity::none() ?
         1.f : 0.f;
 
-    // Get positions of important objects
-    Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
-    Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
-
-    // Calculate vectors to important objects in world space
-    Vector3 to_macguffin = macguffin_pos - pos;
-    Vector3 to_goal = goal_pos - pos;
-
-    // Convert to ant's local coordinate system
     Quat to_view = rot.inv();
-    Vector3 local_to_macguffin = to_view.rotateVec(to_macguffin);
-    Vector3 local_to_goal = to_view.rotateVec(to_goal);
 
-    // Convert to polar coordinates for observations
-    PolarObservation polar_to_macguffin = xyToPolar(local_to_macguffin);
-    PolarObservation polar_to_goal = xyToPolar(local_to_goal);
+#pragma unroll
+    for (CountT i = 0; i < consts::numAgents - 1; i++) {
+        Entity other = other_agents.e[i];
 
-    // Store polar observations
-    self_obs.polarToMacguffinR = polar_to_macguffin.r;
-    self_obs.polarToMacguffinTheta = polar_to_macguffin.theta;
-    self_obs.polarToGoalR = polar_to_goal.r;
-    self_obs.polarToGoalTheta = polar_to_goal.theta;
+        Vector3 other_pos = ctx.get<Position>(other);
+        GrabState other_grab = ctx.get<GrabState>(other);
+        Vector3 to_other = other_pos - pos;
+
+        partner_obs.obs[i] = {
+            .polar = xyToPolar(to_view.rotateVec(to_other)),
+            .isGrabbing = other_grab.constraintEntity != Entity::none() ?
+                1.f : 0.f,
+        };
+    }
+
+    const LevelState &level = ctx.singleton<LevelState>();
+    const Room &room = level.rooms[cur_room_idx];
+
+    for (CountT i = 0; i < consts::maxEntitiesPerRoom; i++) {
+        Entity entity = room.entities[i];
+
+        EntityObservation ob;
+        if (entity == Entity::none()) {
+            ob.polar = { 0.f, 1.f };
+            ob.encodedType = encodeType(EntityType::None);
+        } else {
+            Vector3 entity_pos = ctx.get<Position>(entity);
+            EntityType entity_type = ctx.get<EntityType>(entity);
+
+            Vector3 to_entity = entity_pos - pos;
+            ob.polar = xyToPolar(to_view.rotateVec(to_entity));
+            ob.encodedType = encodeType(entity_type);
+        }
+
+        room_ent_obs.obs[i] = ob;
+    }
+
+    Entity cur_door = room.door;
+    Vector3 door_pos = ctx.get<Position>(cur_door);
+    OpenState door_open_state = ctx.get<OpenState>(cur_door);
+
+    door_obs.polar = xyToPolar(to_view.rotateVec(door_pos - pos));
+    door_obs.isOpen = door_open_state.isOpen ? 1.f : 0.f;
 }
 
 // Launches consts::numLidarSamples per agent.
@@ -374,100 +490,60 @@ inline void lidarSystem(Engine &ctx,
 // Computes reward for each agent and keeps track of the max distance achieved
 // so far through the challenge. Continuous reward is provided for any new
 // distance achieved.
-inline void rewardSystem(Engine &ctx,
-                         Reward &out_reward,
-                         RewardHelper &reward_helper,
-                         Done &done,
-                         StepsRemaining &steps_remaining
-                        )
+inline void rewardSystem(Engine &,
+                         Position pos,
+                         Progress &progress,
+                         Reward &out_reward)
 {
-    // If done, don't update reward
-    if (done.v == 1)
-    {
-        return;
+    // Just in case agents do something crazy, clamp total reward
+    float reward_pos = fminf(pos.y, consts::worldLength * 2);
+
+    float old_max_y = progress.maxY;
+
+    float new_progress = reward_pos - old_max_y;
+
+    float reward;
+    if (new_progress > 0) {
+        reward = new_progress * consts::rewardPerDist;
+        progress.maxY = reward_pos;
+    } else {
+        reward = consts::slackReward;
     }
 
-    float r = 0;
-    // negative average of distances to target
-    for (int32_t i = 0; i < consts::maxAgents; i++)
-    {
-        Entity agent = ctx.data().agents[i];
-        if (agent == Entity::none())
-        {
-            continue;
-        }
+    out_reward.v = reward;
+}
 
-        Vector3 agent_pos = ctx.get<Position>(agent);
-        Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
-        float dist = (agent_pos - goal_pos).length();
-        if (dist >= 5.0f)
-        {
-            r -= dist;
+// Each agent gets a small bonus to it's reward if the other agent has
+// progressed a similar distance, to encourage them to cooperate.
+// This system reads the values of the Progress component written by
+// rewardSystem for other agents, so it must run after.
+inline void bonusRewardSystem(Engine &ctx,
+                              OtherAgents &others,
+                              Progress &progress,
+                              Reward &reward)
+{
+    bool partners_close = true;
+    for (CountT i = 0; i < consts::numAgents - 1; i++) {
+        Entity other = others.e[i];
+        Progress other_progress = ctx.get<Progress>(other);
+
+        if (fabsf(other_progress.maxY - progress.maxY) > 2.f) {
+            partners_close = false;
         }
     }
-    r /= consts::maxAgents;
 
-    out_reward.v = r;
-
-    // // If steps remaining is zero, mark as done
-    // if (--steps_remaining.t <= 0)
-    // {
-    //     done.v = 1;
-    // }
-
-    // // Get positions of macguffin and goal
-    // Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
-    // Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
-
-    // // Calculate 2D distance (ignore Z axis)
-    // Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
-    // Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
-    // float dist = (goal_pos_2d - macguffin_pos_2d).length();
-
-    // // First time initialization
-    // if (reward_helper.prev_dist < 0)
-    // {
-    //     reward_helper.prev_dist = dist;
-    //     reward_helper.starting_dist = dist;
-    // }
-
-    // // Step reward based on distance reduction
-    // // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
-    // float step_reward = consts::distanceRewardScale * (reward_helper.prev_dist - dist) / reward_helper.starting_dist;
-
-    // // Goal reward if close enough
-    // float goal_reward = 0.0f;
-    // // Calculate goal's XY bounds
-    // float goal_min_x = goal_pos.x - consts::goalSize / 2.0f;
-    // float goal_max_x = goal_pos.x + consts::goalSize / 2.0f;
-    // float goal_min_y = goal_pos.y - consts::goalSize / 2.0f;
-    // float goal_max_y = goal_pos.y + consts::goalSize / 2.0f;
-    // // Check if macguffin's XY center is within goal's XY bounds
-    // bool within_bounds = (macguffin_pos.x >= goal_min_x && macguffin_pos.x <= goal_max_x &&
-    //                         macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
-    // if (within_bounds)
-    // {
-    //     goal_reward = consts::goalReward;
-    //     done.v = 1; // Episode complete on goal achievement
-    // }
-
-    // // Existential penalty per timestep
-    // float exist_penalty = consts::existentialPenalty;
-
-    // // Total reward for this step
-    // out_reward.v = step_reward + goal_reward + exist_penalty;
-
-
-    // // Store current distance for next step
-    // reward_helper.prev_dist = dist;
+    if (partners_close && reward.v > 0.f) {
+        reward.v *= 1.25f;
+    }
 }
 
 // Keep track of the number of steps remaining in the episode and
 // notify training that an episode has completed by
 // setting done = 1 on the final step of the episode
-inline void stepTrackerSystem(Engine &,
+inline void stepTrackerSystem(Engine &ctx,
                               StepsRemaining &steps_remaining,
-                              Done &done)
+                              Done &done,
+                              TrueReward &t_reward)
 {
     int32_t num_remaining = --steps_remaining.t;
     if (num_remaining == consts::episodeLen - 1) {
@@ -476,6 +552,15 @@ inline void stepTrackerSystem(Engine &,
         done.v = 1;
     }
 
+    float r = 0.0f;
+    for (CountT i = 0; i < consts::numAgents; i++) {
+        Entity agent = ctx.data().agents[i];
+        r += ctx.get<Reward>(agent).v;
+        printf("Agent %d reward = %f\n", i,
+               ctx.get<Reward>(agent).v);
+    }
+    printf("Reward = %f\n", r);
+    t_reward.v = r;
 }
 
 // Helper function for sorting nodes in the taskgraph.
@@ -512,9 +597,16 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
             ExternalTorque
         >>({});
 
+    // Scripted door behavior
+    auto set_door_pos_sys = builder.addToGraph<ParallelForNode<Engine,
+        setDoorPositionSystem,
+            Position,
+            OpenState
+        >>({move_sys});
+
     // Build BVH for broadphase / raycasting
     auto broadphase_setup_sys = phys::PhysicsSystem::setupBroadphaseTasks(
-        builder, {move_sys});
+        builder, {set_door_pos_sys});
 
     // Grab action, post BVH build to allow raycasting
     auto grab_sys = builder.addToGraph<ParallelForNode<Engine,
@@ -540,21 +632,43 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     auto phys_done = phys::PhysicsSystem::setupCleanupTasks(
         builder, {agent_zero_vel});
 
+    // Check buttons
+    auto button_sys = builder.addToGraph<ParallelForNode<Engine,
+        buttonSystem,
+            Position,
+            ButtonState
+        >>({phys_done});
+
+    // Set door to start opening if button conditions are met
+    auto door_open_sys = builder.addToGraph<ParallelForNode<Engine,
+        doorOpenSystem,
+            OpenState,
+            DoorProperties
+        >>({button_sys});
+
     // Compute initial reward now that physics has updated the world state
     auto reward_sys = builder.addToGraph<ParallelForNode<Engine,
          rewardSystem,
-            Reward,
-            RewardHelper,
-            Done,
-            StepsRemaining
-        >>({phys_done});
+            Position,
+            Progress,
+            Reward
+        >>({door_open_sys});
+
+    // Assign partner's reward
+    auto bonus_reward_sys = builder.addToGraph<ParallelForNode<Engine,
+         bonusRewardSystem,
+            OtherAgents,
+            Progress,
+            Reward
+        >>({reward_sys});
 
     // Check if the episode is over
     auto done_sys = builder.addToGraph<ParallelForNode<Engine,
         stepTrackerSystem,
             StepsRemaining,
-            Done
-        >>({reward_sys});
+            Done,
+            TrueReward
+        >>({bonus_reward_sys});
 
     // Conditionally reset the world if the episode is over
     auto reset_sys = builder.addToGraph<ParallelForNode<Engine,
@@ -583,8 +697,13 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         collectObservationsSystem,
             Position,
             Rotation,
+            Progress,
             GrabState,
-            SelfObservation
+            OtherAgents,
+            SelfObservation,
+            PartnerObservations,
+            RoomEntityObservations,
+            DoorObservation
         >>({post_reset_broadphase});
 
     // The lidar system
@@ -614,7 +733,11 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         builder, {lidar, collect_obs});
     auto sort_phys_objects = queueSortByWorld<PhysicsEntity>(
         builder, {sort_agents});
-    (void)sort_phys_objects;
+    auto sort_buttons = queueSortByWorld<ButtonEntity>(
+        builder, {sort_phys_objects});
+    auto sort_walls = queueSortByWorld<DoorEntity>(
+        builder, {sort_buttons});
+    (void)sort_walls;
 #else
     (void)lidar;
     (void)collect_obs;
@@ -626,9 +749,16 @@ Sim::Sim(Engine &ctx,
          const WorldInit &)
     : WorldBase(ctx)
 {
+    // Currently the physics system needs an upper bound on the number of
+    // entities that will be stored in the BVH. We plan to fix this in
+    // a future release.
+    constexpr CountT max_total_entities = consts::numAgents +
+        consts::numRooms * (consts::maxEntitiesPerRoom + 3) +
+        3 + 1 + 1; // side walls + floor + worldData
+
     phys::PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr,
         consts::deltaT, consts::numPhysicsSubsteps, -9.8f * math::up,
-        consts::maxTotalEntities);
+        max_total_entities);
 
     initRandKey = cfg.initRandKey;
     autoReset = cfg.autoReset;

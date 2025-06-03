@@ -52,7 +52,7 @@ if (TARGET madrona_mw_gpu)
 endif ()
 
 target_compile_definitions(mad_escape_mgr PRIVATE
-    -DDATA_DIR="${CMAKE_SOURCE_DIR}/data"
+    -DDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../data/"
 )
 
 madrona_python_module(madrona_escape_room
@@ -69,7 +69,7 @@ if (TARGET madrona_viz)
         madrona_mw_core mad_escape_mgr madrona_viz)
 
     target_compile_definitions(viewer PRIVATE
-        -DDATA_DIR="${CMAKE_SOURCE_DIR}/data"
+        -DDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../data/"
     )
 endif()
 

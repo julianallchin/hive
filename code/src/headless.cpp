@@ -27,24 +27,18 @@ int main(int argc, char *argv[])
 {
     using namespace madEscape;
 
-    if (argc < 4)
-    {
+    if (argc < 4) {
         fprintf(stderr, "%s TYPE NUM_WORLDS NUM_STEPS [--rand-actions]\n", argv[0]);
         return -1;
     }
     std::string type(argv[1]);
 
     ExecMode exec_mode;
-    if (type == "CPU")
-    {
+    if (type == "CPU") {
         exec_mode = ExecMode::CPU;
-    }
-    else if (type == "CUDA")
-    {
+    } else if (type == "CUDA") {
         exec_mode = ExecMode::CUDA;
-    }
-    else
-    {
+    } else {
         fprintf(stderr, "Invalid ExecMode\n");
         return -1;
     }
@@ -56,10 +50,8 @@ int main(int argc, char *argv[])
         num_worlds * 2 * num_steps * 3);
 
     bool rand_actions = false;
-    if (argc >= 5)
-    {
-        if (std::string(argv[4]) == "--rand-actions")
-        {
+    if (argc >= 5) {
+        if (std::string(argv[4]) == "--rand-actions") {
             rand_actions = true;
         }
     }
@@ -79,20 +71,16 @@ int main(int argc, char *argv[])
 
     auto start = std::chrono::system_clock::now();
 
-    for (CountT i = 0; i < (CountT)num_steps; i++)
-    {
-        if (rand_actions)
-        {
-            for (CountT j = 0; j < (CountT)num_worlds; j++)
-            {
-                for (CountT k = 0; k < 2; k++)
-                {
+    for (CountT i = 0; i < (CountT)num_steps; i++) {
+        if (rand_actions) {
+            for (CountT j = 0; j < (CountT)num_worlds; j++) {
+                for (CountT k = 0; k < 2; k++) {
                     int32_t x = act_rand(rand_gen);
                     int32_t y = act_rand(rand_gen);
                     int32_t r = act_rand(rand_gen);
 
                     mgr.setAction(j, k, x, y, r, 0);
-
+                    
                     int64_t base_idx = j * num_steps * 2 * 3 + i * 2 * 3 + k * 3;
                     action_store[base_idx] = x;
                     action_store[base_idx + 1] = y;

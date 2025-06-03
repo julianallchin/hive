@@ -26,9 +26,11 @@ enum class ExportID : uint32_t {
     Reward,
     Done,
     SelfObservation,
+    PartnerObservations,
+    RoomEntityObservations,
+    DoorObservation,
     Lidar,
     StepsRemaining,
-    Active,
     NumExports,
 };
 
@@ -37,12 +39,11 @@ enum class ExportID : uint32_t {
 enum class SimObject : uint32_t {
     Cube,
     Wall,
+    Door,
     Agent,
-    MacGuffin,
-    Goal,
-    Plane, // IMPORTANT (UNFORTUNATELY): because the code that imports meshes is a little bit funky,
-           // you must import things without meshes (eg Plane) last.
-    NumObjects
+    Button,
+    Plane,
+    NumObjects,
 };
 
 // The Sim class encapsulates the per-world state of the simulation.
@@ -59,7 +60,6 @@ struct Sim : public madrona::WorldBase {
         madrona::phys::ObjectManager *rigidBodyObjMgr;
         const madrona::render::RenderECSBridge *renderBridge;
     };
-
 
     // This class would allow per-world custom data to be passed into
     // simulator initialization, but that isn't necessary in this environment
@@ -81,7 +81,7 @@ struct Sim : public madrona::WorldBase {
     // can contain per-world initialization data, created in (src/mgr.cpp)
     Sim(Engine &ctx,
         const Config &cfg,
-        const WorldInit &worldInit);
+        const WorldInit &);
 
     // The base random key that episode random keys are split off of
     madrona::RandKey initRandKey;
@@ -101,25 +101,15 @@ struct Sim : public madrona::WorldBase {
     // Floor plane entity, constant across all episodes.
     Entity floorPlane;
 
-    // Border wall entities define play area. These are constant across all episodes.
-    Entity borders[4];
-
-    // non-physical entity tracking reward, done, and stepsRemaining. persists across episodes (and reset at start)
-    Entity episodeTracker;
-
-    // agents try to move this to the goal. persists across episodes (and reset at start)
-    Entity macguffin;
-
-    // target location for the macguffin. persists across episdoes (and reset at start)s
-    Entity goal;
+    // Border wall entities: 3 walls to the left, up and down that define
+    // play area. These are constant across all episodes.
+    Entity borders[3];
 
     // Agent entity references. This entities live across all episodes
     // and are just reset to the start of the level on reset.
-    Entity agents[consts::maxAgents];
+    Entity agents[consts::numAgents];
 
-    Entity cubes[consts::maxCubes];
-
-    Entity barriers[consts::maxBarriers];
+    Entity worldData;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {
