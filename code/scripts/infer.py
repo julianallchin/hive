@@ -45,6 +45,7 @@ weights = LearningState.load_policy_weights(args.ckpt_path)
 policy.load_state_dict(weights)
 
 # todo: similar logic as train.py (and for the rest of the file)
+raise NotImplementedError
 actions = sim.action_tensor().to_torch()
 dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
