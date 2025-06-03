@@ -25,7 +25,6 @@ using namespace madrona;
 
 int main(int argc, char *argv[])
 {
-    throw std::runtime_error("Not implemented");
     using namespace madEscape;
 
     if (argc < 4)

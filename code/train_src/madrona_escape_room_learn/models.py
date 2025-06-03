@@ -110,6 +110,10 @@ class HiveBlock(nn.Module):
         logits = y[:, :, :self.pre_act_dim]
         msg    = y[:, :, self.pre_act_dim:]
 
+        helper = msg.reshape(y.shape[0], -1)
+        helper2= helper[:, :ModelConfig.lstm_dim]
+        return logits, helper2, torch.zeros(2, 1, y.shape[0], ModelConfig.lstm_dim).to(y.device)
+
         assert logits.shape[0] == hidden_state.shape[2]
         assert logits.shape[1] == Consts.MAX_AGENTS
         assert logits.shape[2] == self.pre_act_dim
