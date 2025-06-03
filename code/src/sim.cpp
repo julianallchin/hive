@@ -556,10 +556,7 @@ inline void stepTrackerSystem(Engine &ctx,
     for (CountT i = 0; i < consts::numAgents; i++) {
         Entity agent = ctx.data().agents[i];
         r += ctx.get<Reward>(agent).v;
-        printf("Agent %d reward = %f\n", i,
-               ctx.get<Reward>(agent).v);
     }
-    printf("Reward = %f\n", r);
     t_reward.v = r;
 }
 
