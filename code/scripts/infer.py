@@ -4,7 +4,6 @@ import madrona_escape_room
 from madrona_escape_room_learn import LearningState
 
 from policy import make_policy, setup_obs
-from madrona_escape_room_learn.cfg import Consts
 
 import numpy as np
 import argparse
@@ -40,20 +39,19 @@ sim = madrona_escape_room.SimManager(
 )
 
 obs, num_obs_features = setup_obs(sim)
-policy = make_policy(num_obs_features)
+policy = make_policy(num_obs_features, args.num_channels, args.separate_value)
 
 weights = LearningState.load_policy_weights(args.ckpt_path)
 policy.load_state_dict(weights)
 
-# todo: similar logic as train.py (and for the rest of the file)
 actions = sim.action_tensor().to_torch()
 dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
 
-
-# think of the action space as involving all agents at once here so that there's one action per model
-actions = actions.view(args.num_worlds, -1)
-assert actions.shape[1] == Consts.MAX_AGENTS * 4
+# Flatten N, A, ... tensors to N * A, ...
+actions = actions.view(-1, *actions.shape[2:])
+dones  = dones.view(-1, *dones.shape[2:])
+rewards = rewards.view(-1, *rewards.shape[2:])
 
 cur_rnn_states = []
 
@@ -71,35 +69,32 @@ for i in range(args.num_steps):
         action_dists, values, cur_rnn_states = policy(cur_rnn_states, *obs)
         action_dists.best(actions)
 
-        # over ride actions with random actions shape [num_worlds, num_agents * 4]
-        # actions = torch.randint(0, 2, actions.shape)
-
         probs = action_dists.probs()
 
     if action_log:
         actions.numpy().tofile(action_log)
 
-    # print()
-    # print("Self:", obs[0])
-    # print("Partners:", obs[1])
-    # print("Room Entities:", obs[2])
-    # print("Lidar:", obs[3])
+    print()
+    print("Self:", obs[0])
+    print("Partners:", obs[1])
+    print("Room Entities:", obs[2])
+    print("Lidar:", obs[3])
 
-    # print("Move Amount Probs")
-    # print(" ", np.array_str(probs[0][0].cpu().numpy(), precision=2, suppress_small=True))
-    # print(" ", np.array_str(probs[0][1].cpu().numpy(), precision=2, suppress_small=True))
+    print("Move Amount Probs")
+    print(" ", np.array_str(probs[0][0].cpu().numpy(), precision=2, suppress_small=True))
+    print(" ", np.array_str(probs[0][1].cpu().numpy(), precision=2, suppress_small=True))
 
-    # print("Move Angle Probs")
-    # print(" ", np.array_str(probs[1][0].cpu().numpy(), precision=2, suppress_small=True))
-    # print(" ", np.array_str(probs[1][1].cpu().numpy(), precision=2, suppress_small=True))
+    print("Move Angle Probs")
+    print(" ", np.array_str(probs[1][0].cpu().numpy(), precision=2, suppress_small=True))
+    print(" ", np.array_str(probs[1][1].cpu().numpy(), precision=2, suppress_small=True))
 
-    # print("Rotate Probs")
-    # print(" ", np.array_str(probs[2][0].cpu().numpy(), precision=2, suppress_small=True))
-    # print(" ", np.array_str(probs[2][1].cpu().numpy(), precision=2, suppress_small=True))
+    print("Rotate Probs")
+    print(" ", np.array_str(probs[2][0].cpu().numpy(), precision=2, suppress_small=True))
+    print(" ", np.array_str(probs[2][1].cpu().numpy(), precision=2, suppress_small=True))
 
-    # print("Grab Probs")
-    # print(" ", np.array_str(probs[3][0].cpu().numpy(), precision=2, suppress_small=True))
-    # print(" ", np.array_str(probs[3][1].cpu().numpy(), precision=2, suppress_small=True))
+    print("Grab Probs")
+    print(" ", np.array_str(probs[3][0].cpu().numpy(), precision=2, suppress_small=True))
+    print(" ", np.array_str(probs[3][1].cpu().numpy(), precision=2, suppress_small=True))
 
     print("Actions:\n", actions.cpu().numpy())
     print("Values:\n", values.cpu().numpy())
@@ -107,5 +102,4 @@ for i in range(args.num_steps):
     print("Rewards:\n", rewards)
 
 if action_log:
-    print("Closing action log")
     action_log.close()

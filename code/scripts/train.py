@@ -1,8 +1,6 @@
 import torch
 import madrona_escape_room
 
-from madrona_escape_room_learn.cfg import Consts
-
 from madrona_escape_room_learn import (
     train, profile, TrainConfig, PPOConfig, SimInterface,
 )
@@ -87,8 +85,8 @@ arg_parser.add_argument('--entropy-loss-coef', type=float, default=0.01)
 arg_parser.add_argument('--value-loss-coef', type=float, default=0.5)
 arg_parser.add_argument('--clip-value-loss', action='store_true')
 
-# arg_parser.add_argument('--num-channels', type=int, default=256)
-# arg_parser.add_argument('--separate-value', action='store_true')
+arg_parser.add_argument('--num-channels', type=int, default=256)
+arg_parser.add_argument('--separate-value', action='store_true')
 arg_parser.add_argument('--fp16', action='store_true')
 
 arg_parser.add_argument('--gpu-sim', action='store_true')
@@ -116,15 +114,16 @@ else:
 ckpt_dir.mkdir(exist_ok=True, parents=True)
 
 obs, num_obs_features = setup_obs(sim)
-policy = make_policy(num_obs_features)
+policy = make_policy(num_obs_features, args.num_channels, args.separate_value)
 
 actions = sim.action_tensor().to_torch()
 dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
 
-# think of the action space as involving all agents at once here so that there's one action per model
-actions = actions.view(args.num_worlds, -1)
-assert actions.shape[1] == Consts.MAX_AGENTS * 4
+# Flatten N, A, ... tensors to N * A, ...
+actions = actions.view(-1, *actions.shape[2:])
+dones  = dones.view(-1, *dones.shape[2:])
+rewards = rewards.view(-1, *rewards.shape[2:])
 
 if args.restore:
     restore_ckpt = ckpt_dir / f"{args.restore}.pth"

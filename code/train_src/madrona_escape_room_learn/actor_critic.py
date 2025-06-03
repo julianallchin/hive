@@ -4,16 +4,13 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 from .action import DiscreteActionDistributions
 from .profile import profile
-from .cfg import Consts, ModelConfig
 
 class Backbone(nn.Module):
     def __init__(self):
         super().__init__()
 
     def _flatten_obs_sequence(self, obs):
-        
-        out = [o.view(-1, *o.shape[2:]) for o in obs]
-        return out
+        return [o.view(-1, *o.shape[2:]) for o in obs]
 
     def forward(self, rnn_states_in, *obs_in):
         raise NotImplementedError
@@ -31,61 +28,18 @@ class Backbone(nn.Module):
         raise NotImplementedError
 
 
-# class DiscreteActor(nn.Module):
-#     def __init__(self, actions_num_buckets, impl):
-#         super().__init__()
-
-#         self.actions_num_buckets = actions_num_buckets
-#         self.impl = impl
-
-#     def forward(self, features_in):
-#         logits = self.impl(features_in)
-
-#         return DiscreteActionDistributions(
-#                 self.actions_num_buckets, logits=logits)
-
-class MaskedDiscreteActor(nn.Module):
+class DiscreteActor(nn.Module):
     def __init__(self, actions_num_buckets, impl):
         super().__init__()
 
         self.actions_num_buckets = actions_num_buckets
         self.impl = impl
 
-    def forward(self, input):
-        """
-        input: [N, A * (pre_act_dim + 1)] where the 1 is for active_agents mask. (other rows are logits)
+    def forward(self, features_in):
+        logits = self.impl(features_in)
 
-        output: DiscreteActionDistributions with batch_shape [N, A * (action_dim)]
-        """
-        assert input.shape[1] == Consts.MAX_AGENTS * (ModelConfig.pre_act_dim + 1)
-
-        input_per_agent = input.view(input.shape[0], Consts.MAX_AGENTS, -1)
-
-        features_by_agent = input_per_agent[:, :, :-1]
-        mask_by_agent = input_per_agent[:, :, :-1] # [N, A, 1]
-        
-        
-        assert mask_by_agent.shape[1] == Consts.MAX_AGENTS
-        assert(len(features_by_agent.shape) == 3)
-        assert(len(mask_by_agent.shape) == 3)
-
-        logits = self.impl(features_by_agent) # [N, A, pre_act_dim] -> [N, A, sum(action_buckets)]
-        assert(logits.shape[1] == Consts.MAX_AGENTS)
-        assert(logits.shape[2] == sum(self.actions_num_buckets))
-        
-        flattened_logits = logits.view(logits.shape[0], -1) # [N, A * action_dim]
-        
-        # TODO: actually mask the logits
-
-        # the distribution will give us an (A * action_dim) distribution for each world.
-        # we need to expand the action buckets to account for this; choosing actions for all ants
-        # each with dim=action_dim, counts as one policy action
-        expanded_actions_num_buckets = self.actions_num_buckets * Consts.MAX_AGENTS
-
-        action_dists = DiscreteActionDistributions(
-                expanded_actions_num_buckets, logits=flattened_logits)
-
-        return action_dists
+        return DiscreteActionDistributions(
+                self.actions_num_buckets, logits=logits)
 
 
 class Critic(nn.Module):
@@ -200,10 +154,9 @@ class RecurrentBackboneEncoder(nn.Module):
         features = self.net(*inputs)
         rnn_out, new_rnn_states = self.rnn(features, rnn_states_in)
 
-        # Ty Toney: I put in new_rnn_states instead of rnn_states_in
         # FIXME: proper inplace
         if rnn_states_out != None:
-            rnn_states_out[...] = new_rnn_states
+            rnn_states_out[...] = rnn_states_in
 
         return rnn_out
 
@@ -221,6 +174,63 @@ class RecurrentBackboneEncoder(nn.Module):
         rnn_out_flattened = rnn_out_seq.view(-1, *rnn_out_seq.shape[2:])
         return rnn_out_flattened
 
+class BackboneShared(Backbone):
+    def __init__(self, process_obs, encoder):
+        super().__init__()
+        self.process_obs = process_obs
+        self.encoder = encoder 
+
+        if encoder.rnn_state_shape:
+            self.recurrent_cfg = RecurrentStateConfig([encoder.rnn_state_shape])
+            self.extract_rnn_state = lambda x: x[0] if x != None else None
+            self.package_rnn_state = lambda x: (x,)
+        else:
+            self.recurrent_cfg = RecurrentStateConfig([])
+            self.extract_rnn_state = lambda x: None
+            self.package_rnn_state = lambda x: ()
+
+    def forward(self, rnn_states_in, *obs_in):
+        with torch.no_grad():
+            processed_obs = self.process_obs(*obs_in)
+
+        features, new_rnn_states = self.encoder(
+            self.extract_rnn_state(rnn_states_in), processed_obs)
+        return features, features, self.package_rnn_state(new_rnn_states)
+
+    def _rollout_common(self, rnn_states_out, rnn_states_in, *obs_in):
+        with torch.no_grad():
+            processed_obs = self.process_obs(*obs_in)
+
+        return self.encoder.fwd_inplace(
+            self.extract_rnn_state(rnn_states_out),
+            self.extract_rnn_state(rnn_states_in),
+            processed_obs,
+        )
+
+    def fwd_actor_only(self, rnn_states_out, rnn_states_in, *obs_in):
+        return self._rollout_common(
+            rnn_states_out, rnn_states_in, *obs_in)
+
+    def fwd_critic_only(self, rnn_states_out, rnn_states_in, *obs_in):
+        return self._rollout_common(
+            rnn_states_out, rnn_states_in, *obs_in)
+
+    def fwd_rollout(self, rnn_states_out, rnn_states_in, *obs_in):
+        features = self._rollout_common(
+            rnn_states_out, rnn_states_in, *obs_in)
+
+        return features, features
+
+    def fwd_sequence(self, rnn_start_states, sequence_breaks, *obs_in):
+        with torch.no_grad():
+            flattened_obs = self._flatten_obs_sequence(obs_in)
+            processed_obs = self.process_obs(*flattened_obs)
+        
+        features = self.encoder.fwd_sequence(
+            self.extract_rnn_state(rnn_start_states),
+            sequence_breaks, processed_obs)
+
+        return features, features
 
 
 class BackboneSeparate(Backbone):
@@ -332,62 +342,3 @@ class BackboneSeparate(Backbone):
             sequence_breaks, processed_obs)
 
         return actor_features, critic_features
-
-
-class BackboneShared(Backbone):
-    def __init__(self, process_obs, encoder):
-        super().__init__()
-        self.process_obs = process_obs
-        self.encoder = encoder 
-
-        if encoder.rnn_state_shape:
-            self.recurrent_cfg = RecurrentStateConfig([encoder.rnn_state_shape])
-            self.extract_rnn_state = lambda x: x[0] if x != None else None
-            self.package_rnn_state = lambda x: (x,)
-        else:
-            self.recurrent_cfg = RecurrentStateConfig([])
-            self.extract_rnn_state = lambda x: None
-            self.package_rnn_state = lambda x: ()
-
-    def forward(self, rnn_states_in, *obs_in):
-        with torch.no_grad():
-            processed_obs = self.process_obs(*obs_in)
-
-        features, new_rnn_states = self.encoder(
-            self.extract_rnn_state(rnn_states_in), processed_obs)
-        return features, features, self.package_rnn_state(new_rnn_states)
-
-    def _rollout_common(self, rnn_states_out, rnn_states_in, *obs_in):
-        with torch.no_grad():
-            processed_obs = self.process_obs(*obs_in)
-
-        return self.encoder.fwd_inplace(
-            self.extract_rnn_state(rnn_states_out),
-            self.extract_rnn_state(rnn_states_in),
-            processed_obs,
-        )
-
-    def fwd_actor_only(self, rnn_states_out, rnn_states_in, *obs_in):
-        return self._rollout_common(
-            rnn_states_out, rnn_states_in, *obs_in)
-
-    def fwd_critic_only(self, rnn_states_out, rnn_states_in, *obs_in):
-        return self._rollout_common(
-            rnn_states_out, rnn_states_in, *obs_in)
-
-    def fwd_rollout(self, rnn_states_out, rnn_states_in, *obs_in):
-        features = self._rollout_common(
-            rnn_states_out, rnn_states_in, *obs_in)
-
-        return features, features
-
-    def fwd_sequence(self, rnn_start_states, sequence_breaks, *obs_in):
-        with torch.no_grad():
-            flattened_obs = self._flatten_obs_sequence(obs_in)
-            processed_obs = self.process_obs(*flattened_obs)
-        
-        features = self.encoder.fwd_sequence(
-            self.extract_rnn_state(rnn_start_states),
-            sequence_breaks, processed_obs)
-
-        return features, features

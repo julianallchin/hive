@@ -1,6 +1,5 @@
 import torch
 from torch.distributions.categorical import Categorical
-from .cfg import Consts
 
 class DiscreteActionDistributions:
     def __init__(self, actions_num_buckets, logits = None):
@@ -22,7 +21,6 @@ class DiscreteActionDistributions:
     def sample(self, actions_out, log_probs_out):
         actions = [dist.sample() for dist in self.dists]
         log_probs = [dist.log_prob(action) for dist, action in zip(self.dists, actions)]
-
 
         torch.stack(actions, dim=1, out=actions_out)
         torch.stack(log_probs, dim=1, out=log_probs_out)

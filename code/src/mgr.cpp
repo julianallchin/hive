@@ -607,8 +607,8 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAgents,
-                                       4,
+                                       1,
+                                       consts::maxAgents * 4,
                                    });
     }
 
@@ -617,6 +617,7 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Reward, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        1,
                                    });
     }
@@ -627,6 +628,7 @@ namespace madEscape
                                    {
                                        impl_->cfg.numWorlds,
                                        1,
+                                       1,
                                    });
     }
 
@@ -636,8 +638,8 @@ namespace madEscape
                                    TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAgents,
-                                       9,
+                                       1,
+                                       consts::maxAgents * 9,
                                    });
     }
 
@@ -646,8 +648,8 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAgents,
-                                       consts::numLidarSamples,
+                                       1,
+                                       consts::maxAgents * consts::numLidarSamples,
                                        2,
                                    });
     }
@@ -668,8 +670,8 @@ namespace madEscape
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       consts::maxAgents,
                                        1,
+                                       consts::maxAgents,
                                    });
     }
 
