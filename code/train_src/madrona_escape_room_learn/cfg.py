@@ -62,5 +62,5 @@ class ModelConfig:
 
 @dataclass(frozen=True)
 class Consts:
-    MAX_AGENTS: int = 100
+    MAX_AGENTS: int = 50
     MAX_STEPS: int = 200
