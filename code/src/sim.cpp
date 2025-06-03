@@ -387,48 +387,24 @@ inline void rewardSystem(Engine &ctx,
         return;
     }
 
-    // Get positions of macguffin and goal
-    Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
-    Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
-
-    // Calculate 2D distance (ignore Z axis)
-    Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
-    Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
-    float dist = (goal_pos_2d - macguffin_pos_2d).length();
-
-    // First time initialization
-    if (reward_helper.prev_dist < 0)
+    float r = 0;
+    // average of distances to target
+    for (int32_t i = 0; i < consts::maxAgents; i++)
     {
-        reward_helper.prev_dist = dist;
-        reward_helper.starting_dist = dist;
+        Entity agent = ctx.data().agents[i];
+        if (agent == Entity::none())
+        {
+            continue;
+        }
+
+        Vector3 agent_pos = ctx.get<Position>(agent);
+        Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
+        float dist = (agent_pos - goal_pos).length();
+        r += dist;
     }
+    r /= consts::maxAgents;
 
-    // Step reward based on distance reduction
-    // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
-    float step_reward = consts::distanceRewardScale * (reward_helper.prev_dist - dist) / reward_helper.starting_dist;
-
-    // Goal reward if close enough
-    float goal_reward = 0.0f;
-    // Calculate goal's XY bounds
-    float goal_min_x = goal_pos.x - consts::goalSize / 2.0f;
-    float goal_max_x = goal_pos.x + consts::goalSize / 2.0f;
-    float goal_min_y = goal_pos.y - consts::goalSize / 2.0f;
-    float goal_max_y = goal_pos.y + consts::goalSize / 2.0f;
-    // Check if macguffin's XY center is within goal's XY bounds
-    bool within_bounds = (macguffin_pos.x >= goal_min_x && macguffin_pos.x <= goal_max_x &&
-                            macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
-    if (within_bounds)
-    {
-        goal_reward = consts::goalReward;
-        done.v = 1; // Episode complete on goal achievement
-    }
-
-    // Existential penalty per timestep
-    float exist_penalty = consts::existentialPenalty;
-
-    // Total reward for this step
-    out_reward.v = step_reward + goal_reward + exist_penalty;
-
+    out_reward.v = r;
 
     // If steps remaining is zero, mark as done
     if (--steps_remaining.t <= 0)
@@ -436,8 +412,51 @@ inline void rewardSystem(Engine &ctx,
         done.v = 1;
     }
 
-    // Store current distance for next step
-    reward_helper.prev_dist = dist;
+    // // Get positions of macguffin and goal
+    // Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
+    // Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
+
+    // // Calculate 2D distance (ignore Z axis)
+    // Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
+    // Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
+    // float dist = (goal_pos_2d - macguffin_pos_2d).length();
+
+    // // First time initialization
+    // if (reward_helper.prev_dist < 0)
+    // {
+    //     reward_helper.prev_dist = dist;
+    //     reward_helper.starting_dist = dist;
+    // }
+
+    // // Step reward based on distance reduction
+    // // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
+    // float step_reward = consts::distanceRewardScale * (reward_helper.prev_dist - dist) / reward_helper.starting_dist;
+
+    // // Goal reward if close enough
+    // float goal_reward = 0.0f;
+    // // Calculate goal's XY bounds
+    // float goal_min_x = goal_pos.x - consts::goalSize / 2.0f;
+    // float goal_max_x = goal_pos.x + consts::goalSize / 2.0f;
+    // float goal_min_y = goal_pos.y - consts::goalSize / 2.0f;
+    // float goal_max_y = goal_pos.y + consts::goalSize / 2.0f;
+    // // Check if macguffin's XY center is within goal's XY bounds
+    // bool within_bounds = (macguffin_pos.x >= goal_min_x && macguffin_pos.x <= goal_max_x &&
+    //                         macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
+    // if (within_bounds)
+    // {
+    //     goal_reward = consts::goalReward;
+    //     done.v = 1; // Episode complete on goal achievement
+    // }
+
+    // // Existential penalty per timestep
+    // float exist_penalty = consts::existentialPenalty;
+
+    // // Total reward for this step
+    // out_reward.v = step_reward + goal_reward + exist_penalty;
+
+
+    // // Store current distance for next step
+    // reward_helper.prev_dist = dist;
 }
 
 // Keep track of the number of steps remaining in the episode and
