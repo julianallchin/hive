@@ -48,9 +48,13 @@ def setup_obs(sim):
     for tensor in obs_tensors:
         num_obs_features += math.prod(tensor.shape[2:])
 
+
     obs_tensors.append(active_agents_tensor)
 
-    return obs_tensors, num_obs_features # num_obs_features should be for one agent, without active_agent flag; only used by make_policy
+    # collapse the agent dimension into the feature dimension; there's one policy.
+    collapsed_obs_tensors = [tensor.view(N, tensor.shape[1] * tensor.shape[2], *tensor.shape[3:]) for tensor in obs_tensors]
+
+    return collapsed_obs_tensors, num_obs_features # num_obs_features should be for one agent, without active_agent flag; only used by make_policy
 
 def process_obs(self_obs, lidar, steps_remaining, ids, active_agents):
     assert(not torch.isnan(self_obs).any())
@@ -70,16 +74,15 @@ def process_obs(self_obs, lidar, steps_remaining, ids, active_agents):
 
     # should all have n_worlds in first dimension
     assert(self_obs.shape[0] == lidar.shape[0] == steps_remaining.shape[0] == ids.shape[0] == active_agents.shape[0])
-    # should all have MAX_AGENTS in second dimension
-    assert(Consts.MAX_AGENTS == self_obs.shape[1] == lidar.shape[1] == ids.shape[1] == active_agents.shape[1])
-    N, A = self_obs.shape[0:2]
-
-    # should all have at least three dimension: they tell the feature dimension (even if 1)
-    assert(len(self_obs.shape) >= 3)
-    assert(len(lidar.shape) >= 3)
-    assert(len(steps_remaining.shape) >= 3)
-    assert(len(ids.shape) >= 3)
-    assert(len(active_agents.shape) >= 3)
+    # instead, assert each dim 1 is divisible by MAX_AGENTS
+    assert(self_obs.shape[1] % Consts.MAX_AGENTS == 0)
+    assert(lidar.shape[1] % Consts.MAX_AGENTS == 0)
+    assert(steps_remaining.shape[1] % Consts.MAX_AGENTS == 0)
+    assert(ids.shape[1] % Consts.MAX_AGENTS == 0)
+    assert(active_agents.shape[1] % Consts.MAX_AGENTS == 0)
+    
+    N = self_obs.shape[0]
+    A = Consts.MAX_AGENTS
 
 
     # Note that active_agents is the last tensor. It is not an observation, but a mask.

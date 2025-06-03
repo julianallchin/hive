@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 from .action import DiscreteActionDistributions
 from .profile import profile
-from .cfg import Consts
+from .cfg import Consts, ModelConfig
 
 class Backbone(nn.Module):
     def __init__(self):
@@ -13,10 +13,6 @@ class Backbone(nn.Module):
     def _flatten_obs_sequence(self, obs):
         
         out = [o.view(-1, *o.shape[2:]) for o in obs]
-        # not sure if this is right,
-        # but i think sequence just adds another batch dimension?
-        # (which this puts into the original batch dimension?)
-        assert all(o.shape[1] == Consts.MAX_AGENTS for o in out) 
         return out
 
     def forward(self, rnn_states_in, *obs_in):
@@ -57,30 +53,37 @@ class MaskedDiscreteActor(nn.Module):
 
     def forward(self, input):
         """
-        input: [N, A, pre_act_dim + 1] where the 1 is for active_agents mask. (other rows are logits)
+        input: [N, A * (pre_act_dim + 1)] where the 1 is for active_agents mask. (other rows are logits)
 
-        output: DiscreteActionDistributions with batch_shape [N * A, ?]
+        output: DiscreteActionDistributions with batch_shape [N, A * (action_dim)]
         """
-        features = input[:, :, :-1]
-        mask = input[:, :, -1:]
+        assert input.shape[1] == Consts.MAX_AGENTS * (ModelConfig.pre_act_dim + 1)
 
-        assert features.shape[0] == mask.shape[0]
-        assert features.shape[1] == mask.shape[1] == Consts.MAX_AGENTS
-        assert mask.shape[2] == 1
-        assert(len(features.shape) == 3)
-        assert(len(mask.shape) == 3)
+        input_per_agent = input.view(input.shape[0], Consts.MAX_AGENTS, -1)
 
-        logits = self.impl(features) # [N, A, ?]
-        # flattened_logits = logits.view(logits.shape[0] * logits.shape[1], -1) # [N * A, ?]
+        features_by_agent = input_per_agent[:, :, :-1]
+        mask_by_agent = input_per_agent[:, :, :-1] # [N, A, 1]
+        
+        
+        assert mask_by_agent.shape[1] == Consts.MAX_AGENTS
+        assert(len(features_by_agent.shape) == 3)
+        assert(len(mask_by_agent.shape) == 3)
 
-        # flattened_mask = mask.view(mask.shape[0] * mask.shape[1]) # [N * A]
+        logits = self.impl(features_by_agent) # [N, A, pre_act_dim] -> [N, A, sum(action_buckets)]
+        assert(logits.shape[1] == Consts.MAX_AGENTS)
+        assert(logits.shape[2] == sum(self.actions_num_buckets))
+        
+        flattened_logits = logits.view(logits.shape[0], -1) # [N, A * action_dim]
         
         # TODO: actually mask the logits
-        
-        action_dists = DiscreteActionDistributions(
-                self.actions_num_buckets, logits=logits)
 
-        
+        # the distribution will give us an (A * action_dim) distribution for each world.
+        # we need to expand the action buckets to account for this; choosing actions for all ants
+        # each with dim=action_dim, counts as one policy action
+        expanded_actions_num_buckets = self.actions_num_buckets * Consts.MAX_AGENTS
+
+        action_dists = DiscreteActionDistributions(
+                expanded_actions_num_buckets, logits=flattened_logits)
 
         return action_dists
 
