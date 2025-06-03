@@ -9,22 +9,22 @@ namespace madEscape
         {
 
                 // Generated levels assume 2 agents
-                inline constexpr int32_t minAgents = 25;
-                inline constexpr int32_t maxAgents = 50;
+                inline constexpr int32_t minAgents = 10;
+                inline constexpr int32_t maxAgents = 20;
 
                 // Maximum number of interactive objects per challenge room. This is needed
                 // in order to setup the fixed-size learning tensors appropriately.
                 inline constexpr int32_t minCubes = 0;
-                inline constexpr int32_t maxCubes = 3;
+                inline constexpr int32_t maxCubes = 1;
                 inline constexpr int32_t minBarriers = 0;
-                inline constexpr int32_t maxBarriers = 3;
+                inline constexpr int32_t maxBarriers = 1;
 
                 inline constexpr madrona::CountT maxTotalEntities =
                     maxAgents + maxCubes + maxBarriers + 6; // 6 for 4 side walls + floor + episodeTracker
 
                 // Various world / entity size parameters
-                inline constexpr float worldLength = 40.f;
-                inline constexpr float worldWidth = 40.f;
+                inline constexpr float worldLength = 20.f;
+                inline constexpr float worldWidth = 20.f;
 
                 // inline constexpr float wallWidth = 1.f;
                 inline constexpr float borderWidth = 0.5f;
@@ -64,7 +64,7 @@ namespace madEscape
                 inline constexpr int maxAgentPlacementAttemptsPerAgent = 30;
 
                 inline constexpr float macguffinSize = 5.0f;
-                inline constexpr float macguffinInverseMass = 0.025f;
+                inline constexpr float macguffinInverseMass = 0.065f;
 
                 inline constexpr float goalSize = 3.0f;
 
