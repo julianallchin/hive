@@ -1,62 +1,42 @@
-# view_trained_model.py
+# record_trained_model_video.py
 
 import torch
 import time
-import pyglet # Important for keeping the window open and responsive
+import pyglet # Still needed for headless rendering context
+import argparse # For command-line arguments
+import random # For random seed
 
-from tensordict.nn import TensorDictModule # For policy
+from tensordict.nn import TensorDictModule
 from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.envs.libs.vmas import VmasEnv
 from torchrl.modules import MultiAgentMLP, ProbabilisticActor, TanhNormal
+from vmas.simulator.utils import save_video # VMAS utility for saving videos
 
 # Import your custom scenario
 from scenerio import Scenario as MyCustomScenario # Ensure this path is correct
 
 # --- Configuration ---
-import os
-from glob import glob
-from datetime import datetime
-
-# Model loading configuration
-SAVE_DIR = "saved_models"  # Should match the directory used in training
+# MODEL_PATH will be a command-line argument
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-VMAS_DEVICE = DEVICE  # Run VMAS on the same device
-
-def find_latest_model():
-    """Find the most recently saved policy model."""
-    policy_files = glob(os.path.join(SAVE_DIR, "policy_iter_*_*.pt"))
-    if not policy_files:
-        raise FileNotFoundError(f"No model files found in {SAVE_DIR}. Please train a model first.")
-    
-    # Sort by modification time (newest first)
-    latest_file = max(policy_files, key=os.path.getmtime)
-    # Get the corresponding critic file
-    base_name = "_" + "_".join(os.path.basename(latest_file).split("_")[2:])
-    critic_file = os.path.join(SAVE_DIR, f"critic{base_name}")
-    
-    if not os.path.exists(critic_file):
-        print(f"Warning: Could not find corresponding critic file for {latest_file}")
-    
-    print(f"Found latest model: {os.path.basename(latest_file)}")
-    print(f"Corresponding critic: {os.path.basename(critic_file) if os.path.exists(critic_file) else 'Not found'}")
-    return latest_file
+VMAS_DEVICE = DEVICE
 
 # Environment parameters (should match training for model compatibility)
-MAX_STEPS_PER_EPISODE = 200 # Or whatever you used during training
+# These can also be made command-line args if they vary often
+MAX_STEPS_PER_EPISODE = 200
 SCENARIO_N_AGENTS = 2
 SCENARIO_N_PACKAGES = 1
 SCENARIO_N_OBSTACLES = 3
+# ... add other necessary scenario kwargs
 
 # --- Helper function to re-create the policy architecture ---
-# This needs to exactly match the architecture used during training
-def create_policy(env_for_spec):
+def create_policy(env_for_spec, share_policy_params=True): # Added share_policy_params
     policy_net_view = torch.nn.Sequential(
         MultiAgentMLP(
             n_agent_inputs=env_for_spec.observation_spec["agents", "observation"].shape[-1],
             n_agent_outputs=2 * env_for_spec.action_spec["agents", "action"].shape[-1],
             n_agents=env_for_spec.n_agents,
             centralised=False,
-            share_params=True, # IMPORTANT: Match your training setting
+            share_params=share_policy_params, # Use passed argument
             device=DEVICE,
             depth=2,
             num_cells=256,
@@ -79,20 +59,42 @@ def create_policy(env_for_spec):
             "low": env_for_spec.unbatched_action_spec[env_for_spec.action_key].space.low,
             "high": env_for_spec.unbatched_action_spec[env_for_spec.action_key].space.high,
         },
-        return_log_prob=False, # Not needed for inference
+        return_log_prob=False,
     )
     return policy_view
 
-# --- Main Viewing Function ---
-def view_model():
-    # 1. Create the VMAS environment (single instance)
-    # We use num_envs=1 for real-time viewing.
+# --- Main Recording Function ---
+def record_video(model_path: str, total_render_steps: int, output_filename: str, seed: int = None, share_policy_params: bool = True):
+    if seed is not None:
+        torch.manual_seed(seed)
+        random.seed(seed)
+        print(f"Using random seed: {seed}")
+    else:
+        print("Using a random seed for environment initialization.")
+
+
+    # 1. Setup virtual display for headless rendering (important!)
+    _display = None
+    try:
+        import pyvirtualdisplay
+        _display = pyvirtualdisplay.Display(visible=False, size=(1000, 800)) # Adjust size as needed
+        _display.start()
+        print("Virtual display started for headless rendering.")
+    except ImportError:
+        print("pyvirtualdisplay not found. Headless rendering might fail or produce empty videos.")
+        print("Please install it: pip install pyvirtualdisplay")
+    except Exception as e:
+        print(f"Could not start virtual display: {e}")
+        # Proceeding without it, might work if X server is available but not ideal for headless
+
+    # 2. Create the VMAS environment (single instance)
     env = VmasEnv(
         scenario=MyCustomScenario(),
-        num_envs=1, # Single environment for viewing
+        num_envs=1,
         continuous_actions=True,
-        max_steps=MAX_STEPS_PER_EPISODE,
+        max_steps=MAX_STEPS_PER_EPISODE, # Episode will reset if it hits this
         device=VMAS_DEVICE,
+        seed=seed, # Pass seed to VMAS environment
         # Scenario kwargs
         n_agents=SCENARIO_N_AGENTS,
         n_packages=SCENARIO_N_PACKAGES,
@@ -100,92 +102,109 @@ def view_model():
     )
     print("Environment created.")
 
-    # 2. Find and load the latest trained policy
+    # 3. Load the trained policy
+    policy = create_policy(env, share_policy_params=share_policy_params).to(DEVICE) # Pass share_policy_params
     try:
-        latest_policy_path = find_latest_model()
-        policy = create_policy(env).to(DEVICE)
-        policy.load_state_dict(torch.load(latest_policy_path, map_location=DEVICE))
-        print(f"Successfully loaded policy from {os.path.basename(latest_policy_path)}")
+        policy.load_state_dict(torch.load(model_path, map_location=DEVICE))
     except RuntimeError as e:
         print(f"Error loading state_dict: {e}")
-        print("This might be due to a mismatch in model architecture or if you saved the entire loss_module.")
-        print("If you saved loss_module, you might need to load it and then access loss_module.actor_network.load_state_dict(...)")
+        if _display: _display.stop()
         return
-    except Exception as e:
-        print(f"Error loading model: {e}")
+    except FileNotFoundError:
+        print(f"Model file not found: {model_path}")
+        if _display: _display.stop()
         return
 
-    policy.eval() # Set to evaluation mode
-    print(f"Policy loaded from {SAVE_DIR} and set to eval mode.")
 
-    # 3. Initialize viewer and run the loop
-    td = env.reset() # Get initial observation tensordict
+    policy.eval()
+    print(f"Policy loaded from {model_path} and set to eval mode.")
+
+    # 4. Initialize and run the loop for recording
+    td = env.reset()
     td = td.to(DEVICE)
 
-    # Initial render to create the window
-    # VMAS's VmasEnv implicitly creates/uses a global viewer when render is called.
-    frame = env.render(mode="human") # "human" mode shows the window
+    frames = []
+    print(f"Recording {total_render_steps} steps to {output_filename}...")
 
-    print("\nStarting real-time model viewer. Press Ctrl+C in terminal to stop.")
-    print("Close the Pyglet window to stop.")
-
+    # Initial render to ensure viewer is created before the loop (good practice)
+    # Even for rgb_array, some internal viewer setup might happen.
     try:
-        while not env.unwrapped.viewer.window.has_exit: # Loop until window is closed
-            with torch.no_grad():
-                # Get action from policy
-                # The policy expects a batch dimension, even if it's 1
-                td_action = policy(td)
+        env.render(mode="rgb_array", visualize_when_rgb=False)
+    except Exception as e:
+        print(f"Initial render call failed: {e}. This might indicate issues with graphics setup.")
 
-            # Step the environment
-            # VmasEnv.step takes a tensordict of actions
-            td = env.step(td_action)
-            td = td.to(DEVICE) # Move next state to device for next policy input
 
-            # Render
-            env.render(mode="human")
+    start_time = time.time()
+    for step in range(total_render_steps):
+        with torch.no_grad():
+            td_action = policy(td)
 
-            # Check for done state to reset
-            # VmasEnv done is global: td["done"] has shape [1, 1]
-            if td["done"].any() or td.get("terminated", td["done"]).any(): # also check for terminated if present
-                print("Episode finished. Resetting environment...")
-                td = env.reset()
-                td = td.to(DEVICE)
+        td = env.step(td_action)
+        td = td.to(DEVICE)
 
-            # Pyglet event handling to keep window responsive and allow closing
-            pyglet.app.platform_event_loop.dispatch_posted_events()
-            env.unwrapped.viewer.window.dispatch_events()
+        try:
+            frame = env.render(mode="rgb_array", visualize_when_rgb=False) # Get frame as numpy array
+            if frame is not None:
+                frames.append(frame)
+            else:
+                print(f"Warning: Received None frame at step {step+1}")
+        except Exception as e:
+            print(f"Error during rendering at step {step+1}: {e}")
+            # Optionally break or continue, depending on desired robustness
+            break
 
-            time.sleep(0.03) # Adjust for desired frame rate (e.g., ~30 FPS)
 
-    except KeyboardInterrupt:
-        print("\nViewer stopped by user (Ctrl+C).")
-    finally:
-        if hasattr(env, 'close'): # VmasEnv should have a close method
-            env.close()
-        print("Environment closed.")
-        # Explicitly exit pyglet app if it's still running
-        if pyglet.app.event_loop is not None and pyglet.app.event_loop.is_running:
-             pyglet.app.exit()
+        if (step + 1) % 100 == 0:
+            print(f"Rendered step {step + 1}/{total_render_steps}")
+
+        if td["done"].any() or td.get("terminated", td["done"]).any():
+            print(f"Episode finished at step {step + 1}. Resetting environment...")
+            td = env.reset()
+            td = td.to(DEVICE)
+            # If an episode finishes early, we still continue rendering until total_render_steps
+
+    end_time = time.time()
+    print(f"Finished rendering {len(frames)} frames in {end_time - start_time:.2f} seconds.")
+
+    # 5. Save the video
+    if frames:
+        try:
+            # VMAS save_video expects a list of numpy arrays (frames)
+            # and the delta_t (dt) of the simulation for correct FPS.
+            # env.unwrapped.world.dt should give the simulation timestep.
+            simulation_dt = env.unwrapped.world.dt if hasattr(env.unwrapped, 'world') else 0.1 # Default if not found
+            save_video(
+                video_name=output_filename,
+                frames=frames,
+                fps=1.0 / simulation_dt
+            )
+            print(f"Video saved as {output_filename}")
+        except Exception as e:
+            print(f"Error saving video: {e}")
+    else:
+        print("No frames were collected, video not saved.")
+
+    # 6. Clean up
+    if hasattr(env, 'close'):
+        env.close()
+    if _display and _display.is_alive():
+        _display.stop()
+        print("Virtual display stopped.")
+    print("Recording process finished.")
 
 
 if __name__ == "__main__":
-    # Ensure your custom scenario is importable
-    # e.g., place my_custom_vmas_scenario.py in the same directory
-    # or install your project if it's a package.
+    parser = argparse.ArgumentParser(description="Record a video of a trained VMAS model.")
+    parser.add_argument("model_path", type=str, help="Path to the trained policy .pth file.")
+    parser.add_argument("render_steps", type=int, help="Total number of simulation steps to render.")
+    parser.add_argument("--output_filename", type=str, default="trained_model_render.mp4", help="Output video filename (e.g., my_video.mp4).")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for environment initialization.")
+    parser.add_argument(
+        "--no_share_policy_params",
+        action="store_false", # Default is True (shared)
+        dest="share_policy_params",
+        help="Set if the loaded policy was trained WITHOUT parameter sharing.",
+    )
+    args = parser.parse_args()
 
-    # Optional: For headless servers or Colab, setup virtual display
-    try:
-        import pyvirtualdisplay
-        _display = pyvirtualdisplay.Display(visible=False, size=(1000, 800))
-        _display.start()
-        print("Virtual display started (for headless compatibility).")
-    except ImportError:
-        print("pyvirtualdisplay not found. If on a headless server, rendering might fail or not be visible.")
-    except Exception as e:
-        print(f"Could not start virtual display: {e}")
-
-    view_model()
-
-    if '_display' in locals() and _display.is_alive():
-        _display.stop()
-        print("Virtual display stopped.")
+    record_video(args.model_path, args.render_steps, args.output_filename, args.seed, args.share_policy_params)
