@@ -618,6 +618,7 @@ namespace madEscape
                                    {
                                        impl_->cfg.numWorlds,
                                        1,
+                                       1
                                    });
     }
 
@@ -627,6 +628,7 @@ namespace madEscape
                                    {
                                        impl_->cfg.numWorlds,
                                        1,
+                                       1
                                    });
     }
 
@@ -658,6 +660,7 @@ namespace madEscape
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        1,
                                    });
     }
