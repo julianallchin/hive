@@ -91,19 +91,28 @@ scenario_lidar_range = 0.5
 
 torch.manual_seed(0)
 
+# # --- Environment Setup ---
+# env = VmasEnv(
+#     scenario=MyCustomScenario(), # Pass an instance of your scenario class
+#     num_envs=num_vmas_envs,
+#     continuous_actions=True,
+#     max_steps=max_steps,
+#     device=vmas_device,
+#     # Scenario kwargs for your custom scenario
+#     n_agents=scenario_n_agents,
+#     n_packages=scenario_n_packages,
+#     n_obstacles=scenario_n_obstacles,
+#     # Add other kwargs as needed by your Scenario's make_world
+#     # e.g., package_width=0.15, n_lidar_rays_agents=16, etc.
+# )
+
 # --- Environment Setup ---
 env = VmasEnv(
-    scenario=MyCustomScenario(), # Pass an instance of your scenario class
+    scenario="balance", # Pass an instance of your scenario class
     num_envs=num_vmas_envs,
     continuous_actions=True,
     max_steps=max_steps,
     device=vmas_device,
-    # Scenario kwargs for your custom scenario
-    n_agents=scenario_n_agents,
-    n_packages=scenario_n_packages,
-    n_obstacles=scenario_n_obstacles,
-    # Add other kwargs as needed by your Scenario's make_world
-    # e.g., package_width=0.15, n_lidar_rays_agents=16, etc.
 )
 
 env = TransformedEnv(
@@ -353,45 +362,31 @@ else:
     print("No episodes finished during training, so no reward plot.")
 
 
-# # --- Optional: Render a few episodes with the trained policy ---
-# # Make sure you have rendering dependencies installed (pyglet, xvfb on headless, etc.)
-# # This part might require a display or virtual display setup (e.g., in Colab)
-
-# print("\nRendering a few episodes with the trained policy...")
-# try:
-#     import pyvirtualdisplay
-#     _display = pyvirtualdisplay.Display(visible=False, size=(1400, 900))
-#     _display.start()
-#     print("Virtual display started.")
-# except ImportError:
-#     print("pyvirtualdisplay not found. Rendering might not work on headless server without it.")
-# except Exception as e:
-#     print(f"Could not start virtual display: {e}")
 
 
-# frames = []
-# def render_callback(env, td):
-#     frame = env.render(mode="rgb_array") # Ensure your VMAS env can render
-#     frames.append(frame)
+import pyvirtualdisplay
+display = pyvirtualdisplay.Display(visible=False, size=(1400, 900))
+display.start()
+from PIL import Image
 
-# with torch.no_grad():
-#     # Reset env for rendering
-#     env.reset()
-#     env.rollout(
-#         max_steps=max_steps * 3, # Render 3 episodes
-#         policy=policy,
-#         callback=render_callback,
-#         auto_cast_to_device=True,
-#         break_when_any_done=False, # Let it run for max_steps * 3
-#     )
+def rendering_callback(env, td):
+    env.frames.append(Image.fromarray(env.render(mode="rgb_array")))
+env.frames = []
+with torch.no_grad():
+   env.rollout(
+       max_steps=max_steps,
+       policy=policy,
+       callback=rendering_callback,
+       auto_cast_to_device=True,
+       break_when_any_done=False,
+   )
+env.frames[0].save(
+    f"{scenario_name}.gif",
+    save_all=True,
+    append_images=env.frames[1:],
+   duration=3,
+   loop=0,
+)
 
-# if frames:
-#     from moviepy.editor import ImageSequenceClip
-#     clip = ImageSequenceClip(frames, fps=30) # Adjust fps as needed
-#     clip.write_gif("trained_custom_scenario.gif", fps=30)
-#     print("Rendered GIF saved to trained_custom_scenario.gif")
-# else:
-#     print("No frames collected for rendering.")
-
-# if '_display' in locals():
-#     _display.stop()
+from IPython.display import Image
+Image(open(f"{scenario_name}.gif", "rb").read())
