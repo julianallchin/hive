@@ -21,7 +21,33 @@ from matplotlib import pyplot as plt
 # Import your custom scenario
 from scenerio import Scenario as MyCustomScenario # Make sure this path is correct
 
+import os
+from datetime import datetime
+
+# --- Model Saving ---
+def save_models(policy, critic, iteration, save_dir="saved_models"):
+    """Save policy and critic models."""
+    os.makedirs(save_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Save policy
+    policy_path = os.path.join(save_dir, f"policy_iter_{iteration}_{timestamp}.pt")
+    torch.save(policy.state_dict(), policy_path)
+    
+    # Save critic
+    critic_path = os.path.join(save_dir, f"critic_iter_{iteration}_{timestamp}.pt")
+    torch.save(critic.state_dict(), critic_path)
+    
+    print(f"\nModels saved at iteration {iteration}:")
+    print(f"  Policy: {policy_path}")
+    print(f"  Critic: {critic_path}")
+    return policy_path, critic_path
+
 # --- Hyperparameters ---
+# Save settings
+save_interval = 20  # Save every N iterations
+save_dir = "saved_models"  # Directory to save models
+
 # Devices
 is_fork = multiprocessing.get_start_method() == "fork"
 device = (
@@ -89,14 +115,14 @@ print("Checking environment specs...")
 check_env_specs(env)
 print("Specs check passed.")
 
-print("action_spec:", env.full_action_spec)
-print("reward_spec:", env.full_reward_spec)
-print("done_spec:", env.full_done_spec)
-print("observation_spec:", env.observation_spec)
-print("action_keys:", env.action_keys)
-print("reward_keys:", env.reward_keys)
+# print("action_spec:", env.full_action_spec)
+# print("reward_spec:", env.full_reward_spec)
+# print("done_spec:", env.full_done_spec)
+# print("observation_spec:", env.observation_spec)
+# print("action_keys:", env.action_keys)
+# print("reward_keys:", env.reward_keys)
 
-exit()
+# exit()
 
 # --- Policy Network ---
 share_parameters_policy = True # Or False
@@ -225,6 +251,10 @@ frames_since_last_eval = 0
 for i, tensordict_data in enumerate(collector):
     pbar.update(tensordict_data.numel())
     frames_since_last_eval += tensordict_data.numel()
+    
+    # Save models at specified intervals and at the end of training
+    if (i + 1) % save_interval == 0 or (i + 1) == n_iters:
+        save_models(policy, critic, i + 1, save_dir)
 
     # Ensure done and terminated are expanded to per-agent shape for GAE
     # VmasEnv done/terminated are global, GAE expects per-agent for value target computation
@@ -323,9 +353,9 @@ else:
     print("No episodes finished during training, so no reward plot.")
 
 
-# --- Optional: Render a few episodes with the trained policy ---
-# Make sure you have rendering dependencies installed (pyglet, xvfb on headless, etc.)
-# This part might require a display or virtual display setup (e.g., in Colab)
+# # --- Optional: Render a few episodes with the trained policy ---
+# # Make sure you have rendering dependencies installed (pyglet, xvfb on headless, etc.)
+# # This part might require a display or virtual display setup (e.g., in Colab)
 
 # print("\nRendering a few episodes with the trained policy...")
 # try:
