@@ -116,10 +116,10 @@ env = VmasEnv(
 #     device=vmas_device,
 # )
 
-# env = TransformedEnv(
-#     env,
-#     RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
-# )
+env = TransformedEnv(
+    env,
+    RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
+)
 
 print("Checking environment specs...")
 check_env_specs(env)
