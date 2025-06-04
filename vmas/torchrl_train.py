@@ -17,6 +17,11 @@ from torchrl.objectives import ClipPPOLoss, ValueEstimators
 
 from tqdm import tqdm
 from matplotlib import pyplot as plt
+import argparse
+import time
+
+# Import TensorBoard
+from torch.utils.tensorboard import SummaryWriter
 
 # Import your custom scenario
 from scenerio import Scenario as MyCustomScenario # Make sure this path is correct
@@ -31,11 +36,11 @@ def save_models(policy, critic, iteration, save_dir="saved_models"):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Save policy
-    policy_path = os.path.join(save_dir, f"policy_iter_{iteration}_{timestamp}.pt")
+    policy_path = os.path.join(save_dir, f"policy_iter_{iteration}.pt")
     torch.save(policy.state_dict(), policy_path)
     
     # Save critic
-    critic_path = os.path.join(save_dir, f"critic_iter_{iteration}_{timestamp}.pt")
+    critic_path = os.path.join(save_dir, f"critic_iter_{iteration}.pt")
     torch.save(critic.state_dict(), critic_path)
     
     print(f"\nModels saved at iteration {iteration}:")
@@ -43,10 +48,63 @@ def save_models(policy, critic, iteration, save_dir="saved_models"):
     print(f"  Critic: {critic_path}")
     return policy_path, critic_path
 
+
+def find_latest_iteration(save_dir="saved_models"):
+    """Find the latest iteration number from saved model files."""
+    if not os.path.exists(save_dir):
+        return 0
+        
+    policy_files = [f for f in os.listdir(save_dir) if f.startswith("policy_iter_") and f.endswith(".pt")]
+    if not policy_files:
+        return 0
+        
+    # Extract iteration numbers from filenames
+    iterations = []
+    for filename in policy_files:
+        try:
+            iter_num = int(filename.replace("policy_iter_", "").replace(".pt", ""))
+            iterations.append(iter_num)
+        except ValueError:
+            continue
+            
+    return max(iterations) if iterations else 0
+
+
+def load_models(policy, critic, iteration, save_dir="saved_models"):
+    """Load policy and critic models from saved checkpoints."""
+    policy_path = os.path.join(save_dir, f"policy_iter_{iteration}.pt")
+    critic_path = os.path.join(save_dir, f"critic_iter_{iteration}.pt")
+    
+    if not os.path.exists(policy_path) or not os.path.exists(critic_path):
+        print(f"Error: Could not find saved models at iteration {iteration}")
+        print(f"Expected files: {policy_path} and {critic_path}")
+        return False
+    
+    try:
+        policy.load_state_dict(torch.load(policy_path, map_location=policy.module[0].weight.device))
+        critic.load_state_dict(torch.load(critic_path, map_location=critic.module.weight.device))
+        print(f"\nSuccessfully loaded models from iteration {iteration}:")
+        print(f"  Policy: {policy_path}")
+        print(f"  Critic: {critic_path}")
+        return True
+    except Exception as e:
+        print(f"Error loading models: {e}")
+        return False
+
+# --- Parse Command Line Arguments ---
+parser = argparse.ArgumentParser(description="Train a custom VMAS scenario with TorchRL")
+parser.add_argument('--resume', action='store_true', help='Resume training from a checkpoint (uses latest iteration by default)')
+parser.add_argument('--resume_iter', type=int, default=0, help='Specific iteration to resume from (0 means use latest)')
+parser.add_argument('--save_interval', type=int, default=20, help='Save models every N iterations')
+parser.add_argument('--save_dir', type=str, default="saved_models", help='Directory to save/load models')
+parser.add_argument('--log_dir', type=str, default="runs", help='Directory for TensorBoard logs')
+parser.add_argument('--exp_name', type=str, default=None, help='Experiment name for TensorBoard')
+args = parser.parse_args()
+
 # --- Hyperparameters ---
 # Save settings
-save_interval = 20  # Save every N iterations
-save_dir = "saved_models"  # Directory to save models
+save_interval = args.save_interval  # Save every N iterations
+save_dir = args.save_dir  # Directory to save models
 
 # Devices
 is_fork = multiprocessing.get_start_method() == "fork"
@@ -253,15 +311,91 @@ print("Loss module and GAE instantiated.")
 optim = torch.optim.Adam(loss_module.parameters(), lr)
 print("Optimizer instantiated.")
 
+# --- TensorBoard Setup ---
+if args.exp_name is None:
+    # Create a unique experiment name with a readable timestamp format
+    current_time = datetime.now()
+    # Format like "Jun 4 3:10 am"
+    formatted_time = current_time.strftime("%b %-d %-I:%M %p").lower()
+    
+    # Include scenario info in the experiment name if available
+    try:
+        if hasattr(env, 'scenario') and hasattr(env.scenario, 'name'):
+            scenario_name = env.scenario.name
+        else:
+            scenario_name = "custom_scenario"
+        args.exp_name = f"{scenario_name} - {formatted_time}"
+    except (AttributeError, NameError):
+        args.exp_name = f"vmas - {formatted_time}"
+
+# Create TensorBoard writer
+tb_log_dir = os.path.join(args.log_dir, args.exp_name)
+os.makedirs(tb_log_dir, exist_ok=True)
+writer = SummaryWriter(log_dir=tb_log_dir)
+print(f"TensorBoard logs will be saved to: {tb_log_dir}")
+
+# Log hyperparameters to TensorBoard - using a separate directory to avoid nesting issues
+hparams_dir = os.path.join(tb_log_dir, "hparams")
+os.makedirs(hparams_dir, exist_ok=True)
+hparams_writer = SummaryWriter(log_dir=hparams_dir)
+
+# Create a clean dictionary of hyperparameters
+hyperparams = {
+    "frames_per_batch": frames_per_batch,
+    "n_iters": n_iters,
+    "num_epochs": num_epochs,
+    "minibatch_size": minibatch_size,
+    "lr": lr,
+    "max_grad_norm": max_grad_norm,
+    "clip_epsilon": clip_epsilon,
+    "gamma": gamma,
+    "lmbda": lmbda,
+    "entropy_eps": entropy_eps,
+    "max_steps": max_steps,
+    "num_vmas_envs": num_vmas_envs,
+    "n_agents": scenario_n_agents,
+    "n_packages": scenario_n_packages,
+    "n_obstacles": scenario_n_obstacles,
+    "lidar_range": scenario_lidar_range,
+}
+
+# Log each hyperparameter as a separate scalar value
+for param_name, param_value in hyperparams.items():
+    writer.add_text("hyperparameters", f"{param_name}: {param_value}", 0)
+
 # --- Training Loop ---
 pbar = tqdm(total=total_frames)
 episode_reward_mean_list = []
 eval_interval = frames_per_batch * 5 # Evaluate every 5 collection iterations
 frames_since_last_eval = 0
+total_frames_collected = 0
 
-for i, tensordict_data in enumerate(collector):
-    pbar.update(tensordict_data.numel())
-    frames_since_last_eval += tensordict_data.numel()
+# Resume from checkpoint if requested
+start_iteration = 0
+if args.resume:
+    resume_iter = args.resume_iter
+    if resume_iter <= 0:
+        # Find the latest iteration automatically
+        resume_iter = find_latest_iteration(save_dir)
+        if resume_iter > 0:
+            print(f"\nFound latest checkpoint at iteration {resume_iter}")
+        else:
+            print("\nNo checkpoints found. Starting training from scratch.")
+    
+    if resume_iter > 0:
+        print(f"Attempting to resume training from iteration {resume_iter}...")
+        if load_models(policy, critic, resume_iter, save_dir):
+            start_iteration = resume_iter
+            print(f"Training will resume from iteration {start_iteration}")
+        else:
+            print("Failed to load models. Starting training from scratch.")
+    
+
+for i, tensordict_data in enumerate(collector, start=start_iteration):
+    frames_in_batch = tensordict_data.numel()
+    pbar.update(frames_in_batch)
+    frames_since_last_eval += frames_in_batch
+    total_frames_collected += frames_in_batch
     
     # Save models at specified intervals and at the end of training
     if (i + 1) % save_interval == 0 or (i + 1) == n_iters:
@@ -290,6 +424,12 @@ for i, tensordict_data in enumerate(collector):
     data_view = tensordict_data.reshape(-1) # Flatten num_envs and time steps
     replay_buffer.extend(data_view)
 
+    # Track optimization metrics
+    avg_policy_loss = 0.0
+    avg_value_loss = 0.0
+    avg_entropy_loss = 0.0
+    n_updates = 0
+    
     for _ in range(num_epochs):
         for _ in range(frames_per_batch // minibatch_size):
             subdata = replay_buffer.sample()
@@ -305,6 +445,23 @@ for i, tensordict_data in enumerate(collector):
             torch.nn.utils.clip_grad_norm_(loss_module.parameters(), max_grad_norm)
             optim.step()
             optim.zero_grad()
+            
+            # Accumulate loss values for logging
+            avg_policy_loss += loss_vals["loss_objective"].item()
+            avg_value_loss += loss_vals["loss_critic"].item()
+            avg_entropy_loss += loss_vals["loss_entropy"].item()
+            n_updates += 1
+    
+    # Calculate average losses over all updates
+    if n_updates > 0:
+        avg_policy_loss /= n_updates
+        avg_value_loss /= n_updates
+        avg_entropy_loss /= n_updates
+        
+        # Log average losses to TensorBoard
+        writer.add_scalar('Loss/AvgPolicyLoss', avg_policy_loss, i)
+        writer.add_scalar('Loss/AvgValueLoss', avg_value_loss, i)
+        writer.add_scalar('Loss/AvgEntropyLoss', avg_entropy_loss, i)
 
     collector.update_policy_weights_() # Update policy weights in the collector
 
@@ -318,8 +475,21 @@ for i, tensordict_data in enumerate(collector):
         episode_rewards_at_done = tensordict_data.get(
             ("next", "agents", "episode_reward")
         )[done_in_batch.squeeze(-1)].mean() # mean over agents and then over envs
-        episode_reward_mean_list.append(episode_rewards_at_done.item())
-        pbar.set_description(f"Iter {i+1} | Episode Reward Mean: {episode_rewards_at_done.item():.2f}")
+        episode_reward_mean = episode_rewards_at_done.item()
+        episode_reward_mean_list.append(episode_reward_mean)
+        pbar.set_description(f"Iter {i+1} | Episode Reward Mean: {episode_reward_mean:.2f}")
+        
+        # Log to TensorBoard
+        writer.add_scalar('Training/EpisodeRewardMean', episode_reward_mean, i)
+        writer.add_scalar('Training/TotalFrames', total_frames_collected, i)
+        
+        # Extract and log additional metrics if available
+        if "loss_objective" in loss_vals:
+            writer.add_scalar('Loss/PolicyLoss', loss_vals["loss_objective"].item(), i)
+        if "loss_critic" in loss_vals:
+            writer.add_scalar('Loss/ValueLoss', loss_vals["loss_critic"].item(), i)
+        if "loss_entropy" in loss_vals:
+            writer.add_scalar('Loss/Entropy', loss_vals["loss_entropy"].item(), i)
     else:
         pbar.set_description(f"Iter {i+1} | No episodes finished in this batch")
 
@@ -341,7 +511,11 @@ for i, tensordict_data in enumerate(collector):
             eval_done = eval_rollout.get(("next", "done"))
             if eval_done.any():
                 eval_ep_rewards = eval_rollout.get(("next", "agents", "episode_reward"))[eval_done.squeeze(-1)].mean()
-                print(f"Evaluation Episode Reward Mean: {eval_ep_rewards.item():.2f}")
+                eval_reward_mean = eval_ep_rewards.item()
+                print(f"Evaluation Episode Reward Mean: {eval_reward_mean:.2f}")
+                
+                # Log evaluation metrics to TensorBoard
+                writer.add_scalar('Evaluation/EpisodeRewardMean', eval_reward_mean, i)
             else:
                 print("No full episodes completed during evaluation rollout.")
         print("--- End Evaluation ---")
@@ -349,6 +523,11 @@ for i, tensordict_data in enumerate(collector):
 
 pbar.close()
 print("Training finished.")
+
+# Close TensorBoard writers
+writer.close()
+if 'hparams_writer' in locals():
+    hparams_writer.close()
 
 # --- Plotting Results ---
 if episode_reward_mean_list:

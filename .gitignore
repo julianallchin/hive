@@ -4,5 +4,3 @@ __pycache__/
 imgui.ini
 
 .vscode/settings.json
-
-vmas/mappo_*/
