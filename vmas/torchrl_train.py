@@ -78,7 +78,7 @@ entropy_eps = 1e-4 # Can be tuned, 0.01 is also common
 # These MUST match the kwargs your scenario's make_world expects,
 # and how you want to configure the environment for training.
 max_steps = 400  # Episode steps before done (VMAS max_steps)
-num_vmas_envs = frames_per_batch // max_steps
+num_vmas_envs = 10 * frames_per_batch // max_steps
 
 # Your custom scenario's parameters:
 scenario_n_agents = 2 # As used in your __main__ example
