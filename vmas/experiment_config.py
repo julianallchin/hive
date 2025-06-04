@@ -16,15 +16,10 @@ def get_env_fun(
     seed: Optional[int],
     device: DEVICE_TYPING,
 ) -> Callable[[], EnvBase]:
-    # config = copy.deepcopy(self.config)
-    # if (hasattr(self, "name") and self.name is "NAVIGATION") or (
-    #     self is VmasTask.NAVIGATION
-    # ):  # This is the only modification we make ....
-    #     scenario = Scenario()  # .... ends here
-    # else:
-    #     scenario = self.name.lower()
+    
     config = copy.deepcopy(self.config)
     scenario = Scenario()
+
     return lambda: VmasEnv(
         scenario=scenario,
         num_envs=num_envs,
@@ -43,30 +38,19 @@ except ImportError:
     VmasTask.get_env_fun = get_env_fun
 
 # Loads from "benchmarl/conf/task/vmas/navigation.yaml"
-task = VmasTask.NAVIGATION.get_from_yaml()
-
-# We override the NAVIGATION config with ours
-task.config = {
-        "max_steps": 100,
-        "n_agents_holonomic": 2,
-        "n_agents_diff_drive": 1,
-        "n_agents_car": 1,
-        "lidar_range": 0.35,
-        "comms_rendering_range": 0,
-        "shared_rew": False,
-}
+task = VmasTask.TRANSPORT.get_from_yaml()
 
 # Loads from "benchmarl/conf/experiment/base_experiment.yaml"
 experiment_config = ExperimentConfig.get_from_yaml() # We start by loading the defaults
 
 # Override devices
-experiment_config.sampling_device = "mps"
-experiment_config.train_device = "mps"
+experiment_config.sampling_device = "cuda"
+experiment_config.train_device = "cuda"
 
 experiment_config.max_n_frames = 10_000_000 # Number of frames before training ends
 experiment_config.gamma = 0.99
 experiment_config.on_policy_collected_frames_per_batch = 60_000 # Number of frames collected each iteration
-experiment_config.on_policy_n_envs_per_worker = 600 # Number of vmas vectorized enviornemnts (each will collect 100 steps, see max_steps in task_config -> 600 * 100 = 60_000 the number above)
+experiment_config.on_policy_n_envs_per_worker = 6000 # Number of vmas vectorized enviornemnts (each will collect 100 steps, see max_steps in task_config -> 600 * 100 = 60_000 the number above)
 experiment_config.on_policy_n_minibatch_iters = 45
 experiment_config.on_policy_minibatch_size = 4096
 experiment_config.evaluation = True

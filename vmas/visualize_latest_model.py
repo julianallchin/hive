@@ -7,8 +7,10 @@ import argparse # For command-line arguments
 import random # For random seed
 import os
 import glob
+import cv2
 from datetime import datetime
 
+from torchrl.envs import RewardSum, TransformedEnv
 from tensordict.nn import TensorDictModule
 from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.envs.libs.vmas import VmasEnv
@@ -135,20 +137,34 @@ def record_video(model_path: str, total_render_steps: int, output_filename: str,
         print(f"Could not start virtual display: {e}")
         # Proceeding without it, might work if X server is available but not ideal for headless
 
-    # 2. Create the VMAS environment (single instance)
+    # # 2. Create the VMAS environment (single instance)
+    # env = VmasEnv(
+    #     scenario=MyCustomScenario(),
+    #     num_envs=1,
+    #     continuous_actions=True,
+    #     max_steps=MAX_STEPS_PER_EPISODE, # Episode will reset if it hits this
+    #     device=VMAS_DEVICE,
+    #     seed=seed, # Pass seed to VMAS environment
+    #     # Scenario kwargs
+    #     n_agents=SCENARIO_N_AGENTS,
+    #     n_packages=SCENARIO_N_PACKAGES,
+    #     n_obstacles=SCENARIO_N_OBSTACLES,
+    # )
+    # print("Environment created.")
+    # --- Environment Setup ---
+    scenario_name = "balance"
     env = VmasEnv(
-        scenario=MyCustomScenario(),
+        scenario="balance", # Pass an instance of your scenario class
         num_envs=1,
         continuous_actions=True,
-        max_steps=MAX_STEPS_PER_EPISODE, # Episode will reset if it hits this
+        max_steps=MAX_STEPS_PER_EPISODE,
         device=VMAS_DEVICE,
-        seed=seed, # Pass seed to VMAS environment
-        # Scenario kwargs
-        n_agents=SCENARIO_N_AGENTS,
-        n_packages=SCENARIO_N_PACKAGES,
-        n_obstacles=SCENARIO_N_OBSTACLES,
     )
-    print("Environment created.")
+
+    env = TransformedEnv(
+        env,
+        RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
+    )
 
     # 3. Load the trained policy
     policy = create_policy(env, share_policy_params=share_policy_params).to(DEVICE) # Pass share_policy_params
@@ -223,10 +239,11 @@ def record_video(model_path: str, total_render_steps: int, output_filename: str,
             # VMAS save_video expects a list of numpy arrays (frames)
             # and the delta_t (dt) of the simulation for correct FPS.
             # env.unwrapped.world.dt should give the simulation timestep.
-            simulation_dt = env.unwrapped.world.dt if hasattr(env.unwrapped, 'world') else 0.1 # Default if not found
+            # simulation_dt = env.unwrapped.world.dt if hasattr(env.unwrapped, 'world') else 0.1 # Default if not found
+            simulation_dt = 1
             save_video(
-                video_name=output_filename,
-                frames=frames,
+                name=output_filename,
+                frame_list=frames,
                 fps=1.0 / simulation_dt
             )
             print(f"Video saved as {output_filename}")

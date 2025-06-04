@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 
 # --- Model Saving ---
-def save_models(policy, critic, iteration, save_dir="saved_models"):
+def save_models(policy, critic, iteration, save_dir="balance_models"):
     """Save policy and critic models."""
     os.makedirs(save_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -46,7 +46,7 @@ def save_models(policy, critic, iteration, save_dir="saved_models"):
 # --- Hyperparameters ---
 # Save settings
 save_interval = 20  # Save every N iterations
-save_dir = "saved_models"  # Directory to save models
+save_dir = "balance_models"  # Directory to save models
 
 # Devices
 is_fork = multiprocessing.get_start_method() == "fork"
@@ -91,38 +91,40 @@ scenario_lidar_range = 0.5
 
 torch.manual_seed(0)
 
-# # --- Environment Setup ---
-# env = VmasEnv(
-#     scenario=MyCustomScenario(), # Pass an instance of your scenario class
-#     num_envs=num_vmas_envs,
-#     continuous_actions=True,
-#     max_steps=max_steps,
-#     device=vmas_device,
-#     # Scenario kwargs for your custom scenario
-#     n_agents=scenario_n_agents,
-#     n_packages=scenario_n_packages,
-#     n_obstacles=scenario_n_obstacles,
-#     # Add other kwargs as needed by your Scenario's make_world
-#     # e.g., package_width=0.15, n_lidar_rays_agents=16, etc.
-# )
-
 # --- Environment Setup ---
 env = VmasEnv(
-    scenario="balance", # Pass an instance of your scenario class
+    scenario=MyCustomScenario(), # Pass an instance of your scenario class
     num_envs=num_vmas_envs,
     continuous_actions=True,
     max_steps=max_steps,
     device=vmas_device,
+    # Scenario kwargs for your custom scenario
+    n_agents=scenario_n_agents,
+    n_packages=scenario_n_packages,
+    n_obstacles=scenario_n_obstacles,
+    # Add other kwargs as needed by your Scenario's make_world
+    # e.g., package_width=0.15, n_lidar_rays_agents=16, etc.
 )
 
-env = TransformedEnv(
-    env,
-    RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
-)
+# # --- Environment Setup ---
+# scenario_name = "balance"
+# env = VmasEnv(
+#     scenario="balance", # Pass an instance of your scenario class
+#     num_envs=num_vmas_envs,
+#     continuous_actions=True,
+#     max_steps=max_steps,
+#     device=vmas_device,
+# )
+
+# env = TransformedEnv(
+#     env,
+#     RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
+# )
 
 print("Checking environment specs...")
 check_env_specs(env)
 print("Specs check passed.")
+exit()
 
 # print("action_spec:", env.full_action_spec)
 # print("reward_spec:", env.full_reward_spec)
