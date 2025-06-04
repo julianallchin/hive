@@ -8,6 +8,7 @@ from benchmarl.utils import DEVICE_TYPING
 from torchrl.envs import EnvBase, VmasEnv
 from scenerio import Scenario
 
+
 def get_env_fun(
     self,
     num_envs: int,
@@ -15,13 +16,15 @@ def get_env_fun(
     seed: Optional[int],
     device: DEVICE_TYPING,
 ) -> Callable[[], EnvBase]:
+    # config = copy.deepcopy(self.config)
+    # if (hasattr(self, "name") and self.name is "NAVIGATION") or (
+    #     self is VmasTask.NAVIGATION
+    # ):  # This is the only modification we make ....
+    #     scenario = Scenario()  # .... ends here
+    # else:
+    #     scenario = self.name.lower()
     config = copy.deepcopy(self.config)
-    if (hasattr(self, "name") and self.name is "NAVIGATION") or (
-        self is VmasTask.NAVIGATION
-    ):  # This is the only modification we make ....
-        scenario = Scenario()  # .... ends here
-    else:
-        scenario = self.name.lower()
+    scenario = Scenario()
     return lambda: VmasEnv(
         scenario=scenario,
         num_envs=num_envs,
