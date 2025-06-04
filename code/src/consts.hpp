@@ -63,7 +63,7 @@ inline constexpr float agentAgentBuffer = 0.0f;
 inline constexpr int maxAgentPlacementAttemptsPerAgent = 30;
 
 inline constexpr float macguffinSize = 5.0f;
-inline constexpr float macguffinInverseMass = 0.025f;
+inline constexpr float macguffinInverseMass = 0.1f;
 
 inline constexpr float goalSize = 3.0f;
 
