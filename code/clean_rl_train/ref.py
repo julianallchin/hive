@@ -1,18 +1,10 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppo_atari_lstmpy
 import os
-import sys
 import random
 import time
-# import pdb
 from dataclasses import dataclass
 
-# Enable breakpoint() function
-os.environ['PYTHONBREAKPOINT'] = 'pdb.set_trace'
-
-# Add build directory to path for madrona_escape_room
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'build')))
-
-# import gymnasium as gym
+import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
@@ -20,14 +12,6 @@ import torch.optim as optim
 import tyro
 from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
-
-import madrona_escape_room
-
-# Local imports
-from .ppo_models import RecurrentPPOAgent, MLP
-from .ppo_utils import setup_obs, get_dones, get_rewards, get_obs_dim
-from .action_utils import get_action_dims, flat_to_multi_discrete, multi_discrete_to_flat
-
 
 from stable_baselines3.common.atari_wrappers import (  # isort:skip
     ClipRewardEnv,
@@ -58,13 +42,13 @@ class Args:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
     # Algorithm specific arguments
-    env_id: str = "madrona"
+    env_id: str = "BreakoutNoFrameskip-v4"
     """the id of the environment"""
-    total_timesteps: int = 1000
+    total_timesteps: int = 10000000
     """total timesteps of the experiments"""
     learning_rate: float = 2.5e-4
     """the learning rate of the optimizer"""
-    num_envs: int = 10
+    num_envs: int = 8
     """the number of parallel game environments"""
     num_steps: int = 128
     """the number of steps to run in each environment per policy rollout"""
@@ -102,6 +86,27 @@ class Args:
     """the number of iterations (computed in runtime)"""
 
 
+def make_env(env_id, idx, capture_video, run_name):
+    def thunk():
+        if capture_video and idx == 0:
+            env = gym.make(env_id, render_mode="rgb_array")
+            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+        else:
+            env = gym.make(env_id)
+        env = gym.wrappers.RecordEpisodeStatistics(env)
+        env = NoopResetEnv(env, noop_max=30)
+        env = MaxAndSkipEnv(env, skip=4)
+        env = EpisodicLifeEnv(env)
+        if "FIRE" in env.unwrapped.get_action_meanings():
+            env = FireResetEnv(env)
+        env = ClipRewardEnv(env)
+        env = gym.wrappers.ResizeObservation(env, (84, 84))
+        env = gym.wrappers.GrayScaleObservation(env)
+        env = gym.wrappers.FrameStack(env, 1)
+        return env
+
+    return thunk
+
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
@@ -110,23 +115,26 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 
 
 class Agent(nn.Module):
-    def __init__(self, obs_dim, action_dim):
+    def __init__(self, envs):
         super().__init__()
-        # simple MLP
         self.network = nn.Sequential(
-            nn.Linear(obs_dim, 512),
+            layer_init(nn.Conv2d(1, 32, 8, stride=4)),
             nn.ReLU(),
-            nn.Linear(512, 128),
+            layer_init(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(64, 64, 3, stride=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+            layer_init(nn.Linear(64 * 7 * 7, 512)),
             nn.ReLU(),
         )
-        # LSTM
-        self.lstm = nn.LSTM(128, 64)
+        self.lstm = nn.LSTM(512, 128)
         for name, param in self.lstm.named_parameters():
             if "bias" in name:
                 nn.init.constant_(param, 0)
             elif "weight" in name:
                 nn.init.orthogonal_(param, 1.0)
-        self.actor = layer_init(nn.Linear(128, action_dim), std=0.01)
+        self.actor = layer_init(nn.Linear(128, envs.single_action_space.n), std=0.01)
         self.critic = layer_init(nn.Linear(128, 1), std=1)
 
     def get_states(self, x, lstm_state, done):
@@ -195,23 +203,12 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    sim = madrona_escape_room.SimManager(
-        exec_mode = madrona_escape_room.madrona.ExecMode.CUDA if args.gpu_sim else madrona_escape_room.madrona.ExecMode.CPU,
-        gpu_id = args.gpu_id,
-        num_worlds = args.num_envs,
-        rand_seed = args.seed,
-        auto_reset = True,
+    envs = gym.vector.SyncVectorEnv(
+        [make_env(args.env_id, i, args.capture_video, run_name) for i in range(args.num_envs)],
     )
+    assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-    # setup imports from madrona
-    obs_tensors, obs_dim = setup_obs(sim, device)
-    actions_tensor = sim.action_tensor().to_torch()
-    action_dim = actions_tensor.shape[-1]
-    dones_tensor = sim.done_tensor().to_torch()
-    rewards_tensor = sim.reward_tensor().to_torch()
-    
-
-    agent = Agent(obs_dim, action_dim).to(device)
+    agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
