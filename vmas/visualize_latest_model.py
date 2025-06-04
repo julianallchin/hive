@@ -5,6 +5,9 @@ import time
 import pyglet # Still needed for headless rendering context
 import argparse # For command-line arguments
 import random # For random seed
+import os
+import glob
+from datetime import datetime
 
 from tensordict.nn import TensorDictModule
 from tensordict.nn.distributions import NormalParamExtractor
@@ -27,6 +30,51 @@ SCENARIO_N_AGENTS = 2
 SCENARIO_N_PACKAGES = 1
 SCENARIO_N_OBSTACLES = 3
 # ... add other necessary scenario kwargs
+
+# --- Helper functions ---
+def find_latest_model(model_type="policy", save_dir="saved_models"):
+    """Find the latest saved model of the specified type (policy or critic).
+    
+    Args:
+        model_type: Either 'policy' or 'critic'
+        save_dir: Directory where models are saved
+        
+    Returns:
+        Path to the latest model file or None if no models found
+    """
+    if not os.path.exists(save_dir):
+        print(f"Error: Save directory '{save_dir}' does not exist.")
+        return None
+        
+    # Find all model files of the specified type
+    pattern = os.path.join(save_dir, f"{model_type}_iter_*.pt")
+    model_files = glob.glob(pattern)
+    
+    if not model_files:
+        print(f"No {model_type} models found in {save_dir}")
+        return None
+        
+    # Sort by iteration and timestamp (both embedded in filename)
+    # Format is: policy_iter_X_YYYYMMDD_HHMMSS.pt
+    def extract_info(filename):
+        base = os.path.basename(filename)
+        parts = base.split('_')
+        try:
+            # Extract iteration number
+            iter_num = int(parts[2])
+            # Extract timestamp (if available)
+            if len(parts) >= 4:
+                timestamp = '_'.join(parts[3:])[:-3]  # Remove .pt
+                return (iter_num, timestamp)
+            return (iter_num, '')
+        except (IndexError, ValueError):
+            return (0, '')
+    
+    # Sort by iteration first, then by timestamp
+    latest_model = sorted(model_files, key=extract_info, reverse=True)[0]
+    
+    print(f"Found latest {model_type} model: {os.path.basename(latest_model)}")
+    return latest_model
 
 # --- Helper function to re-create the policy architecture ---
 def create_policy(env_for_spec, share_policy_params=True): # Added share_policy_params
@@ -105,9 +153,12 @@ def record_video(model_path: str, total_render_steps: int, output_filename: str,
     # 3. Load the trained policy
     policy = create_policy(env, share_policy_params=share_policy_params).to(DEVICE) # Pass share_policy_params
     try:
+        print(f"Loading policy from: {model_path}")
         policy.load_state_dict(torch.load(model_path, map_location=DEVICE))
     except RuntimeError as e:
         print(f"Error loading state_dict: {e}")
+        print("This could be due to a mismatch between the saved model architecture and the current one.")
+        print("Check if share_policy_params matches the training configuration.")
         if _display: _display.stop()
         return
     except FileNotFoundError:
@@ -195,10 +246,16 @@ def record_video(model_path: str, total_render_steps: int, output_filename: str,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Record a video of a trained VMAS model.")
-    parser.add_argument("model_path", type=str, help="Path to the trained policy .pth file.")
-    parser.add_argument("render_steps", type=int, help="Total number of simulation steps to render.")
-    parser.add_argument("--output_filename", type=str, default="trained_model_render.mp4", help="Output video filename (e.g., my_video.mp4).")
-    parser.add_argument("--seed", type=int, default=None, help="Random seed for environment initialization.")
+    parser.add_argument("--model_path", type=str, default=None, 
+                        help="Path to the trained policy .pth file. If not provided, the latest model will be used.")
+    parser.add_argument("--render_steps", type=int, default=500,
+                        help="Total number of simulation steps to render.")
+    parser.add_argument("--output_filename", type=str, default="trained_model_render.mp4", 
+                        help="Output video filename (e.g., my_video.mp4).")
+    parser.add_argument("--seed", type=int, default=None, 
+                        help="Random seed for environment initialization.")
+    parser.add_argument("--save_dir", type=str, default="saved_models",
+                        help="Directory where models are saved.")
     parser.add_argument(
         "--no_share_policy_params",
         action="store_false", # Default is True (shared)
@@ -206,5 +263,20 @@ if __name__ == "__main__":
         help="Set if the loaded policy was trained WITHOUT parameter sharing.",
     )
     args = parser.parse_args()
+    
+    # If no model path is provided, find the latest model
+    if args.model_path is None:
+        model_path = find_latest_model(model_type="policy", save_dir=args.save_dir)
+        if model_path is None:
+            print("Error: Could not find any saved models. Please specify a model path.")
+            exit(1)
+    else:
+        model_path = args.model_path
+        
+    # Generate a timestamp-based output filename if using the default
+    if args.output_filename == "trained_model_render.mp4":
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_basename = os.path.basename(model_path).replace(".pt", "")
+        args.output_filename = f"render_{model_basename}_{timestamp}.mp4"
 
-    record_video(args.model_path, args.render_steps, args.output_filename, args.seed, args.share_policy_params)
+    record_video(model_path, args.render_steps, args.output_filename, args.seed, args.share_policy_params)
