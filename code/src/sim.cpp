@@ -381,7 +381,15 @@ inline void rewardSystem(Engine &ctx,
                          StepsRemaining &steps_remaining
                         )
 {
-    out_reward.v = ctx.get<Position>(ctx.data().agents[0]).x;
+    // distance between agent and macguffin
+    float dist = (ctx.get<Position>(ctx.data().agents[0]) - ctx.get<Position>(ctx.data().macguffin)).length();
+    out_reward.v = -1.0f * dist;
+    
+
+    // out_reward.v = ctx.get<Position>(ctx.data().agents[0]).x;
+
+
+
     // // Get positions of macguffin and goal
     // Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
     // Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
