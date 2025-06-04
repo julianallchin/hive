@@ -124,7 +124,7 @@ env = VmasEnv(
 print("Checking environment specs...")
 check_env_specs(env)
 print("Specs check passed.")
-exit()
+# exit()
 
 # print("action_spec:", env.full_action_spec)
 # print("reward_spec:", env.full_reward_spec)
