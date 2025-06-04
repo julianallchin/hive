@@ -381,11 +381,6 @@ inline void rewardSystem(Engine &ctx,
                          StepsRemaining &steps_remaining
                         )
 {
-    // If done, don't update reward
-    if (done.v == 1)
-    {
-        return;
-    }
 
     // Get positions of macguffin and goal
     Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
