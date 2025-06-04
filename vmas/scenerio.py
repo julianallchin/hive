@@ -21,7 +21,7 @@ class Scenario(BaseScenario):
         self.n_packages = kwargs.pop("n_packages", 1)
         self.package_width = kwargs.pop("package_width", 0.15)
         self.package_length = kwargs.pop("package_length", 0.15)
-        self.package_mass = kwargs.pop("package_mass", 50)
+        self.package_mass = kwargs.pop("package_mass", 5)
 
         # New parameters for LIDAR and obstacles
         self.n_obstacles = kwargs.pop("n_obstacles", 3)

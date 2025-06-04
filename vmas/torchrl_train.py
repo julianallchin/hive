@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 
 # --- Model Saving ---
-def save_models(policy, critic, iteration, save_dir="balance_models"):
+def save_models(policy, critic, iteration, save_dir="saved_models"):
     """Save policy and critic models."""
     os.makedirs(save_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -46,7 +46,7 @@ def save_models(policy, critic, iteration, save_dir="balance_models"):
 # --- Hyperparameters ---
 # Save settings
 save_interval = 20  # Save every N iterations
-save_dir = "balance_models"  # Directory to save models
+save_dir = "saved_models"  # Directory to save models
 
 # Devices
 is_fork = multiprocessing.get_start_method() == "fork"
@@ -77,7 +77,7 @@ entropy_eps = 1e-4 # Can be tuned, 0.01 is also common
 # --- Environment Specific Parameters for your Custom Scenario ---
 # These MUST match the kwargs your scenario's make_world expects,
 # and how you want to configure the environment for training.
-max_steps = 200  # Episode steps before done (VMAS max_steps)
+max_steps = 400  # Episode steps before done (VMAS max_steps)
 num_vmas_envs = frames_per_batch // max_steps
 
 # Your custom scenario's parameters:
