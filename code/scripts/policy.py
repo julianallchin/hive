@@ -23,11 +23,9 @@ def setup_obs(sim):
 
     # Add in an agent ID tensor
     id_tensor = torch.arange(2).float()
-    if 2 > 1:
-        id_tensor = id_tensor / (2 - 1)
 
     id_tensor = id_tensor.to(device=self_obs_tensor.device)
-    id_tensor = id_tensor.view(1, 2).expand(N, 2).expand(batch_size, -1)
+    id_tensor = id_tensor.view(1, 2).expand(N, 2)
 
     obs_tensors = [
         self_obs_tensor.view(batch_size, *self_obs_tensor.shape[2:]),
@@ -36,10 +34,14 @@ def setup_obs(sim):
         id_tensor,
     ]
 
+    # print("Shape of self_obs_tensors:", obs_tensors[0].shape)
+    # print("Shape of lidar_tensor:", obs_tensors[1].shape)
+    # print("Shape of steps_remaining_tensor:", obs_tensors[2].shape)
+    # print("Shape of id_tensor:", obs_tensors[3].shape)
+
     num_obs_features = 0
     for tensor in obs_tensors:
         num_obs_features += math.prod(tensor.shape[1:])
-
     return obs_tensors, num_obs_features
 
 def process_obs(self_obs, lidar, steps_remaining, ids):

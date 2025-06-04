@@ -111,12 +111,9 @@ inline void resetSystem(Engine &ctx, WorldReset &reset)
 {
     int32_t should_reset = reset.reset;
     if (ctx.data().autoReset) {
-        for (CountT i = 0; i < consts::numAgents; i++) {
-            Entity agent = ctx.data().agents[i];
-            Done done = ctx.get<Done>(agent);
-            if (done.v) {
-                should_reset = 1;
-            }
+        Done done = ctx.get<Done>(ctx.data().worldData);
+        if (done.v) {
+            should_reset = 1;
         }
     }
 
