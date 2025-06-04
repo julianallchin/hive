@@ -13,9 +13,33 @@ from torchrl.modules import MultiAgentMLP, ProbabilisticActor, TanhNormal
 from scenerio import Scenario as MyCustomScenario # Ensure this path is correct
 
 # --- Configuration ---
-MODEL_PATH = "ppo_policy_custom_scenario.pth"  # Path to your saved policy state_dict
+import os
+from glob import glob
+from datetime import datetime
+
+# Model loading configuration
+SAVE_DIR = "saved_models"  # Should match the directory used in training
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-VMAS_DEVICE = DEVICE # Run VMAS on the same device
+VMAS_DEVICE = DEVICE  # Run VMAS on the same device
+
+def find_latest_model():
+    """Find the most recently saved policy model."""
+    policy_files = glob(os.path.join(SAVE_DIR, "policy_iter_*_*.pt"))
+    if not policy_files:
+        raise FileNotFoundError(f"No model files found in {SAVE_DIR}. Please train a model first.")
+    
+    # Sort by modification time (newest first)
+    latest_file = max(policy_files, key=os.path.getmtime)
+    # Get the corresponding critic file
+    base_name = "_" + "_".join(os.path.basename(latest_file).split("_")[2:])
+    critic_file = os.path.join(SAVE_DIR, f"critic{base_name}")
+    
+    if not os.path.exists(critic_file):
+        print(f"Warning: Could not find corresponding critic file for {latest_file}")
+    
+    print(f"Found latest model: {os.path.basename(latest_file)}")
+    print(f"Corresponding critic: {os.path.basename(critic_file) if os.path.exists(critic_file) else 'Not found'}")
+    return latest_file
 
 # Environment parameters (should match training for model compatibility)
 MAX_STEPS_PER_EPISODE = 200 # Or whatever you used during training
@@ -76,18 +100,23 @@ def view_model():
     )
     print("Environment created.")
 
-    # 2. Load the trained policy
-    policy = create_policy(env).to(DEVICE)
+    # 2. Find and load the latest trained policy
     try:
-        policy.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+        latest_policy_path = find_latest_model()
+        policy = create_policy(env).to(DEVICE)
+        policy.load_state_dict(torch.load(latest_policy_path, map_location=DEVICE))
+        print(f"Successfully loaded policy from {os.path.basename(latest_policy_path)}")
     except RuntimeError as e:
         print(f"Error loading state_dict: {e}")
         print("This might be due to a mismatch in model architecture or if you saved the entire loss_module.")
         print("If you saved loss_module, you might need to load it and then access loss_module.actor_network.load_state_dict(...)")
         return
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return
 
     policy.eval() # Set to evaluation mode
-    print(f"Policy loaded from {MODEL_PATH} and set to eval mode.")
+    print(f"Policy loaded from {SAVE_DIR} and set to eval mode.")
 
     # 3. Initialize viewer and run the loop
     td = env.reset() # Get initial observation tensordict
