@@ -598,7 +598,6 @@ namespace madEscape
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        1, // dimension per model
                                    });
     }
@@ -608,7 +607,6 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        consts::maxAgents, // agents/model
                                        4, // dimension per agent
                                    });
@@ -619,7 +617,6 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Reward, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        1, // dimension per model
                                    });
     }
@@ -629,7 +626,6 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Done, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        1, // dimension per model
                                    });
     }
@@ -640,7 +636,6 @@ namespace madEscape
                                    TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        consts::maxAgents, // agents/model
                                        9, // dimension per agent
                                    });
@@ -651,7 +646,6 @@ namespace madEscape
         return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        consts::maxAgents, // agents/model
                                        consts::numLidarSamples, // lidar samples/agent
                                        2, // dimension per lidar sample
@@ -664,7 +658,6 @@ namespace madEscape
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        1, // dimension per model
                                    });
     }
@@ -675,7 +668,6 @@ namespace madEscape
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
-                                       1, // num models
                                        consts::maxAgents, // agents/model
                                        1, // dimension per agent
                                    });
