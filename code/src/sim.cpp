@@ -381,50 +381,52 @@ inline void rewardSystem(Engine &ctx,
                          StepsRemaining &steps_remaining
                         )
 {
-    // Get positions of macguffin and goal
-    Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
-    Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
+    out_reward.v = ctx.get<Position>(ctx.data().agents[0]).x;
 
-    // Calculate 2D distance (ignore Z axis)
-    Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
-    Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
-    float dist = (goal_pos_2d - macguffin_pos_2d).length();
+    // // Get positions of macguffin and goal
+    // Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
+    // Vector3 goal_pos = ctx.get<Position>(ctx.data().goal);
 
-    // First time initialization
-    if (reward_helper.prev_dist < 0)
-    {
-        reward_helper.prev_dist = dist;
-        reward_helper.starting_dist = dist;
-    }
+    // // Calculate 2D distance (ignore Z axis)
+    // Vector2 macguffin_pos_2d(macguffin_pos.x, macguffin_pos.y);
+    // Vector2 goal_pos_2d(goal_pos.x, goal_pos.y);
+    // float dist = (goal_pos_2d - macguffin_pos_2d).length();
 
-    // Step reward based on distance reduction
-    // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
-    float step_reward = consts::distanceRewardScale * (reward_helper.prev_dist - dist) / reward_helper.starting_dist;
+    // // First time initialization
+    // if (reward_helper.prev_dist < 0)
+    // {
+    //     reward_helper.prev_dist = dist;
+    //     reward_helper.starting_dist = dist;
+    // }
 
-    // Goal reward if close enough
-    float goal_reward = 0.0f;
-    // Calculate goal's XY bounds
-    float goal_min_x = goal_pos.x - consts::goalSize / 2.0f;
-    float goal_max_x = goal_pos.x + consts::goalSize / 2.0f;
-    float goal_min_y = goal_pos.y - consts::goalSize / 2.0f;
-    float goal_max_y = goal_pos.y + consts::goalSize / 2.0f;
-    // Check if macguffin's XY center is within goal's XY bounds
-    bool within_bounds = (macguffin_pos.x >= goal_min_x && macguffin_pos.x <= goal_max_x &&
-                            macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
-    if (within_bounds)
-    {
-        goal_reward = consts::goalReward;
-        done.v = 1; // Episode complete on goal achievement
-    }
+    // // Step reward based on distance reduction
+    // // Dividing by starting dist ensures that on success, sum of distance rewards is ~1 (times rewardScale)
+    // float step_reward = consts::distanceRewardScale * (reward_helper.prev_dist - dist) / reward_helper.starting_dist;
 
-    // Existential penalty per timestep
-    float exist_penalty = consts::existentialPenalty;
+    // // Goal reward if close enough
+    // float goal_reward = 0.0f;
+    // // Calculate goal's XY bounds
+    // float goal_min_x = goal_pos.x - consts::goalSize / 2.0f;
+    // float goal_max_x = goal_pos.x + consts::goalSize / 2.0f;
+    // float goal_min_y = goal_pos.y - consts::goalSize / 2.0f;
+    // float goal_max_y = goal_pos.y + consts::goalSize / 2.0f;
+    // // Check if macguffin's XY center is within goal's XY bounds
+    // bool within_bounds = (macguffin_pos.x >= goal_min_x && macguffin_pos.x <= goal_max_x &&
+    //                         macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
+    // if (within_bounds)
+    // {
+    //     goal_reward = consts::goalReward;
+    //     done.v = 1; // Episode complete on goal achievement
+    // }
 
-    // Total reward for this step
-    out_reward.v = step_reward + goal_reward + exist_penalty;
+    // // Existential penalty per timestep
+    // float exist_penalty = consts::existentialPenalty;
 
-    // Store current distance for next step
-    reward_helper.prev_dist = dist;
+    // // Total reward for this step
+    // out_reward.v = step_reward + goal_reward + exist_penalty;
+
+    // // Store current distance for next step
+    // reward_helper.prev_dist = dist;
 }
 
 // Keep track of the number of steps remaining in the episode and
