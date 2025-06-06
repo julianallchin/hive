@@ -111,6 +111,8 @@ if torch.cuda.is_available():
 else:
     dev = torch.device('cpu')
 
+print("Device: ", dev)
+
 ckpt_dir.mkdir(exist_ok=True, parents=True)
 
 obs, num_obs_features = setup_obs(sim)
