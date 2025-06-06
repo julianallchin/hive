@@ -91,7 +91,9 @@ def make_policy(num_obs_features, num_channels, separate_value):
 
     encoder = BackboneEncoder(
         net = MLP(
-            dims = [num_obs_features] + [num_channels for i in range(3)]
+            input_dim = num_obs_features,
+            num_channels = num_channels,
+            num_layers = 3,
         ),
     )
 
@@ -101,7 +103,9 @@ def make_policy(num_obs_features, num_channels, separate_value):
             actor_encoder = encoder,
             critic_encoder = RecurrentBackboneEncoder(
                 net = MLP(
-                    dims = [num_obs_features] + [num_channels for i in range(2)],
+                    input_dim = num_obs_features,
+                    num_channels = num_channels,
+                    num_layers = 2,
                 ),
                 rnn = LSTM(
                     in_channels = num_channels,
