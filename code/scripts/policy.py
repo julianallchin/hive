@@ -5,7 +5,7 @@ from madrona_escape_room_learn import (
 )
 
 from madrona_escape_room_learn.models import (
-    MultiAgentMLP, LinearLayerDiscreteActor, MultiAgentLinearLayerCritic,
+    MultiAgentMLP, MLP, LinearLayerDiscreteActor, MultiAgentLinearLayerCritic, LinearLayerCritic,
 )
 
 from madrona_escape_room_learn.rnn import LSTM
@@ -64,8 +64,9 @@ def process_obs(self_obs, lidar, steps_remaining):
         lidar.view(*lidar.shape[0:2], -1),
         steps_remaining.view(*steps_remaining.shape[0:2], -1)
         ], dim = -1
-    )
-    return obs_by_agent # [N * models, agents, -1]
+    ) # [N * models, agents, -1]
+
+    return obs_by_agent.view(obs_by_agent.shape[0], -1) # [N * models, agents * features]
 
 def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, separate_value):
     #encoder = RecurrentBackboneEncoder(
@@ -82,12 +83,11 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     #)
 
     encoder = BackboneEncoder(
-        net = MultiAgentMLP(
-            num_agents_per_model,
-            num_obs_features_per_agent,
-            num_channels,
-            3
-        ),
+        net = MLP(
+            input_dim = num_obs_features_per_agent * num_agents_per_model,
+            num_channels = num_channels * num_agents_per_model,
+            num_layers = 3
+        )
     )
 
     # if separate_value:
@@ -116,8 +116,8 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     return ActorCritic(
         backbone = backbone,
         actor = LinearLayerDiscreteActor(
-            [4, 8, 5, 2],
-            num_channels,
+            num_agents_per_model * [4, 8, 5, 2],
+            num_channels * num_agents_per_model,
         ),
-        critic = MultiAgentLinearLayerCritic(num_agents_per_model, num_channels)
+        critic = LinearLayerCritic(num_channels * num_agents_per_model)
     )
