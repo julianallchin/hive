@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .action import DiscreteActionDistributions
-from .actor_critic import ActorCritic, DiscreteActor, MultiAgentCritic
+from .actor_critic import ActorCritic, DiscreteActor, MultiAgentCritic, Critic
 
 class MLP(nn.Module):
     def __init__(self, input_dim, num_channels, num_layers):
@@ -63,7 +63,7 @@ class LinearLayerCritic(Critic):
 
 class MultiAgentLinearLayerCritic(MultiAgentCritic):
     def __init__(self, num_agents, in_channels_per_agent):
-        super().__init__(nn.Linear(in_channels_per_agent * num_agents))
+        super().__init__(nn.Linear(in_channels_per_agent * num_agents, 1))
 
         nn.init.orthogonal_(self.impl.weight)
         nn.init.constant_(self.impl.bias, 0)
