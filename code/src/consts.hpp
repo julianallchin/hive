@@ -7,8 +7,8 @@ namespace madEscape {
 namespace consts {
 
 // Generated levels assume 2 agents
-inline constexpr int32_t minAgents = 1;
-inline constexpr int32_t maxAgents = 4;
+inline constexpr int32_t minAgents = 50;
+inline constexpr int32_t maxAgents = 100;
 
 // Maximum number of interactive objects per challenge room. This is needed
 // in order to setup the fixed-size learning tensors appropriately.

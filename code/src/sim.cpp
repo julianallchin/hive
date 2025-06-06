@@ -112,6 +112,11 @@ inline void resetSystem(Engine &ctx, WorldReset &reset)
     }
 }
 
+static inline int32_t uniformInt(Engine &ctx, int32_t min, int32_t max)
+{
+    return static_cast<int32_t>(ctx.data().rng.sampleUniform() * (max + 1 - min) + min);
+}
+
 // Function to be filled
 inline Action generateRandomAction(Engine &ctx, Action currAction) {
     /*
