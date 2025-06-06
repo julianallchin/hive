@@ -382,7 +382,11 @@ inline void rewardSystem(Engine &ctx,
                         )
 {
     // basically the simplest possible reward
-    out_reward.v = ctx.get<Position>(ctx.data().agents[0]).x;
+    float r = 0.0f;
+    for (int32_t i = 0; i < consts::maxAgents; i++) {
+        r += ctx.get<Position>(ctx.data().agents[i]).x;
+    }
+    out_reward.v = r / consts::maxAgents;
 
     // // Get positions of macguffin and goal
     // Vector3 macguffin_pos = ctx.get<Position>(ctx.data().macguffin);
