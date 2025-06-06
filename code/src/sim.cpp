@@ -172,7 +172,7 @@ inline void movementSystem(Engine &ctx,
                            ExternalForce &external_force,
                            ExternalTorque &external_torque)
 {
-    action = generateRandomAction(ctx, action);
+    // action = generateRandomAction(ctx, action);
 
     constexpr float move_max = consts::agentMoveSpeed;
     constexpr float turn_max = consts::agentTurnSpeed; // these scale with mass apparently
