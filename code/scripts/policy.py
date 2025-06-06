@@ -48,7 +48,7 @@ def setup_obs(sim):
 
     return obs_tensors, num_obs_features
 
-def process_obs(self_obs, lidar, steps_remaining, ids):
+def process_obs(self_obs, lidar, steps_remaining):
     assert(not torch.isnan(self_obs).any())
     assert(not torch.isinf(self_obs).any())
 
@@ -61,8 +61,7 @@ def process_obs(self_obs, lidar, steps_remaining, ids):
     return torch.cat([
         self_obs.view(self_obs.shape[0], -1),
         lidar.view(lidar.shape[0], -1),
-        steps_remaining.float() / 200,
-        ids,
+        steps_remaining.float() / 200
     ], dim=1)
 
 def make_policy(num_obs_features, num_channels, separate_value):

@@ -77,8 +77,8 @@ for i in range(args.num_steps):
     print()
     print("Self:", obs[0])
     print("Partners:", obs[1])
-    print("Room Entities:", obs[2])
-    print("Lidar:", obs[3])
+    # print("Room Entities:", obs[2])
+    print("Lidar:", obs[2])
 
     print("Move Amount Probs")
     print(" ", np.array_str(probs[0][0].cpu().numpy(), precision=2, suppress_small=True))

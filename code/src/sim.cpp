@@ -381,6 +381,7 @@ inline void rewardSystem(Engine &ctx,
                          StepsRemaining &steps_remaining
                         )
 {
+    basically the simplest possible reward
     out_reward.v = ctx.get<Position>(ctx.data().agents[0]).x;
 
     // // Get positions of macguffin and goal

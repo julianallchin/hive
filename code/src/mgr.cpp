@@ -612,25 +612,7 @@ namespace madEscape
                                    });
     }
 
-    Tensor Manager::rewardTensor() const
-    {
-        return impl_->exportTensor(ExportID::Reward, TensorElementType::Float32,
-                                   {
-                                       impl_->cfg.numWorlds,
-                                       1,
-                                   });
-    }
-
-    Tensor Manager::doneTensor() const
-    {
-        return impl_->exportTensor(ExportID::Done, TensorElementType::Int32,
-                                   {
-                                       impl_->cfg.numWorlds,
-                                       1,
-                                   });
-    }
-
-    Tensor Manager::selfObservationTensor() const
+     Tensor Manager::selfObservationTensor() const
     {
         return impl_->exportTensor(ExportID::SelfObservation,
                                    TensorElementType::Float32,
@@ -641,6 +623,7 @@ namespace madEscape
                                    });
     }
 
+
     Tensor Manager::lidarTensor() const
     {
         return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,
@@ -649,16 +632,6 @@ namespace madEscape
                                        consts::maxAgents,
                                        consts::numLidarSamples,
                                        2,
-                                   });
-    }
-
-    Tensor Manager::stepsRemainingTensor() const
-    {
-        return impl_->exportTensor(ExportID::StepsRemaining,
-                                   TensorElementType::Int32,
-                                   {
-                                       impl_->cfg.numWorlds,
-                                       1,
                                    });
     }
 
@@ -672,6 +645,40 @@ namespace madEscape
                                        1,
                                    });
     }
+
+    Tensor Manager::rewardTensor() const
+    {
+        return impl_->exportTensor(ExportID::Reward, TensorElementType::Float32,
+                                   {
+                                       impl_->cfg.numWorlds,
+                                       1,
+                                       1
+                                   });
+    }
+
+    Tensor Manager::doneTensor() const
+    {
+        return impl_->exportTensor(ExportID::Done, TensorElementType::Int32,
+                                   {
+                                       impl_->cfg.numWorlds,
+                                       1,
+                                       1,
+                                   });
+    }
+
+
+    Tensor Manager::stepsRemainingTensor() const
+    {
+        return impl_->exportTensor(ExportID::StepsRemaining,
+                                   TensorElementType::Int32,
+                                   {
+                                       impl_->cfg.numWorlds,
+                                       1,
+                                       1
+                                   });
+    }
+
+
 
     Tensor Manager::rgbTensor() const
     {
