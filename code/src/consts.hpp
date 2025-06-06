@@ -8,14 +8,14 @@ namespace consts {
 
 // Generated levels assume 2 agents
 inline constexpr int32_t minAgents = 1;
-inline constexpr int32_t maxAgents = 4;
+inline constexpr int32_t maxAgents = 1;
 
 // Maximum number of interactive objects per challenge room. This is needed
 // in order to setup the fixed-size learning tensors appropriately.
 inline constexpr int32_t minCubes = 0;
-inline constexpr int32_t maxCubes = 3;
+inline constexpr int32_t maxCubes = 1;
 inline constexpr int32_t minBarriers = 0;
-inline constexpr int32_t maxBarriers = 3;
+inline constexpr int32_t maxBarriers = 1;
 
 
 inline constexpr madrona::CountT maxTotalEntities = 
