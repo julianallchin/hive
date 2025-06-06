@@ -63,17 +63,17 @@ inline constexpr float agentAgentBuffer = 0.0f;
 inline constexpr int maxAgentPlacementAttemptsPerAgent = 30;
 
 inline constexpr float macguffinSize = 5.0f;
-inline constexpr float macguffinInverseMass = 0.025f;
+inline constexpr float macguffinInverseMass = 0.1f;
 
 inline constexpr float goalSize = 3.0f;
 
 // Each unit of distance forward (+ y axis) rewards the agents by this amount
-inline constexpr float distanceRewardScale = 10.0f;
+inline constexpr float distanceRewardScale = 100.0f;
 // Each step that the agents don't make additional progress they get a small
 // penalty reward
 inline constexpr float existentialPenalty = -0.05f;
 // reward for completing task successfully
-inline constexpr float goalReward = 1.0f;
+inline constexpr float goalReward = 100.0f;
 
 // Steps per episode
 inline constexpr int32_t episodeLen = 500;
