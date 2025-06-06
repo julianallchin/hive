@@ -38,8 +38,8 @@ sim = madrona_escape_room.SimManager(
     auto_reset = True,
 )
 
-obs, num_obs_features = setup_obs(sim)
-policy = make_policy(num_obs_features, args.num_channels, args.separate_value)
+obs, num_obs_features_per_agent, num_agents_per_model = setup_obs(sim)
+policy = make_policy(num_obs_features_per_agent, num_agents_per_model, args.num_channels, args.separate_value)
 
 weights = LearningState.load_policy_weights(args.ckpt_path)
 policy.load_state_dict(weights)
@@ -49,9 +49,9 @@ dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
 
 # Flatten N, A, ... tensors to N * A, ...
-actions = actions.view(-1, *actions.shape[2:])
-dones  = dones.view(-1, *dones.shape[2:])
-rewards = rewards.view(-1, *rewards.shape[2:])
+actions = actions.view(-1, math.prod(actions.shape[2:]))
+dones  = dones.view(-1, math.prod(dones.shape[2:]))
+rewards = rewards.view(-1, math.prod(rewards.shape[2:]))
 
 cur_rnn_states = []
 
@@ -76,9 +76,8 @@ for i in range(args.num_steps):
 
     print()
     print("Self:", obs[0])
-    print("Partners:", obs[1])
-    print("Room Entities:", obs[2])
-    print("Lidar:", obs[3])
+    print("Lidar:", obs[1])
+    print("Steps Remaining:", obs[2])
 
     print("Move Amount Probs")
     print(" ", np.array_str(probs[0][0].cpu().numpy(), precision=2, suppress_small=True))

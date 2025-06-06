@@ -594,6 +594,7 @@ namespace madEscape
 
     Tensor Manager::resetTensor() const
     {
+        // per world
         return impl_->exportTensor(ExportID::Reset,
                                    TensorElementType::Int32,
                                    {
@@ -604,74 +605,93 @@ namespace madEscape
 
     Tensor Manager::actionTensor() const
     {
+        // per agent
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        consts::maxAgents,
                                        4,
                                    });
     }
 
-    Tensor Manager::rewardTensor() const
+     Tensor Manager::selfObservationTensor() const
     {
-        return impl_->exportTensor(ExportID::Reward, TensorElementType::Float32,
-                                   {
-                                       impl_->cfg.numWorlds,
-                                       1,
-                                   });
-    }
-
-    Tensor Manager::doneTensor() const
-    {
-        return impl_->exportTensor(ExportID::Done, TensorElementType::Int32,
-                                   {
-                                       impl_->cfg.numWorlds,
-                                       1,
-                                   });
-    }
-
-    Tensor Manager::selfObservationTensor() const
-    {
+        // per agent
         return impl_->exportTensor(ExportID::SelfObservation,
                                    TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        consts::maxAgents,
                                        9,
                                    });
     }
 
+
     Tensor Manager::lidarTensor() const
     {
+        // per agent
         return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        consts::maxAgents,
                                        consts::numLidarSamples,
                                        2,
                                    });
     }
 
+    Tensor Manager::activeAgentsTensor() const
+    {
+        // per agent
+        return impl_->exportTensor(ExportID::Active,
+                                   TensorElementType::Int32,
+                                   {
+                                       impl_->cfg.numWorlds,
+                                       1,
+                                       consts::maxAgents,
+                                       1,
+                                   });
+    }
+
+    Tensor Manager::rewardTensor() const
+    {   
+        // per model
+        return impl_->exportTensor(ExportID::Reward, TensorElementType::Float32,
+                                   {
+                                       impl_->cfg.numWorlds,
+                                       1,
+                                       1
+                                   });
+    }
+
+    Tensor Manager::doneTensor() const
+    {
+        // per model
+        return impl_->exportTensor(ExportID::Done, TensorElementType::Int32,
+                                   {
+                                       impl_->cfg.numWorlds,
+                                       1,
+                                       1,
+                                   });
+    }
+
+
     Tensor Manager::stepsRemainingTensor() const
     {
+        // per ant
         return impl_->exportTensor(ExportID::StepsRemaining,
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
                                        1,
+                                       1,
+                                       1
                                    });
     }
 
-    Tensor Manager::activeAgentsTensor() const
-    {
-        return impl_->exportTensor(ExportID::Active,
-                                   TensorElementType::Int32,
-                                   {
-                                       impl_->cfg.numWorlds,
-                                       consts::maxAgents,
-                                       1,
-                                   });
-    }
+
 
     Tensor Manager::rgbTensor() const
     {

@@ -7,15 +7,20 @@ namespace madEscape {
 namespace consts {
 
 // Generated levels assume 2 agents
+<<<<<<< HEAD
 inline constexpr int32_t minAgents = 50;
 inline constexpr int32_t maxAgents = 100;
+=======
+inline constexpr int32_t minAgents = 2;
+inline constexpr int32_t maxAgents = 2;
+>>>>>>> f80edf18427f56774be0e694d0e8769e056a4b19
 
 // Maximum number of interactive objects per challenge room. This is needed
 // in order to setup the fixed-size learning tensors appropriately.
 inline constexpr int32_t minCubes = 0;
-inline constexpr int32_t maxCubes = 3;
+inline constexpr int32_t maxCubes = 1;
 inline constexpr int32_t minBarriers = 0;
-inline constexpr int32_t maxBarriers = 3;
+inline constexpr int32_t maxBarriers = 1;
 
 
 inline constexpr madrona::CountT maxTotalEntities = 
@@ -63,17 +68,17 @@ inline constexpr float agentAgentBuffer = 0.0f;
 inline constexpr int maxAgentPlacementAttemptsPerAgent = 30;
 
 inline constexpr float macguffinSize = 5.0f;
-inline constexpr float macguffinInverseMass = 0.025f;
+inline constexpr float macguffinInverseMass = 0.05f;
 
 inline constexpr float goalSize = 3.0f;
 
 // Each unit of distance forward (+ y axis) rewards the agents by this amount
-inline constexpr float distanceRewardScale = 10.0f;
+inline constexpr float distanceRewardScale = 100.0f;
 // Each step that the agents don't make additional progress they get a small
 // penalty reward
 inline constexpr float existentialPenalty = -0.05f;
 // reward for completing task successfully
-inline constexpr float goalReward = 1.0f;
+inline constexpr float goalReward = 100.0f;
 
 // Steps per episode
 inline constexpr int32_t episodeLen = 500;

@@ -51,6 +51,18 @@ class Critic(nn.Module):
         return self.impl(features_in)
 
 
+# expects inputs for a single model to be broken across multiple agents.
+# It's just a critic, but it flattens input before using it
+class MultiAgentCritic(nn.Module):
+    def __init__(self, impl):
+        super().__init__()
+        self.impl = impl
+    def forward(self, features_in):
+        assert(len(features_in.shape) == 3) # should be [N * M, A, -1]
+        return self.impl(features_in.view(features_in.shape[0], -1))
+
+
+
 class RecurrentStateConfig:
     def __init__(self, shapes):
         self.shapes = shapes
