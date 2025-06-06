@@ -68,7 +68,7 @@ inline constexpr float macguffinInverseMass = 1.0f;
 inline constexpr float goalSize = 3.0f;
 
 // Each unit of distance forward (+ y axis) rewards the agents by this amount
-inline constexpr float distanceRewardScale = 100.0f;
+inline constexpr float distanceRewardScale = 1000.0f;
 // Each step that the agents don't make additional progress they get a small
 // penalty reward
 inline constexpr float existentialPenalty = -0.05f;
