@@ -113,14 +113,14 @@ else:
 
 ckpt_dir.mkdir(exist_ok=True, parents=True)
 
-obs, num_obs_features = setup_obs(sim)
-policy = make_policy(num_obs_features, args.num_channels, args.separate_value)
+obs, num_obs_features_per_agent, num_agents_per_model = setup_obs(sim)
+policy = make_policy(num_obs_features_per_agent, num_agents_per_model, args.num_channels, args.separate_value)
 
 actions = sim.action_tensor().to_torch()
 dones = sim.done_tensor().to_torch()
 rewards = sim.reward_tensor().to_torch()
 
-# Flatten N, A, ... tensors to N * A, ...
+# Flatten N, M, ... tensors to N * M, ...
 actions = actions.view(-1, *actions.shape[2:])
 dones  = dones.view(-1, *dones.shape[2:])
 rewards = rewards.view(-1, *rewards.shape[2:])

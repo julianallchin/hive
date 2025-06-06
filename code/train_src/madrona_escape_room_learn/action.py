@@ -10,7 +10,7 @@ class DiscreteActionDistributions:
 
         for num_buckets in self.actions_num_buckets:
             self.dists.append(Categorical(logits = logits[
-                :, cur_bucket_offset:cur_bucket_offset + num_buckets],
+                ..., cur_bucket_offset:cur_bucket_offset + num_buckets],
                 validate_args=False))
             cur_bucket_offset += num_buckets
 

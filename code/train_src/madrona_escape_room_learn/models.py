@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .action import DiscreteActionDistributions
-from .actor_critic import ActorCritic, DiscreteActor, Critic
+from .actor_critic import ActorCritic, DiscreteActor, MultiAgentCritic
 
 class MLP(nn.Module):
     def __init__(self, input_dim, num_channels, num_layers):
@@ -31,6 +31,19 @@ class MLP(nn.Module):
     def forward(self, inputs):
         return self.net(inputs)
 
+class MultiAgentMLP(nn.Module):
+    def __init__(self, num_agents, input_dim_per_agent, num_channels_per_agent, num_layers):
+        super().__init__()
+        self.mlp = MLP(input_dim_per_agent * num_agents, num_channels_per_agent * num_agents, num_layers)
+        self.num_agents = num_agents
+
+    # inputs: [N * M, A, -1]
+    def forward(self, inputs):
+        flat_inputs = inputs.view(inputs.shape[0], -1)
+        flat_outputs = self.mlp(flat_inputs)
+        return flat_outputs.view(*inputs.shape[0:2], -1)
+
+
 class LinearLayerDiscreteActor(DiscreteActor):
     def __init__(self, actions_num_buckets, in_channels):
         total_action_dim = sum(actions_num_buckets)
@@ -44,6 +57,13 @@ class LinearLayerDiscreteActor(DiscreteActor):
 class LinearLayerCritic(Critic):
     def __init__(self, in_channels):
         super().__init__(nn.Linear(in_channels, 1))
+
+        nn.init.orthogonal_(self.impl.weight)
+        nn.init.constant_(self.impl.bias, 0)
+
+class MultiAgentLinearLayerCritic(MultiAgentCritic):
+    def __init__(self, num_agents, in_channels_per_agent):
+        super().__init__(nn.Linear(in_channels_per_agent * num_agents))
 
         nn.init.orthogonal_(self.impl.weight)
         nn.init.constant_(self.impl.bias, 0)

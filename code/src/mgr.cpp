@@ -594,6 +594,7 @@ namespace madEscape
 
     Tensor Manager::resetTensor() const
     {
+        // per world
         return impl_->exportTensor(ExportID::Reset,
                                    TensorElementType::Int32,
                                    {
@@ -604,9 +605,11 @@ namespace madEscape
 
     Tensor Manager::actionTensor() const
     {
+        // per agent
         return impl_->exportTensor(ExportID::Action, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        consts::maxAgents,
                                        4,
                                    });
@@ -614,10 +617,12 @@ namespace madEscape
 
      Tensor Manager::selfObservationTensor() const
     {
+        // per agent
         return impl_->exportTensor(ExportID::SelfObservation,
                                    TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        consts::maxAgents,
                                        9,
                                    });
@@ -626,9 +631,11 @@ namespace madEscape
 
     Tensor Manager::lidarTensor() const
     {
+        // per agent
         return impl_->exportTensor(ExportID::Lidar, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        consts::maxAgents,
                                        consts::numLidarSamples,
                                        2,
@@ -637,17 +644,20 @@ namespace madEscape
 
     Tensor Manager::activeAgentsTensor() const
     {
+        // per agent
         return impl_->exportTensor(ExportID::Active,
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        consts::maxAgents,
                                        1,
                                    });
     }
 
     Tensor Manager::rewardTensor() const
-    {
+    {   
+        // per model
         return impl_->exportTensor(ExportID::Reward, TensorElementType::Float32,
                                    {
                                        impl_->cfg.numWorlds,
@@ -658,6 +668,7 @@ namespace madEscape
 
     Tensor Manager::doneTensor() const
     {
+        // per model
         return impl_->exportTensor(ExportID::Done, TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
@@ -669,10 +680,12 @@ namespace madEscape
 
     Tensor Manager::stepsRemainingTensor() const
     {
+        // per ant
         return impl_->exportTensor(ExportID::StepsRemaining,
                                    TensorElementType::Int32,
                                    {
                                        impl_->cfg.numWorlds,
+                                       1,
                                        1,
                                        1
                                    });
