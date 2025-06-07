@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 {
     using namespace madEscape;
 
-    constexpr int64_t num_views = 2;
+    constexpr int64_t num_views = consts::maxAgents;
 
     // Read command line arguments
     uint32_t num_worlds = 1;
