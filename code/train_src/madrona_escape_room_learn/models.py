@@ -67,3 +67,25 @@ class MultiAgentLinearLayerCritic(MultiAgentCritic):
 
         nn.init.orthogonal_(self.impl.weight)
         nn.init.constant_(self.impl.bias, 0)
+
+class AttentionEncoder(nn.Module):
+    def __init__(self, num_agents, input_dim_per_agent, num_channels_per_agent, num_layers, output_dim):
+        super().__init__()
+        self.num_agents = num_agents
+        self.input_dim_per_agent = input_dim_per_agent
+        self.num_channels_per_agent = num_channels_per_agent
+        self.num_layers = num_layers
+        self.output_dim = output_dim
+        
+        self.query = nn.Parameter(torch.zeros(1, 1, num_channels_per_agent))
+        self.mlp = MLP(input_dim_per_agent, num_channels_per_agent, num_layers)
+        self.attn = nn.MultiheadAttention(num_channels_per_agent, num_heads=1, batch_first=True)
+        self.mlp_out = nn.Linear(num_channels_per_agent, output_dim)
+
+    def forward(self, inputs):
+        # inputs: [N * M, A * -1]
+        unflattened_inputs = inputs.view(inputs.shape[0], self.num_agents, -1)
+        mlp_out = self.mlp(unflattened_inputs)
+        attn_out = self.attn(self.query, mlp_out, mlp_out)[0]
+        return self.mlp_out(attn_out).view(inputs.shape[0], -1)
+        
