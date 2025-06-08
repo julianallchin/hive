@@ -39,10 +39,8 @@ class MultiAgentSharedMLP(nn.Module):
 
     # inputs: [N * M, A * -1]
     def forward(self, inputs):
-        assert(len(inputs.shape) == 2)
         unflattened_inputs = inputs.view(inputs.shape[0], self.num_agents, -1)
         action_logits = self.mlp(unflattened_inputs)
-        assert(len(action_logits.shape) == 2)
         return action_logits.view(inputs.shape[0], -1) # [N * M, A * -1]
 
 
