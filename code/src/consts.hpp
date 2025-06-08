@@ -67,16 +67,17 @@ inline constexpr float macguffinInverseMass = 0.1f;
 
 inline constexpr float goalSize = 3.0f;
 
-// Each unit of distance forward (+ y axis) rewards the agents by this amount
-inline constexpr float distanceRewardScale = 1000.0f;
-// Each step that the agents don't make additional progress they get a small
-// penalty reward
-inline constexpr float existentialPenalty = -0.05f;
-// reward for completing task successfully
-inline constexpr float goalReward = 100.0f;
-
 // Steps per episode
 inline constexpr int32_t episodeLen = 500;
+
+// Each unit of distance forward (+ y axis) rewards the agents by this amount
+inline constexpr float distanceRewardScale = 1.0f;
+// Each step that the agents don't make additional progress they get a small
+// penalty reward
+inline constexpr float existentialPenalty = -1 / episodeLen;
+// reward for completing task successfully
+inline constexpr float goalReward = 0.0f;
+
 
 // How many discrete options for actions
 inline constexpr madrona::CountT numMoveAmountBuckets = 4;
