@@ -133,6 +133,7 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     msg_dim = num_channels
     command_dim = num_channels
 
+    # [N * M, agents * observations] -> [N * models, agents * channels] (independent of num agents)
     actor_encoder = BackboneEncoder(
         net = DictatorAttentionActorEncoder(
             obs_per_agent = num_obs_features_per_agent,
@@ -151,6 +152,7 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     #     )
     # )
 
+    # [N * M, agents * observations] -> attention -> [N * models, channels] (independent of num_agents)
     critic_encoder = BackboneEncoder(
         net = AttentionEncoder(
             input_dim_per_agent = num_obs_features_per_agent,
@@ -166,11 +168,14 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
         critic_encoder = critic_encoder
     )
 
+
+    # actor: [N * models, agents * channels] -> [N * models, agents * actions]; each agent processed independently
+    # critic: [N * models, channels] -> [N * models, 1]
     return ActorCritic(
         backbone = backbone,
-        actor = LinearLayerDiscreteActor(
-            num_agents_per_model * [4, 8, 5, 2],
-            num_channels * num_agents_per_model,
+        actor = MultiAgentLinearDiscreteActor(
+            [4, 8, 5, 2],
+            num_channels,
         ),
         critic = LinearLayerCritic(num_channels)
     )

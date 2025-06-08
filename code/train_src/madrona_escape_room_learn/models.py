@@ -54,6 +54,31 @@ class LinearLayerDiscreteActor(DiscreteActor):
         nn.init.orthogonal_(self.impl.weight, gain=0.01)
         nn.init.constant_(self.impl.bias, 0)
 
+class MultiAgentLinearDiscreteActor(nn.Module):
+    def __init__(self, actions_num_buckets, in_channels_per_agent):
+        super().__init__()
+        total_action_dim = sum(actions_num_buckets)
+        self.in_channels_per_agent = in_channels_per_agent
+        self.actions_num_buckets = actions_num_buckets
+        self.impl = nn.Linear(in_channels_per_agent, total_action_dim)
+
+        nn.init.orthogonal_(self.impl.weight, gain=0.01)
+        nn.init.constant_(self.impl.bias, 0)
+
+    def forward(self, features_in):
+        assert(len(features_in.shape) == 2)
+        assert(features_in.shape[1] % self.in_channels_per_agent == 0)
+        num_agents = features_in.shape[1] // self.in_channels_per_agent
+
+        features_in_per_agent = features_in.view(features_in.shape[0], num_agents, self.in_channels_per_agent) # [N * M, A, in_channels_per_agent]
+        action_logits = self.impl(features_in_per_agent) # [N * M, A, total_action_dim]
+        flat_action_logits = action_logits.view(action_logits.shape[0], -1) # [N * M, A * total_action_dim]
+        assert(flat_action_logits.shape[1] == num_agents * sum(self.actions_num_buckets))
+        return DiscreteActionDistributions( # actions_num_buckets is a list of how many options per action
+                num_agents * self.actions_num_buckets, logits=flat_action_logits)
+
+        
+
 class LinearLayerCritic(Critic):
     def __init__(self, in_channels):
         super().__init__(nn.Linear(in_channels, 1))
