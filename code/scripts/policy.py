@@ -4,9 +4,7 @@ from madrona_escape_room_learn import (
     BackboneEncoder, RecurrentBackboneEncoder,
 )
 
-from madrona_escape_room_learn.models import (
-    MultiAgentSharedMLP, MLP, LinearLayerDiscreteActor, MultiAgentLinearLayerCritic, LinearLayerCritic,
-)
+from madrona_escape_room_learn.models import *
 
 from madrona_escape_room_learn.rnn import LSTM
 
@@ -131,12 +129,19 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
         )
     )
 
-    critic_encoder = BackboneEncoder(
-        net = MLP(
-            input_dim = num_agents_per_model * num_obs_features_per_agent,
-            num_channels = num_channels,
-            num_layers = 3
-        )
+    # critic_encoder = BackboneEncoder(
+    #     net = MLP(
+    #         input_dim = num_agents_per_model * num_obs_features_per_agent,
+    #         num_channels = num_channels,
+    #         num_layers = 3
+    #     )
+    # )
+
+    critic_encoder = AttentionEncoder(
+        input_dim_per_agent = num_obs_features_per_agent,
+        num_channels_per_agent = num_channels,
+        num_layers = 2,
+        output_dim = num_channels
     )
 
     backbone = BackboneSeparate(
