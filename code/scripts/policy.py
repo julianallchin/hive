@@ -133,12 +133,14 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     msg_dim = num_channels
     command_dim = num_channels
 
-    actor_encoder = DictatorAttentionActorEncoder(
-        obs_per_agent = num_obs_features_per_agent,
-        agent_msg_dim = msg_dim,
-        num_layers = 2,
-        command_dim = command_dim,
-        action_logits_dim = num_channels
+    actor_encoder = BackboneEncoder(
+        net = DictatorAttentionActorEncoder(
+            obs_per_agent = num_obs_features_per_agent,
+            agent_msg_dim = msg_dim,
+            num_layers = 2,
+            command_dim = command_dim,
+            action_logits_dim = num_channels
+        )
     )
 
     # critic_encoder = BackboneEncoder(
