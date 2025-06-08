@@ -120,12 +120,25 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     #     critic = LinearLayerCritic(num_channels * num_agents_per_model)
     # )
 
-    actor_encoder = BackboneEncoder(
-        net = MultiAgentSharedMLP(
-            input_dim_per_agent = num_obs_features_per_agent,
-            num_channels_per_agent = num_channels,
-            num_layers = 3
-        )
+    # actor_encoder = BackboneEncoder(
+    #     net = MultiAgentSharedMLP(
+    #         input_dim_per_agent = num_obs_features_per_agent,
+    #         num_channels_per_agent = num_channels,
+    #         num_layers = 3
+    #     )
+    # )
+
+
+    # these can be different; should make them configurable
+    msg_dim = num_channels
+    command_dim = num_channels
+
+    actor_encoder = DictatorAttentionActorEncoder(
+        obs_per_agent = num_obs_features_per_agent,
+        agent_msg_dim = msg_dim,
+        num_layers = 2,
+        command_dim = command_dim,
+        action_logits_dim = num_channels
     )
 
     # critic_encoder = BackboneEncoder(
