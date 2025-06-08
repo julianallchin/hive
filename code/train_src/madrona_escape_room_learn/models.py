@@ -86,6 +86,7 @@ class AttentionEncoder(nn.Module):
         # inputs: [N * M, A * -1]
         unflattened_inputs = inputs.view(inputs.shape[0], self.num_agents, -1)
         mlp_out = self.mlp(unflattened_inputs)
-        attn_out = self.attn(self.query, mlp_out, mlp_out)[0]
-        return self.mlp_out(attn_out).view(inputs.shape[0], -1)
+        attn_out = self.attn(self.query, mlp_out, mlp_out)
+        attn_out = attn_out.view(inputs.shape[0], -1)
+        return self.mlp_out(attn_out)
         
