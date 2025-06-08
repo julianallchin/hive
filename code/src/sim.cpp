@@ -650,7 +650,14 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         builder, {lidar, collect_obs});
     auto sort_phys_objects = queueSortByWorld<PhysicsEntity>(
         builder, {sort_agents});
-    (void)sort_phys_objects;
+    auto sort_episode_trackers = queueSortByWorld<EpisodeTracker>(
+        builder, {sort_phys_objects});
+    auto sort_macguffins = queueSortByWorld<MacGuffin>(
+        builder, {sort_episode_trackers});
+    auto sort_goals = queueSortByWorld<Goal>(
+        builder, {sort_macguffins});
+
+    (void)sort_goals;
 #else
     (void)lidar;
     (void)collect_obs;
