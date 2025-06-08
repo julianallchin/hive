@@ -208,6 +208,8 @@ inline void grabSystem(Engine &ctx,
                        Action action,
                        GrabState &grab)
 {
+    return;
+    
     // lowkey don't edit these values unless you know what you're doing
     const float GRAB_RANGE = consts::agentRadius + 1.0f;
     const float GRAB_POINT_FORWARD_OFFSET = 1.25f;
