@@ -7,13 +7,9 @@ namespace madEscape
 
   namespace consts
   {
-
-    // Generated levels assume 2 agents
     inline constexpr int32_t minAgents = 3;
     inline constexpr int32_t maxAgents = 3;
 
-    // Maximum number of interactive objects per challenge room. This is needed
-    // in order to setup the fixed-size learning tensors appropriately.
     inline constexpr int32_t minCubes = 0;
     inline constexpr int32_t maxCubes = 1;
     inline constexpr int32_t minBarriers = 3;
@@ -69,7 +65,7 @@ namespace madEscape
     inline constexpr float goalSize = 3.0f;
 
     // Steps per episode
-    inline constexpr int32_t episodeLen = 500;
+    inline constexpr int32_t episodeLen = 1000;
 
     // Each unit of distance forward (+ y axis) rewards the agents by this amount
     inline constexpr float distanceRewardScale = 1.0f;
@@ -77,7 +73,7 @@ namespace madEscape
     // penalty reward
     inline constexpr float existentialPenalty = (0.0f * (-1.0f / episodeLen));
     // reward for completing task successfully
-    inline constexpr float goalReward = 0.0f;
+    inline constexpr float goalReward = 1.0f;
 
     // How many discrete options for actions
     inline constexpr madrona::CountT numMoveAmountBuckets = 4;
