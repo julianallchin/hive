@@ -7,8 +7,8 @@ namespace madEscape {
 namespace consts {
 
 // Generated levels assume 2 agents
-inline constexpr int32_t minAgents = 1;
-inline constexpr int32_t maxAgents = 1;
+inline constexpr int32_t minAgents = 5;
+inline constexpr int32_t maxAgents = 5;
 
 // Maximum number of interactive objects per challenge room. This is needed
 // in order to setup the fixed-size learning tensors appropriately.
@@ -74,7 +74,7 @@ inline constexpr int32_t episodeLen = 500;
 inline constexpr float distanceRewardScale = 1.0f;
 // Each step that the agents don't make additional progress they get a small
 // penalty reward
-inline constexpr float existentialPenalty = (-1.0f / episodeLen);
+inline constexpr float existentialPenalty = (0.0f * (-1.0f / episodeLen));
 // reward for completing task successfully
 inline constexpr float goalReward = 0.0f;
 
