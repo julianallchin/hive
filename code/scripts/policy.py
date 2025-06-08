@@ -137,11 +137,13 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     #     )
     # )
 
-    critic_encoder = AttentionEncoder(
-        input_dim_per_agent = num_obs_features_per_agent,
-        num_channels_per_agent = num_channels,
-        num_layers = 2,
-        output_dim = num_channels
+    critic_encoder = BackboneEncoder(
+        net = AttentionEncoder(
+            input_dim_per_agent = num_obs_features_per_agent,
+            num_channels_per_agent = num_channels,
+            num_layers = 2,
+            output_dim = num_channels
+        )
     )
 
     backbone = BackboneSeparate(

@@ -83,9 +83,11 @@ class AttentionEncoder(nn.Module):
 
     def forward(self, inputs):
         # inputs: [N * M, A * -1]
+        assert (len(inputs.shape) == 2)
+        
         unflattened_inputs = inputs.view(inputs.shape[0], -1, self.input_dim_per_agent)
         mlp_out = self.mlp(unflattened_inputs)
-        attn_out = self.attn(self.query, mlp_out, mlp_out)
-        attn_out = attn_out.view(inputs.shape[0], -1)
-        return self.mlp_out(attn_out)
+        attn_out, _ = self.attn(self.query.expand(inputs.shape[0], -1, -1), mlp_out, mlp_out)
+        flat_attn_out = attn_out.view(inputs.shape[0], -1)
+        return self.mlp_out(flat_attn_out)
         
