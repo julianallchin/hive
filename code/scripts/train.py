@@ -85,7 +85,7 @@ arg_parser.add_argument('--entropy-loss-coef', type=float, default=0.01)
 arg_parser.add_argument('--value-loss-coef', type=float, default=0.5)
 arg_parser.add_argument('--clip-value-loss', action='store_true')
 
-arg_parser.add_argument('--num-channels', type=int, default=64)
+arg_parser.add_argument('--num-channels', type=int, default=256)
 arg_parser.add_argument('--separate-value', action='store_true')
 arg_parser.add_argument('--fp16', action='store_true')
 
