@@ -31,17 +31,19 @@ class MLP(nn.Module):
     def forward(self, inputs):
         return self.net(inputs)
 
-class MultiAgentMLP(nn.Module):
+class MultiAgentSharedMLP(nn.Module):
     def __init__(self, num_agents, input_dim_per_agent, num_channels_per_agent, num_layers):
         super().__init__()
-        self.mlp = MLP(input_dim_per_agent * num_agents, num_channels_per_agent * num_agents, num_layers)
+        self.mlp = MLP(input_dim_per_agent, num_channels_per_agent, num_layers)
         self.num_agents = num_agents
 
-    # inputs: [N * M, A, -1]
+    # inputs: [N * M, A * -1]
     def forward(self, inputs):
-        flat_inputs = inputs.view(inputs.shape[0], -1)
-        flat_outputs = self.mlp(flat_inputs)
-        return flat_outputs.view(*inputs.shape[0:2], -1)
+        assert(len(inputs.shape) == 2)
+        unflattened_inputs = inputs.view(inputs.shape[0], self.num_agents, -1)
+        action_logits = self.mlp(unflattened_inputs)
+        assert(len(action_logits.shape) == 2)
+        return action_logits.view(inputs.shape[0], -1) # [N * M, A * -1]
 
 
 class LinearLayerDiscreteActor(DiscreteActor):

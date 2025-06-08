@@ -5,7 +5,7 @@ from madrona_escape_room_learn import (
 )
 
 from madrona_escape_room_learn.models import (
-    MultiAgentMLP, MLP, LinearLayerDiscreteActor, MultiAgentLinearLayerCritic, LinearLayerCritic,
+    MultiAgentSharedMLP, MLP, LinearLayerDiscreteActor, MultiAgentLinearLayerCritic, LinearLayerCritic,
 )
 
 from madrona_escape_room_learn.rnn import LSTM
@@ -69,48 +69,80 @@ def process_obs(self_obs, lidar, steps_remaining):
     return obs_by_agent.view(obs_by_agent.shape[0], -1) # [N * models, agents * features]
 
 def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, separate_value):
-    #encoder = RecurrentBackboneEncoder(
-    #    net = MLP(
-    #        input_dim = num_obs_features,
-    #        num_channels = num_channels,
-    #        num_layers = 2,
-    #    ),
-    #    rnn = LSTM(
-    #        in_channels = num_channels,
-    #        hidden_channels = num_channels,
-    #        num_layers = 1,
-    #    ),
-    #)
+    # #encoder = RecurrentBackboneEncoder(
+    # #    net = MLP(
+    # #        input_dim = num_obs_features,
+    # #        num_channels = num_channels,
+    # #        num_layers = 2,
+    # #    ),
+    # #    rnn = LSTM(
+    # #        in_channels = num_channels,
+    # #        hidden_channels = num_channels,
+    # #        num_layers = 1,
+    # #    ),
+    # #)
 
-    encoder = BackboneEncoder(
-        net = MLP(
-            input_dim = num_obs_features_per_agent * num_agents_per_model,
-            num_channels = num_channels * num_agents_per_model,
+    # encoder = BackboneEncoder(
+    #     net = MLP(
+    #         input_dim = num_obs_features_per_agent * num_agents_per_model,
+    #         num_channels = num_channels * num_agents_per_model,
+    #         num_layers = 3
+    #     )
+    # )
+
+    # # if separate_value:
+    # #     backbone = BackboneSeparate(
+    # #         process_obs = process_obs,
+    # #         actor_encoder = encoder,
+    # #         critic_encoder = RecurrentBackboneEncoder(
+    # #             net = MLP(
+    # #                 input_dim = num_obs_features_per_agent * num_agents_per_model,
+    # #                 num_channels = num_channels,
+    # #                 num_layers = 2,
+    # #             ),
+    # #             rnn = LSTM(
+    # #                 in_channels = num_channels,
+    # #                 hidden_channels = num_channels,
+    # #                 num_layers = 1,
+    # #             ),
+    # #         )
+    # #     )
+    # # else:
+    # backbone = BackboneShared(
+    #     process_obs = process_obs,
+    #     encoder = encoder,
+    # )
+
+    # return ActorCritic(
+    #     backbone = backbone,
+    #     actor = LinearLayerDiscreteActor(
+    #         num_agents_per_model * [4, 8, 5, 2],
+    #         num_channels * num_agents_per_model,
+    #     ),
+    #     critic = LinearLayerCritic(num_channels * num_agents_per_model)
+    # )
+
+    actor_encoder = BackboneEncoder(
+        net = MultiAgentSharedMLP(
+            num_agents = num_agents_per_model,
+            input_dim_per_model = num_obs_features_per_agent,
+            num_channels_per_agent = num_channels,
             num_layers = 3
         )
     )
 
-    # if separate_value:
-    #     backbone = BackboneSeparate(
-    #         process_obs = process_obs,
-    #         actor_encoder = encoder,
-    #         critic_encoder = RecurrentBackboneEncoder(
-    #             net = MLP(
-    #                 input_dim = num_obs_features_per_agent * num_agents_per_model,
-    #                 num_channels = num_channels,
-    #                 num_layers = 2,
-    #             ),
-    #             rnn = LSTM(
-    #                 in_channels = num_channels,
-    #                 hidden_channels = num_channels,
-    #                 num_layers = 1,
-    #             ),
-    #         )
-    #     )
-    # else:
-    backbone = BackboneShared(
+    critic_encoder = BackboneEncoder(
+        net = MLP(
+            input_dim = num_agents_per_model * num_obs_features_per_agent,
+            num_channels = num_channels,
+            num_layers = 3
+        )
+    )
+
+    backbone = BackboneSeparate(
         process_obs = process_obs,
-        encoder = encoder,
+        actor_encoder = actor_encoder,
+        critic_encoder = critic_encoder
     )
 
     return ActorCritic(
@@ -119,5 +151,5 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
             num_agents_per_model * [4, 8, 5, 2],
             num_channels * num_agents_per_model,
         ),
-        critic = LinearLayerCritic(num_channels * num_agents_per_model)
+        critic = LinearLayerCritic(num_channels)
     )
