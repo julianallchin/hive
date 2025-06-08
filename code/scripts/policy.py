@@ -122,7 +122,6 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
 
     actor_encoder = BackboneEncoder(
         net = MultiAgentSharedMLP(
-            num_agents = num_agents_per_model,
             input_dim_per_agent = num_obs_features_per_agent,
             num_channels_per_agent = num_channels,
             num_layers = 3

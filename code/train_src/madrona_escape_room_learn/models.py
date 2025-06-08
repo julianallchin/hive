@@ -32,14 +32,14 @@ class MLP(nn.Module):
         return self.net(inputs)
 
 class MultiAgentSharedMLP(nn.Module):
-    def __init__(self, num_agents, input_dim_per_agent, num_channels_per_agent, num_layers):
+    def __init__(self, input_dim_per_agent, num_channels_per_agent, num_layers):
         super().__init__()
         self.mlp = MLP(input_dim_per_agent, num_channels_per_agent, num_layers)
-        self.num_agents = num_agents
+        self.input_dim_per_agent = input_dim_per_agent
 
     # inputs: [N * M, A * -1]
     def forward(self, inputs):
-        unflattened_inputs = inputs.view(inputs.shape[0], self.num_agents, -1)
+        unflattened_inputs = inputs.view(inputs.shape[0], -1, self.input_dim_per_agent)
         action_logits = self.mlp(unflattened_inputs)
         return action_logits.view(inputs.shape[0], -1) # [N * M, A * -1]
 
