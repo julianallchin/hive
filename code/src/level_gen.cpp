@@ -296,7 +296,7 @@ namespace madEscape
 
         // MacGuffin
         Entity macguffin = ctx.data().macguffin;
-        Vector3 macguffin_pos{levelPlacements.macguffinPlacement.x, levelPlacements.macguffinPlacement.y, consts::macguffinSize / 2.f};
+        Vector3 macguffin_pos{levelPlacements.macguffinPlacement.x, levelPlacements.macguffinPlacement.y, consts::macguffinSize / consts::cubeMeshSize};
         registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
         ctx.get<Position>(macguffin) = macguffin_pos;
         ctx.get<Rotation>(macguffin) = Quat{1, 0, 0, 0};
