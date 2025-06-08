@@ -379,7 +379,7 @@ namespace madEscape
             Vector3{
                 placement.x,
                 placement.y,
-                consts::cubeSize / 2.f},
+                (consts::cubeSize * placement.scale / consts::cubeMeshSize)},
             Quat{1, 0, 0, 0},
             SimObject::Cube,
             EntityType::Cube,
