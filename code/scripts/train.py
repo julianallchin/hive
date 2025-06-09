@@ -71,7 +71,7 @@ class LearningCallback:
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('--gpu-id', type=int, default=0)
-arg_parser.add_argument('--ckpt-dir', type=str, required=True)
+arg_parser.add_argument('--run-name', type=str, required=True)
 arg_parser.add_argument('--restore', type=int)
 
 arg_parser.add_argument('--num-worlds', type=int, required=True)
@@ -102,7 +102,7 @@ sim = madrona_escape_room.SimManager(
     auto_reset = True,
 )
 
-ckpt_dir = Path(args.ckpt_dir)
+ckpt_dir = Path(args.run_name)
 
 learning_cb = LearningCallback(ckpt_dir, args.profile_report)
 
@@ -160,5 +160,6 @@ train(
     ),
     policy,
     learning_cb,
+    run_name=args.run_name,
     restore_ckpt
 )
