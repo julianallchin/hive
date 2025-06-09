@@ -102,7 +102,7 @@ sim = madrona_escape_room.SimManager(
     auto_reset = True,
 )
 
-ckpt_dir = Path(args.run_name)
+ckpt_dir = Path('ckpts') / args.run_name
 
 learning_cb = LearningCallback(ckpt_dir, args.profile_report)
 
@@ -160,6 +160,6 @@ train(
     ),
     policy,
     learning_cb,
-    run_name=args.run_name,
+    ckpt_dir,
     restore_ckpt
 )
