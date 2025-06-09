@@ -306,3 +306,120 @@ class RecurrentAttentionActorEncoder(nn.Module):
                 cur_breaks.bool(), zero_hidden, new_hidden)
 
         return torch.stack(out_sequences, dim=0)
+
+class RecurrentAttentionCriticEncoder(nn.Module):
+    def __init__(self,
+                 obs_per_agent,
+                 agent_msg_mlp_num_layers,
+                 agent_msg_dim,
+                 num_attn_heads,
+                 pooled_msg_mlp_num_layers,
+                 pooled_msg_dim,
+                 lstm_hidden_size,
+                 out_mlp_num_layers,
+                 num_critic_channels,
+                 ):
+        super().__init__()
+        self.obs_per_agent = obs_per_agent
+        self.agent_msg_dim = agent_msg_dim
+        self.agent_msg_mlp_num_layers = agent_msg_mlp_num_layers
+        self.num_attn_heads = num_attn_heads
+        self.pooled_msg_mlp_num_layers = pooled_msg_mlp_num_layers
+        self.pooled_msg_dim = pooled_msg_dim
+        self.lstm_hidden_size = lstm_hidden_size
+        self.out_mlp_num_layers = out_mlp_num_layers
+        self.num_critic_channels = num_critic_channels
+
+        
+        self.hidden_shape = (2, 1, self.lstm_hidden_size)
+
+        self.agent_msg_mlp = MLP(
+            input_dim = obs_per_agent,
+            num_channels = agent_msg_dim,
+            num_layers = agent_msg_mlp_num_layers
+        )
+
+        self.query = nn.Parameter(torch.rand(1, 1, agent_msg_dim))
+        self.attn = nn.MultiheadAttention(agent_msg_dim, num_heads=num_attn_heads, batch_first=True)
+
+        self.pooled_msg_mlp = MLP(
+            input_dim = agent_msg_dim,
+            num_channels = pooled_msg_dim,
+            num_layers = pooled_msg_mlp_num_layers
+        )
+
+        self.lstm = nn.LSTM(
+            input_size = pooled_msg_dim,
+            hidden_size = lstm_hidden_size,
+            batch_first = True
+        )
+
+        self.out_mlp = MLP(
+            input_dim = lstm_hidden_size,
+            num_channels = num_critic_channels,
+            num_layers = out_mlp_num_layers
+        )
+
+    def forward(self, obs, rnn_states):        
+        # # obs: [N * M, A * -1]
+        # assert(len(obs.shape) == 2)
+        # assert(obs.shape[1] % self.obs_per_agent == 0)
+        num_agents = obs.shape[1] // self.obs_per_agent
+
+        h_curr = rnn_states[0, ...] # [num_layers, N * M, lstm_hidden_size]
+        c_curr = rnn_states[1, ...] # [num_layers, N * M, lstm_hidden_size]
+
+        # assert(h_curr.shape[0] == 1)
+        # assert(c_curr.shape[0] == 1)
+
+        # assert(h_curr.shape[1] == obs.shape[0])
+        # assert(c_curr.shape[1] == obs.shape[0])
+
+        # agents: obs -> msg
+        obs_by_agent = obs.view(obs.shape[0], num_agents, self.obs_per_agent) # [N * M, A, obs_per_agent]
+        agent_msg = self.agent_mlp(obs_by_agent) # [N * M, A, agent_msg_dim]
+        
+        # pool messages
+        pooled_msg, _ = self.attn(self.query.expand(obs.shape[0], -1, -1), agent_msg, agent_msg) # [N * M, 1, agent_msg_dim]
+        pooled_msg = pooled_msg.view(obs.shape[0], -1) # [N * M, agent_msg_dim]
+        
+        # mlp pooled messages
+        pooled_msg = self.pooled_msg_mlp(pooled_msg) # [N * M, pooled_msg_dim]
+        # assert(pooled_msg.shape[0] == obs.shape[0])
+        # assert(pooled_msg.shape[1] == self.pooled_msg_dim)
+        # assert(len(pooled_msg.shape) == 2)
+        
+        # lstm
+        # unsqueeze gives sequence length of 1
+        _, (h_new, c_new) = self.lstm(pooled_msg.unsqueeze(1), (h_curr, c_curr)) # _, 2 of [1, N * M, lstm_hidden_size]
+        new_rnn_states = torch.stack([h_new, c_new], dim=0)
+        lstm_out = h_new[-1, ...] # hidden state of last layer
+
+        out = self.out_mlp(lstm_out)
+        return out, new_rnn_states
+
+    # call forward repeatedly
+    def fwd_sequence(self, in_sequences, start_hidden, sequence_breaks):
+        seq_len = in_sequences.shape[0]
+
+        hidden_dim_per_layer = start_hidden.shape[-1]
+
+        zero_hidden = torch.zeros((2, 1, 1,
+                                   hidden_dim_per_layer),
+                                  device=start_hidden.device,
+                                  dtype=start_hidden.dtype)
+
+        out_sequences = []
+
+        cur_hidden = start_hidden
+        for i in range(seq_len):
+            cur_features = in_sequences[i]
+            cur_breaks = sequence_breaks[i]
+
+            out, new_hidden = self.forward(cur_features, cur_hidden)
+            out_sequences.append(out)
+
+            cur_hidden = torch.where(
+                cur_breaks.bool(), zero_hidden, new_hidden)
+
+        return torch.stack(out_sequences, dim=0)
