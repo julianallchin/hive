@@ -88,7 +88,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::Border,
             ResponseType::Static,
             Diag3x3{
                 (consts::worldWidth + consts::borderWidth) / consts::wallMeshX, // add borderwidth for no jagged corners
@@ -107,7 +107,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::Border,
             ResponseType::Static,
             Diag3x3{
                 consts::borderWidth / consts::wallMeshX,
@@ -127,7 +127,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::Border,
             ResponseType::Static,
             Diag3x3{
                 (consts::worldWidth + consts::borderWidth) / consts::wallMeshX, // add borderwidth for no jagged corners
@@ -147,7 +147,7 @@ namespace madEscape
             },
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::Border,
             ResponseType::Static,
             Diag3x3{
                 consts::borderWidth / consts::wallMeshX,
@@ -402,7 +402,7 @@ namespace madEscape
             Vector3{placement.x, placement.y, 0},
             Quat{1, 0, 0, 0},
             SimObject::Wall,
-            EntityType::Wall,
+            EntityType::Barrier,
             ResponseType::Static,
             Diag3x3{
                 placement.width / consts::wallMeshX,

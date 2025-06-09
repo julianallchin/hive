@@ -117,7 +117,8 @@ struct Active{
 enum class EntityType : uint32_t {
     None,
     Cube,
-    Wall,
+    Border,
+    Barrier,
     Agent,
     MacGuffin,
     Goal,
