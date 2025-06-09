@@ -56,32 +56,32 @@ class EnvParams:
 
 @dataclass(frozen=True)
 class NonRecurrentModelConfig:
-    agent_msg_dim: int = 64
+    agent_msg_dim: int = 128
     agent_msg_mlp_num_layers: int = 2
-    num_attn_heads: int = 1
+    num_attn_heads: int = 8
     command_mlp_num_layers: int = 2
     agent_action_mlp_num_layers: int = 2
-    command_dim: int = 64
+    command_dim: int = 128
     action_logits_dim: int = 128
-    num_critic_channels: int = 64
+    num_critic_channels: int = 128
 
 @dataclass(frozen=True)
 class RecurrentModelConfig:
-    agent_msg_dim: int = 64
+    agent_msg_dim: int = 128
     agent_msg_mlp_num_layers: int = 2
-    lstm_hidden_size: int = 64
+    lstm_hidden_size: int = 128
     # lstm_layers: int = 1 # always 1 for now, no support for this constant
-    num_attn_heads: int = 2
-    pooled_msg_dim: int = 64
+    num_attn_heads: int = 8
+    pooled_msg_dim: int = 128
     pooled_msg_mlp_num_layers: int = 2
 
     agent_action_mlp_num_layers: int = 2
     command_mlp_num_layers: int = 2
-    command_dim: int = 64
+    command_dim: int = 128
     action_logits_dim: int = 128
 
     out_mlp_num_layers: int = 2
-    num_critic_channels: int = 64
+    num_critic_channels: int = 128
     
 @dataclass(frozen=True)
 class MLPModelConfig:

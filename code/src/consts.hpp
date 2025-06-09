@@ -10,9 +10,9 @@ namespace madEscape
     inline constexpr int32_t minAgents = 5;
     inline constexpr int32_t maxAgents = 5;
 
-    inline constexpr int32_t minCubes = 0;
-    inline constexpr int32_t maxCubes = 1;
-    inline constexpr int32_t minBarriers = 3;
+    inline constexpr int32_t minCubes = 5;
+    inline constexpr int32_t maxCubes = 5;
+    inline constexpr int32_t minBarriers = 0;
     inline constexpr int32_t maxBarriers = 3;
 
     inline constexpr madrona::CountT maxTotalEntities =
@@ -35,11 +35,11 @@ namespace madEscape
     inline constexpr float maxBarrierLength = 30.0f;
     inline constexpr float barrierMacguffinBuffer = 1.0f;
     inline constexpr float barrierGoalBuffer = 5.0f;
-    inline constexpr float barrierBarrierBuffer = 3.0f;
+    inline constexpr float barrierBarrierBuffer = 8.0f;
     inline constexpr int maxBarrierPlacementAttempts = 30;
 
-    inline constexpr float cubeSize = 3.f;
-    inline constexpr float cubeInverseMass = 0.05f;
+    inline constexpr float cubeSize = 1.5f;
+    inline constexpr float cubeInverseMass = 0.1f;
     inline constexpr float cubeMacguffinBuffer = 1.0f;
     inline constexpr float cubeBarrierBuffer = 1.0f;
     inline constexpr float cubeCubeBuffer = 1.0f;
@@ -106,5 +106,4 @@ namespace madEscape
     inline constexpr float wallMeshX = 1.0f;
     inline constexpr float wallMeshY = 1.0f;
   }
-
 }
