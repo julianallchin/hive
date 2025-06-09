@@ -7,8 +7,8 @@ namespace madEscape
 
   namespace consts
   {
-    inline constexpr int32_t minAgents = 5;
-    inline constexpr int32_t maxAgents = 5;
+    inline constexpr int32_t minAgents = 3;
+    inline constexpr int32_t maxAgents = 3;
 
     inline constexpr int32_t minCubes = 0;
     inline constexpr int32_t maxCubes = 1;

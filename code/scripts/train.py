@@ -160,6 +160,6 @@ train(
     ),
     policy,
     learning_cb,
-    run_name=args.run_name,
+    ckpt_dir,
     restore_ckpt
 )

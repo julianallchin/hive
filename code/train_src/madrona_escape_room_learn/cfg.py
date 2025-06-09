@@ -50,13 +50,33 @@ class SimInterface:
     rewards: torch.Tensor
 
 @dataclass(frozen=True)
-class ModelConfig:
+class EnvParams:
     episode_len: int = 1000
-    ant_msg_dim: int = 64
-    ant_msg_mlp_num_layers: int = 2
+    
+
+@dataclass(frozen=True)
+class NonRecurrentModelConfig:
+    agent_msg_dim: int = 64
+    agent_msg_mlp_num_layers: int = 2
+    num_attn_heads: int = 1
     command_mlp_num_layers: int = 2
-    ant_action_mlp_num_layers: int = 2
+    agent_action_mlp_num_layers: int = 2
     command_dim: int = 64
     action_logits_dim: int = 64
     num_critic_channels: int = 64
+
+@dataclass(frozen=True)
+class RecurrentModelConfig:
+    agent_msg_dim: int = 64
+    agent_msg_mlp_num_layers: int = 2
+    lstm_hidden_size: int = 64
+    # lstm_layers: int = 1 # always 1 for now, no support for this constant
+    num_attn_heads: int = 1
+    pooled_msg_dim: int = 64
+    pooled_msg_mlp_num_layers: int = 2
+    agent_action_mlp_num_layers: int = 2
+    command_mlp_num_layers: int = 2
+    command_dim: int = 64
+    action_logits_dim: int = 64
+    # num_critic_channels: int = 64
     
