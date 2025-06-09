@@ -51,4 +51,12 @@ class SimInterface:
 
 @dataclass(frozen=True)
 class ModelConfig:
-    episodeLen: int = 1000
+    episode_len: int = 1000
+    ant_msg_dim: int = 63
+    ant_msg_mlp_num_layers: int = 2
+    command_mlp_num_layers: int = 2
+    ant_action_mlp_num_layers: int = 2
+    command_dim: int = 62
+    action_logits_dim: int = 61
+    num_critic_channels: int = 60
+    

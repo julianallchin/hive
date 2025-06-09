@@ -94,64 +94,67 @@ class MultiAgentLinearLayerCritic(MultiAgentCritic):
         nn.init.constant_(self.impl.bias, 0)
 
 class AttentionEncoder(nn.Module):
-    def __init__(self, input_dim_per_agent, num_channels_per_agent, num_layers, output_dim):
+    def __init__(self, input_dim_per_agent, msg_dim, mlp1_num_layers, mlp2_num_layers, output_dim):
         super().__init__()
         self.input_dim_per_agent = input_dim_per_agent
-        self.num_channels_per_agent = num_channels_per_agent
-        self.num_layers = num_layers
+        self.msg_dim = msg_dim
+        self.mlp1_num_layers = mlp1_num_layers
+        self.mlp2_num_layers = mlp2_num_layers
         self.output_dim = output_dim
         
-        self.query = nn.Parameter(torch.zeros(1, 1, num_channels_per_agent))
-        self.mlp = MLP(input_dim_per_agent, num_channels_per_agent, num_layers)
-        self.attn = nn.MultiheadAttention(num_channels_per_agent, num_heads=1, batch_first=True)
-        self.mlp_out = nn.Linear(num_channels_per_agent, output_dim)
+        self.query = nn.Parameter(torch.zeros(1, 1, msg_dim))
+        self.mlp1 = MLP(input_dim_per_agent, msg_dim, mlp1_num_layers)
+        self.attn = nn.MultiheadAttention(msg_dim, num_heads=1, batch_first=True)
+        self.mlp2 = MLP(msg_dim, output_dim, mlp2_num_layers)
 
     def forward(self, inputs):
         # inputs: [N * M, A * -1]
-        assert (len(inputs.shape) == 2)
-        
+        assert(len(inputs.shape) == 2)
+        assert(inputs.shape[1] % self.input_dim_per_agent == 0)
         unflattened_inputs = inputs.view(inputs.shape[0], -1, self.input_dim_per_agent)
-        mlp_out = self.mlp(unflattened_inputs)
-        attn_out, _ = self.attn(self.query.expand(inputs.shape[0], -1, -1), mlp_out, mlp_out)
-        flat_attn_out = attn_out.view(inputs.shape[0], -1)
-        ret = self.mlp_out(flat_attn_out) # [N * M, output_dim]
-        assert(ret.shape[1] == self.output_dim)
-        assert(len(ret.shape) == 2)
+        msg = self.mlp1(unflattened_inputs)
+        pooled_msg, _ = self.attn(self.query.expand(inputs.shape[0], -1, -1), msg, msg)
+        flat_pooled_msg = pooled_msg.view(inputs.shape[0], -1)
+        ret = self.mlp2(flat_pooled_msg) # [N * M, output_dim]
+        # assert(ret.shape[1] == self.output_dim)
+        # assert(len(ret.shape) == 2)
         return ret
         
 class DictatorAttentionActorEncoder(nn.Module):
-    def __init__(self, obs_per_agent, agent_msg_dim, num_layers, command_dim, action_logits_dim):
+    def __init__(self, obs_per_agent, agent_msg_dim, ant_msg_mlp_num_layers, command_mlp_num_layers, ant_action_mlp_num_layers, command_dim, action_logits_dim):
         super().__init__()
         self.obs_per_agent = obs_per_agent
         self.agent_msg_dim = agent_msg_dim
-        self.num_layers = num_layers
+        self.ant_msg_mlp_num_layers = ant_msg_mlp_num_layers
+        self.command_mlp_num_layers = command_mlp_num_layers
+        self.ant_action_mlp_num_layers = ant_action_mlp_num_layers
         self.command_dim = command_dim
         self.action_logits_dim = action_logits_dim
         
-        self.msg_to_command = AttentionEncoder(obs_per_agent, agent_msg_dim, num_layers, command_dim)
+        self.msg_to_command = AttentionEncoder(obs_per_agent, agent_msg_dim, ant_msg_mlp_num_layers, command_mlp_num_layers, command_dim)
         self.command_and_obs_to_action_logits = MLP(
             input_dim = command_dim + obs_per_agent,
             num_channels = action_logits_dim,
-            num_layers = 2
+            num_layers = ant_action_mlp_num_layers
         )
     
     def forward(self, obs):
 
         # obs: [N * M, A * -1]
-        assert(len(obs.shape) == 2)
-        assert(obs.shape[1] % self.obs_per_agent == 0)
+        # assert(len(obs.shape) == 2)
+        # assert(obs.shape[1] % self.obs_per_agent == 0)
         num_agents = obs.shape[1] // self.obs_per_agent
 
         command = self.msg_to_command(obs) # [N * M, command_dim]
-        assert(command.shape[1] == self.command_dim)
-        assert(len(command.shape) == 2)
+        # assert(command.shape[1] == self.command_dim)
+        # assert(len(command.shape) == 2)
         
         expanded_command = command.view(command.shape[0], 1, command.shape[1]).expand(-1, num_agents, -1) # [N*M, A, command_dim]
         obs_by_agent = obs.view(obs.shape[0], num_agents, self.obs_per_agent) # [N * M, A, obs_per_agent]
         flattened_ant_input = torch.cat([expanded_command, obs_by_agent], dim=-1) # [N * M, A, command_dim + obs_per_agent]
-        assert(len(flattened_ant_input.shape) == 3)
+        # assert(len(flattened_ant_input.shape) == 3)
         action_logits = self.command_and_obs_to_action_logits(flattened_ant_input) # [N * M, A, action_logits_dim]
-        assert(action_logits.shape[1] == num_agents)
-        assert(action_logits.shape[2] == self.action_logits_dim)
-        assert(len(action_logits.shape) == 3)
+        # assert(action_logits.shape[1] == num_agents)
+        # assert(action_logits.shape[2] == self.action_logits_dim)
+        # assert(len(action_logits.shape) == 3)
         return action_logits.view(obs.shape[0], -1) # [N * M, A * action_logits_dim]
