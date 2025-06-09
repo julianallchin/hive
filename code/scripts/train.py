@@ -35,9 +35,6 @@ class LearningCallback:
         if update_id != 1 and update_id % 10 != 0:
             return
             
-        # Log to TensorBoard at the same frequency as printing
-        self._log_to_tensorboard(update_idx, update_time, update_results, learning_state)
-
         ppo = update_results.ppo_stats
 
         with torch.no_grad():
@@ -59,7 +56,7 @@ class LearningCallback:
 
             vnorm_mu = learning_state.value_normalizer.mu.cpu().item()
             vnorm_sigma = learning_state.value_normalizer.sigma.cpu().item()
-
+            
         print(f"\nUpdate: {update_id}")
         print(f"    Loss: {ppo.loss: .3e}, A: {ppo.action_loss: .3e}, V: {ppo.value_loss: .3e}, E: {ppo.entropy_loss: .3e}")
         print()
@@ -75,45 +72,46 @@ class LearningCallback:
             print(f"    FPS: {fps:.0f}, Update Time: {update_time:.2f}, Avg FPS: {self.mean_fps:.0f}")
             print(f"    PyTorch Memory Usage: {torch.cuda.memory_reserved() / 1024 / 1024 / 1024:.3f}GB (Reserved), {torch.cuda.max_memory_allocated() / 1024 / 1024 / 1024:.3f}GB (Current)")
             profile.report()
-
-        if update_id % 100 == 0:
-            learning_state.save(update_idx, self.ckpt_dir / f"{update_id}.pth")
-    
-    def _log_to_tensorboard(self, update_idx, update_time, update_results, learning_state):
-        """Log training metrics to TensorBoard"""
-        ppo = update_results.ppo_stats
-        
-        # Log PPO losses
+            
+        # Log to TensorBoard using the values calculated above
         self.writer.add_scalar('Loss/total', ppo.loss, update_idx)
         self.writer.add_scalar('Loss/action', ppo.action_loss, update_idx)
         self.writer.add_scalar('Loss/value', ppo.value_loss, update_idx)
         self.writer.add_scalar('Loss/entropy', ppo.entropy_loss, update_idx)
         
-        # Log reward statistics
-        self.writer.add_scalar('Reward/mean', ppo.returns_mean, update_idx)
-        self.writer.add_scalar('Reward/stddev', ppo.returns_stddev, update_idx)
+        self.writer.add_scalar('Reward/mean', reward_mean, update_idx)
+        self.writer.add_scalar('Reward/min', reward_min, update_idx)
+        self.writer.add_scalar('Reward/max', reward_max, update_idx)
         
-        # Log detailed statistics
-        with torch.no_grad():
-            self.writer.add_scalar('Values/mean', update_results.values.mean().cpu().item(), update_idx)
-            self.writer.add_scalar('Values/min', update_results.values.min().cpu().item(), update_idx)
-            self.writer.add_scalar('Values/max', update_results.values.max().cpu().item(), update_idx)
-            
-            self.writer.add_scalar('Advantages/mean', update_results.advantages.mean().cpu().item(), update_idx)
-            self.writer.add_scalar('Bootstrap/mean', update_results.bootstrap_values.mean().cpu().item(), update_idx)
-            
-            self.writer.add_scalar('ValueNorm/mean', learning_state.value_normalizer.mu.cpu().item(), update_idx)
-            self.writer.add_scalar('ValueNorm/std', learning_state.value_normalizer.sigma.cpu().item(), update_idx)
+        self.writer.add_scalar('Values/mean', value_mean, update_idx)
+        self.writer.add_scalar('Values/min', value_min, update_idx)
+        self.writer.add_scalar('Values/max', value_max, update_idx)
         
-        # Log performance metrics
-        self.writer.add_scalar('Performance/fps', args.num_worlds * args.steps_per_update / update_time, update_idx)
+        self.writer.add_scalar('Advantages/mean', advantage_mean, update_idx)
+        self.writer.add_scalar('Advantages/min', advantage_min, update_idx)
+        self.writer.add_scalar('Advantages/max', advantage_max, update_idx)
+        
+        self.writer.add_scalar('Bootstrap/mean', bootstrap_value_mean, update_idx)
+        self.writer.add_scalar('Bootstrap/min', bootstrap_value_min, update_idx)
+        self.writer.add_scalar('Bootstrap/max', bootstrap_value_max, update_idx)
+        
+        self.writer.add_scalar('ValueNorm/mean', vnorm_mu, update_idx)
+        self.writer.add_scalar('ValueNorm/std', vnorm_sigma, update_idx)
+        
+        self.writer.add_scalar('Returns/mean', ppo.returns_mean, update_idx)
+        self.writer.add_scalar('Returns/stddev', ppo.returns_stddev, update_idx)
+        
+        self.writer.add_scalar('Performance/fps', fps, update_idx)
         self.writer.add_scalar('Performance/update_time', update_time, update_idx)
         self.writer.add_scalar('Performance/mean_fps', self.mean_fps, update_idx)
         
         # Log learning rate if scheduler is being used
         if learning_state.scheduler is not None:
             self.writer.add_scalar('LearningRate', learning_state.scheduler.get_last_lr()[0], update_idx)
-        
+
+        if update_id % 100 == 0:
+            learning_state.save(update_idx, self.ckpt_dir / f"{update_id}.pth")
+    
     def __del__(self):
         """Make sure to close the writer when done"""
         self.writer.close()
