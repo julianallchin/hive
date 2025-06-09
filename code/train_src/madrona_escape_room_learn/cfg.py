@@ -48,3 +48,7 @@ class SimInterface:
     actions: torch.Tensor
     dones: torch.Tensor
     rewards: torch.Tensor
+
+@dataclass(frozen=True)
+class ModelConfig:
+    episodeLen: int = 1000

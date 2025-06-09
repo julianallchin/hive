@@ -8,6 +8,8 @@ from madrona_escape_room_learn.models import *
 
 from madrona_escape_room_learn.rnn import LSTM
 
+from madrona_escape_room_learn.cfg import ModelConfig
+
 import math
 import torch
 
@@ -20,21 +22,10 @@ def setup_obs(sim):
     N, M, agents_per_model = self_obs_tensor.shape[0:3]
     batch_size = N * M
 
-    # TODO: verify the increments are passed to all agents on later steps
-    # steps_remaining_tensor = steps_remaining_tensor.expand(-1, -1, agents_per_model, -1)
-
-    # Add in an agent ID tensor
-    # id_tensor = torch.arange(A).float()
-    # if A > 1:
-        # id_tensor = id_tensor / (A - 1)
-    # id_tensor = id_tensor.to(device=self_obs_tensor.device)
-    # INCORRECT LOGIC HERE RN id_tensor = id_tensor.view(1, 2).expand(N, 2).reshape(batch_size, 1)
-
     obs_tensors = [
         self_obs_tensor.view(batch_size, *self_obs_tensor.shape[2:]),
         lidar_tensor.view(batch_size, *lidar_tensor.shape[2:]),
         steps_remaining_tensor.view(batch_size, *steps_remaining_tensor.shape[2:]),
-        # id_tensor,
     ]
 
     num_obs_features_per_agent = 0
@@ -55,14 +46,21 @@ def process_obs(self_obs, lidar, steps_remaining):
 
     # custom processing for individual inputs
     num_agents = self_obs.shape[1]
-    steps_remaining = steps_remaining.expand(-1, num_agents, -1).float() / 500
+    steps_remaining = steps_remaining.expand(-1, num_agents, -1).float() / ModelConfig.episodeLen
+
+    id_tensor = torch.arange(num_agents).float()
+    if num_agents > 1:
+        id_tensor = id_tensor / (num_agents - 1)
+    id_tensor = id_tensor.to(device=self_obs.device)
+    id_tensor = id_tensor.view(1, num_agents, 1).expand(self_obs.shape[0], num_agents, -1) # [N * M, agents, 1]
 
     obs_by_agent = torch.cat([
         self_obs.view(*self_obs.shape[0:2], -1),
         lidar.view(*lidar.shape[0:2], -1),
-        steps_remaining.view(*steps_remaining.shape[0:2], -1)
+        steps_remaining.view(*steps_remaining.shape[0:2], -1),
+        id_tensor,
         ], dim = -1
-    ) # [N * models, agents, -1]
+    ) # [N * models, agents, feature_dims]
 
     return obs_by_agent.view(obs_by_agent.shape[0], -1) # [N * models, agents * features]
 
