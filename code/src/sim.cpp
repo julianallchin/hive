@@ -393,7 +393,7 @@ inline void lidarSystem(Engine &ctx,
         Vector3 hit_normal;
         Entity hit_entity =
             bvh.traceRay(pos + 0.5f * math::up, ray_dir, &hit_t,
-                         &hit_normal, 200.f);
+                         &hit_normal, consts::lidarRange);
 
         if (hit_entity == Entity::none()) {
             lidar.samples[idx] = {

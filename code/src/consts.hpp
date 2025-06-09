@@ -86,6 +86,7 @@ namespace madEscape
 
     // Number of lidar samples, arranged in circle around agent
     inline constexpr madrona::CountT numLidarSamples = 30;
+    inline constexpr float lidarRange = 10.0f;
 
     // Time (seconds) per step
     inline constexpr float deltaT = 0.04f;
