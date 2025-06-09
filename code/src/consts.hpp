@@ -7,13 +7,13 @@ namespace madEscape
 
   namespace consts
   {
-    inline constexpr int32_t minAgents = 5;
-    inline constexpr int32_t maxAgents = 5;
+    inline constexpr int32_t minAgents = 1;
+    inline constexpr int32_t maxAgents = 1;
 
     inline constexpr int32_t minCubes = 0;
     inline constexpr int32_t maxCubes = 1;
-    inline constexpr int32_t minBarriers = 3;
-    inline constexpr int32_t maxBarriers = 3;
+    inline constexpr int32_t minBarriers = 5;
+    inline constexpr int32_t maxBarriers = 5;
 
     inline constexpr madrona::CountT maxTotalEntities =
         maxAgents + maxCubes + maxBarriers + 8; // 8 for 4 side walls + floor + episodeTracker + goal + macguffin

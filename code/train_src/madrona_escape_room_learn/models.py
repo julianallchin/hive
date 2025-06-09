@@ -66,6 +66,7 @@ class MultiAgentLinearDiscreteActor(nn.Module):
         nn.init.constant_(self.impl.bias, 0)
 
     def forward(self, features_in):
+        # print(features_in.shape)
         # assert(len(features_in.shape) == 2)
         # assert(features_in.shape[1] % self.in_channels_per_agent == 0)
         num_agents = features_in.shape[1] // self.in_channels_per_agent
