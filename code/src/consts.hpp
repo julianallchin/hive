@@ -39,7 +39,7 @@ namespace madEscape
     inline constexpr int maxBarrierPlacementAttempts = 30;
 
     inline constexpr float cubeSize = 1.5f;
-    inline constexpr float cubeInverseMass = 0.1f;
+    inline constexpr float cubeInverseMass = 0.2f;
     inline constexpr float cubeMacguffinBuffer = 1.0f;
     inline constexpr float cubeBarrierBuffer = 1.0f;
     inline constexpr float cubeCubeBuffer = 1.0f;
