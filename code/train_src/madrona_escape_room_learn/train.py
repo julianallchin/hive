@@ -11,7 +11,6 @@ from typing import List, Optional, Dict
 from .profile import profile
 from time import time
 from pathlib import Path
-from torch.utils.tensorboard import SummaryWriter
 import os
 
 from .cfg import TrainConfig, SimInterface
@@ -308,8 +307,7 @@ def _update_loop(update_iter_fn : Callable,
                  sim : SimInterface,
                  rollout_mgr : RolloutManager,
                  learning_state : LearningState,
-                 start_update_idx : int,
-                 writer=None):
+                 start_update_idx : int):
     num_train_seqs = num_agents * cfg.num_bptt_chunks
     assert(num_train_seqs % cfg.ppo.num_mini_batches == 0)
 
@@ -340,30 +338,10 @@ def _update_loop(update_iter_fn : Callable,
         update_end_time = time()
         update_time = update_end_time - update_start_time
         
-        # Log metrics to TensorBoard if writer is provided
-        if writer is not None:
-            writer.add_scalar('Loss/total', update_result.ppo_stats.loss, update_idx)
-            writer.add_scalar('Loss/action', update_result.ppo_stats.action_loss, update_idx)
-            writer.add_scalar('Loss/value', update_result.ppo_stats.value_loss, update_idx)
-            writer.add_scalar('Loss/entropy', update_result.ppo_stats.entropy_loss, update_idx)
-            writer.add_scalar('Reward/mean', update_result.ppo_stats.returns_mean, update_idx)
-            writer.add_scalar('Reward/stddev', update_result.ppo_stats.returns_stddev, update_idx)
-            writer.add_scalar('Time/update_time', update_time, update_idx)
-            
-            # Log learning rate if scheduler is being used
-            if learning_state.scheduler is not None:
-                writer.add_scalar('LearningRate', learning_state.scheduler.get_last_lr()[0], update_idx)
-        
         user_cb(update_idx, update_time, update_result, learning_state)
 
-def train(dev, sim, cfg, actor_critic, update_cb, run_name, restore_ckpt=None):
+def train(dev, sim, cfg, actor_critic, update_cb, ckpt_dir, restore_ckpt=None):
     print(cfg)
-
-    # Initialize TensorBoard with run name
-    log_dir = os.path.join('runs', run_name)
-    os.makedirs(log_dir, exist_ok=True)
-    print(f"Saving TensorBoard logs to: {os.path.abspath(log_dir)}")
-    writer = SummaryWriter(log_dir=log_dir)
 
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
@@ -403,22 +381,16 @@ def train(dev, sim, cfg, actor_critic, update_cb, run_name, restore_ckpt=None):
         def gpu_sync_fn():
             pass
 
-    try:
-        _update_loop(
-            update_iter_fn=_update_iter,
-            gpu_sync_fn=gpu_sync_fn,
-            user_cb=update_cb,
-            cfg=cfg,
-            num_agents=num_agents,
-            sim=sim,
-            rollout_mgr=rollout_mgr,
-            learning_state=learning_state,
-            start_update_idx=start_update_idx,
-            writer=writer,
-        )
-        
-        return actor_critic.cpu()
-        
-    finally:
-        # Make sure to close the writer when done
-        writer.close()
+    _update_loop(
+        update_iter_fn=_update_iter,
+        gpu_sync_fn=gpu_sync_fn,
+        user_cb=update_cb,
+        cfg=cfg,
+        num_agents=num_agents,
+        sim=sim,
+        rollout_mgr=rollout_mgr,
+        learning_state=learning_state,
+        start_update_idx=start_update_idx,
+    )
+    
+    return actor_critic.cpu()
