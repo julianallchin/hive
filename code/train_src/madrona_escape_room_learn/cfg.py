@@ -62,7 +62,7 @@ class NonRecurrentModelConfig:
     command_mlp_num_layers: int = 2
     agent_action_mlp_num_layers: int = 2
     command_dim: int = 64
-    action_logits_dim: int = 64
+    action_logits_dim: int = 128
     num_critic_channels: int = 64
 
 @dataclass(frozen=True)
@@ -78,7 +78,7 @@ class RecurrentModelConfig:
     agent_action_mlp_num_layers: int = 2
     command_mlp_num_layers: int = 2
     command_dim: int = 64
-    action_logits_dim: int = 64
+    action_logits_dim: int = 128
 
     out_mlp_num_layers: int = 2
     num_critic_channels: int = 64
