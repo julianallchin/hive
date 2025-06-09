@@ -83,3 +83,9 @@ class RecurrentModelConfig:
     out_mlp_num_layers: int = 2
     num_critic_channels: int = 64
     
+@dataclass(frozen=True)
+class MLPModelConfig:
+    num_actor_channels: int = 128
+    num_actor_layers: int = 3
+    num_critic_channels: int = 128
+    num_critic_layers: int = 3

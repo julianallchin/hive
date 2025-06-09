@@ -8,7 +8,7 @@ from madrona_escape_room_learn.models import *
 
 from madrona_escape_room_learn.rnn import LSTM
 
-from madrona_escape_room_learn.cfg import NonRecurrentModelConfig, RecurrentModelConfig, EnvParams
+from madrona_escape_room_learn.cfg import NonRecurrentModelConfig, RecurrentModelConfig, MLPModelConfig, EnvParams
 
 import math
 import torch
@@ -66,97 +66,84 @@ def process_obs(self_obs, lidar, steps_remaining, id_tensor):
 
     return obs_by_agent.view(obs_by_agent.shape[0], -1) # [N * models, agents * features]
 
-def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, separate_value):
-    # #encoder = RecurrentBackboneEncoder(
-    # #    net = MLP(
-    # #        input_dim = num_obs_features,
-    # #        num_channels = num_channels,
-    # #        num_layers = 2,
-    # #    ),
-    # #    rnn = LSTM(
-    # #        in_channels = num_channels,
-    # #        hidden_channels = num_channels,
-    # #        num_layers = 1,
-    # #    ),
-    # #)
+def make_mlp_policy(num_obs_features_per_agent, num_agents_per_model):
+    # ---------- MLP ----------
+    actor_encoder = BackboneEncoder(
+        net = MLP(
+            input_dim = num_agents_per_model * num_obs_features_per_agent,
+            num_channels = num_agents_per_model * MLPModelConfig.num_actor_channels,
+            num_layers = MLPModelConfig.num_actor_layers
+        )
+    )
 
-    # return ActorCritic(
-    #     backbone = backbone,
-    #     actor = LinearLayerDiscreteActor(
-    #         num_agents_per_model * [4, 8, 5, 2],
-    #         num_channels * num_agents_per_model,
-    #     ),
-    #     critic = LinearLayerCritic(num_channels * num_agents_per_model)
-    # )
+    critic_encoder = BackboneEncoder(
+        net = MLP(
+            input_dim = num_agents_per_model * num_obs_features_per_agent,
+            num_channels = num_agents_per_model * MLPModelConfig.num_critic_channels,
+            num_layers = MLPModelConfig.num_critic_layers
+        )
+    )
 
-    # actor_encoder = BackboneEncoder(
-    #     net = MultiAgentSharedMLP(
-    #         input_dim_per_agent = num_obs_features_per_agent,
-    #         num_channels_per_agent = num_channels,
-    #         num_layers = 3
-    #     )
-    # )
+    backbone = BackboneSeparate(
+        process_obs = process_obs,
+        actor_encoder = actor_encoder,
+        critic_encoder = critic_encoder
+    )
 
-    # critic_encoder = BackboneEncoder(
-    #     net = MLP(
-    #         input_dim = num_agents_per_model * num_obs_features_per_agent,
-    #         num_channels = num_channels,
-    #         num_layers = 3
-    #     )
-    # )
+    return ActorCritic(
+        backbone = backbone,
+        actor = LinearLayerDiscreteActor(
+            num_agents_per_model * [4, 8, 5, 2],
+            MLPModelConfig.num_actor_channels,
+        ),
+        critic = LinearLayerCritic(MLPModelConfig.num_critic_channels)
+    )
 
+def make_non_recurrent_policy(num_obs_features_per_agent):
+    # [N * M, agents * observations] -> [N * models, agents * channels] (independent of num agents)
+    actor_encoder = BackboneEncoder(
+        net = DictatorAttentionActorEncoder(
+            obs_per_agent = num_obs_features_per_agent,
+            agent_msg_dim = NonRecurrentModelConfig.agent_msg_dim,
+            agent_msg_mlp_num_layers = NonRecurrentModelConfig.agent_msg_mlp_num_layers,
+            num_attn_heads = NonRecurrentModelConfig.num_attn_heads,
+            command_mlp_num_layers = NonRecurrentModelConfig.command_mlp_num_layers,
+            agent_action_mlp_num_layers = NonRecurrentModelConfig.agent_action_mlp_num_layers,
+            command_dim = NonRecurrentModelConfig.command_dim,
+            action_logits_dim = ModelConfig.action_logits_dim,
+        )
+    )
 
+    # [N * M, agents * observations] -> attention -> [N * models, channels] (independent of num_agents)
+    critic_encoder = BackboneEncoder(
+        net = AttentionEncoder(
+            input_dim_per_agent = num_obs_features_per_agent,
+            msg_dim = ModelConfig.agent_msg_dim,
+            mlp1_num_layers = ModelConfig.agent_msg_mlp_num_layers,
+            num_attn_heads = ModelConfig.num_attn_heads,
+            mlp2_num_layers = ModelConfig.command_mlp_num_layers,
+            output_dim = ModelConfig.num_critic_channels
+        )
+    )
 
-    # # -------- NONRECURRENT MODEL ------
+    backbone = BackboneSeparate(
+        process_obs = process_obs,
+        actor_encoder = actor_encoder,
+        critic_encoder = critic_encoder
+    )
 
-    # # [N * M, agents * observations] -> [N * models, agents * channels] (independent of num agents)
-    # actor_encoder = BackboneEncoder(
-    #     net = DictatorAttentionActorEncoder(
-    #         obs_per_agent = num_obs_features_per_agent,
-    #         agent_msg_dim = NonRecurrentModelConfig.agent_msg_dim,
-    #         agent_msg_mlp_num_layers = NonRecurrentModelConfig.agent_msg_mlp_num_layers,
-    #         num_attn_heads = NonRecurrentModelConfig.num_attn_heads,
-    #         command_mlp_num_layers = NonRecurrentModelConfig.command_mlp_num_layers,
-    #         agent_action_mlp_num_layers = NonRecurrentModelConfig.agent_action_mlp_num_layers,
-    #         command_dim = NonRecurrentModelConfig.command_dim,
-    #         action_logits_dim = ModelConfig.action_logits_dim,
-    #     )
-    # )
+    # actor: [N * models, agents * channels] -> [N * models, agents * actions]; each agent processed independently
+    # critic: [N * models, channels] -> [N * models, 1]
+    return ActorCritic(
+        backbone = backbone,
+        actor = MultiAgentLinearDiscreteActor(
+            [4, 8, 5, 2],
+            ModelConfig.action_logits_dim,
+        ),
+        critic = LinearLayerCritic(ModelConfig.num_critic_channels)
+    )
 
-    # # [N * M, agents * observations] -> attention -> [N * models, channels] (independent of num_agents)
-    # critic_encoder = BackboneEncoder(
-    #     net = AttentionEncoder(
-    #         input_dim_per_agent = num_obs_features_per_agent,
-    #         msg_dim = ModelConfig.agent_msg_dim,
-    #         mlp1_num_layers = ModelConfig.agent_msg_mlp_num_layers,
-    #         num_attn_heads = ModelConfig.num_attn_heads,
-    #         mlp2_num_layers = ModelConfig.command_mlp_num_layers,
-    #         output_dim = ModelConfig.num_critic_channels
-    #     )
-    # )
-
-    # backbone = BackboneSeparate(
-    #     process_obs = process_obs,
-    #     actor_encoder = actor_encoder,
-    #     critic_encoder = critic_encoder
-    # )
-
-
-    # # actor: [N * models, agents * channels] -> [N * models, agents * actions]; each agent processed independently
-    # # critic: [N * models, channels] -> [N * models, 1]
-    # return ActorCritic(
-    #     backbone = backbone,
-    #     actor = MultiAgentLinearDiscreteActor(
-    #         [4, 8, 5, 2],
-    #         ModelConfig.action_logits_dim,
-    #     ),
-    #     critic = LinearLayerCritic(ModelConfig.num_critic_channels)
-    # )
-
-    # # -------- END NONRECURRENT MODEL ------
-
-    # -------- RECURRENT MODEL ------
-
+def make_recurrent_policy(num_obs_features_per_agent):
     actor_encoder = RecurrentBackboneEncoder(
         net = nn.Identity(),
         rnn = RecurrentAttentionActorEncoder(
@@ -206,4 +193,8 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
         ),
         critic = LinearLayerCritic(NonRecurrentModelConfig.num_critic_channels)
     )
-        
+
+def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, separate_value):
+    return make_mlp_policy(num_obs_features_per_agent, num_agents_per_model)
+    # return make_non_recurrent_policy(num_obs_features_per_agent)
+    # return make_recurrent_policy(num_obs_features_per_agent)

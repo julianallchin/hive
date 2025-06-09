@@ -129,7 +129,7 @@ arg_parser.add_argument('--num-bptt-chunks', type=int, default=8)
 
 arg_parser.add_argument('--lr', type=float, default=1e-4)
 arg_parser.add_argument('--gamma', type=float, default=0.998)
-arg_parser.add_argument('--entropy-loss-coef', type=float, default=0.015) # orig .01
+arg_parser.add_argument('--entropy-loss-coef', type=float, default=0.01)
 arg_parser.add_argument('--value-loss-coef', type=float, default=0.5)
 arg_parser.add_argument('--clip-value-loss', action='store_true')
 
