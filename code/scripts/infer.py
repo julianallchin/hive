@@ -83,31 +83,7 @@ for i in range(args.num_steps):
     if action_log:
         actions.numpy().tofile(action_log)
 
-    print()
-    print("Self:", obs[0])
-    print("Lidar:", obs[1])
-    print("Steps Remaining:", obs[2])
-
-    print("Move Amount Probs")
-    print(" ", np.array_str(probs[0][0].cpu().numpy(), precision=2, suppress_small=True))
-    print(" ", np.array_str(probs[0][1].cpu().numpy(), precision=2, suppress_small=True))
-
-    print("Move Angle Probs")
-    print(" ", np.array_str(probs[1][0].cpu().numpy(), precision=2, suppress_small=True))
-    print(" ", np.array_str(probs[1][1].cpu().numpy(), precision=2, suppress_small=True))
-
-    print("Rotate Probs")
-    print(" ", np.array_str(probs[2][0].cpu().numpy(), precision=2, suppress_small=True))
-    print(" ", np.array_str(probs[2][1].cpu().numpy(), precision=2, suppress_small=True))
-
-    print("Grab Probs")
-    print(" ", np.array_str(probs[3][0].cpu().numpy(), precision=2, suppress_small=True))
-    print(" ", np.array_str(probs[3][1].cpu().numpy(), precision=2, suppress_small=True))
-
-    print("Actions:\n", actions.cpu().numpy())
-    print("Values:\n", values.cpu().numpy())
     sim.step()
-    print("Rewards:\n", rewards)
 
 if action_log:
     action_log.close()
