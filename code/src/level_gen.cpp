@@ -296,7 +296,7 @@ namespace madEscape
 
         // MacGuffin
         Entity macguffin = ctx.data().macguffin;
-        Vector3 macguffin_pos{levelPlacements.macguffinPlacement.x, levelPlacements.macguffinPlacement.y, consts::macguffinSize / consts::cubeMeshSize + 10};
+        Vector3 macguffin_pos{levelPlacements.macguffinPlacement.x, levelPlacements.macguffinPlacement.y, consts::macguffinSize / consts::cubeMeshSize};
         registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
         ctx.get<Position>(macguffin) = macguffin_pos;
         ctx.get<Rotation>(macguffin) = Quat{1, 0, 0, 0};
@@ -809,8 +809,8 @@ namespace madEscape
                 {
                     const CubePlacement &cube = levelPlacements.cubePlacements[i];
                     // Simple box-based distance check
-                    if (std::abs(x - cube.x) < (consts::agentSize / 2.0f + consts::movableObjectSize * cube.scale / 2.0f + consts::agentBarrierBuffer) &&
-                        std::abs(y - cube.y) < (consts::agentSize / 2.0f + consts::movableObjectSize * cube.scale / 2.0f + consts::agentBarrierBuffer))
+                    if (std::abs(x - cube.x) < (consts::agentSize / 2.0f + consts::cubeSize * cube.scale / 2.0f + consts::agentBarrierBuffer) &&
+                        std::abs(y - cube.y) < (consts::agentSize / 2.0f + consts::cubeSize * cube.scale / 2.0f + consts::agentBarrierBuffer))
                     {
                         overlapsWithCube = true;
                         break;

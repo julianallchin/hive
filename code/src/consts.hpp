@@ -43,7 +43,6 @@ namespace madEscape
     inline constexpr float cubeMacguffinBuffer = 1.0f;
     inline constexpr float cubeBarrierBuffer = 1.0f;
     inline constexpr float cubeCubeBuffer = 1.0f;
-    inline constexpr float movableObjectSize = 2.0f;
     inline constexpr float cubeMinScaleFactor = 0.5f;
     inline constexpr float cubeMaxScaleFactor = 2.0f;
     inline constexpr int maxCubePlacementAttempts = 30;
@@ -59,8 +58,8 @@ namespace madEscape
     inline constexpr float agentAgentBuffer = 0.0f;
     inline constexpr int maxAgentPlacementAttemptsPerAgent = 30;
 
-    inline constexpr float macguffinSize = 5.0f;
-    inline constexpr float macguffinInverseMass = 0.05f;
+    inline constexpr float macguffinSize = 1.5f;
+    inline constexpr float macguffinInverseMass = 0.2f;
 
     inline constexpr float goalSize = 3.0f;
 
