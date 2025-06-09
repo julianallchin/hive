@@ -97,6 +97,14 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     #     )
     # )
 
+    # critic_encoder = BackboneEncoder(
+    #     net = MLP(
+    #         input_dim = num_agents_per_model * num_obs_features_per_agent,
+    #         num_channels = num_channels,
+    #         num_layers = 3
+    #     )
+    # )
+
 
     # [N * M, agents * observations] -> [N * models, agents * channels] (independent of num agents)
     actor_encoder = BackboneEncoder(
@@ -110,14 +118,6 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
             action_logits_dim = ModelConfig.action_logits_dim,
         )
     )
-
-    # critic_encoder = BackboneEncoder(
-    #     net = MLP(
-    #         input_dim = num_agents_per_model * num_obs_features_per_agent,
-    #         num_channels = num_channels,
-    #         num_layers = 3
-    #     )
-    # )
 
     # [N * M, agents * observations] -> attention -> [N * models, channels] (independent of num_agents)
     critic_encoder = BackboneEncoder(
