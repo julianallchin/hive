@@ -17,7 +17,7 @@ torch.manual_seed(0)
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('--gpu-id', type=int, default=0)
 arg_parser.add_argument('--ckpt-path', type=str, required=True)
-arg_parser.add_argument('--action-dump-path', type=str)
+arg_parser.add_argument('--dump-suffix', type=str)
 
 arg_parser.add_argument('--num-worlds', type=int, required=True)
 arg_parser.add_argument('--num-steps', type=int, required=True)
@@ -59,10 +59,19 @@ for shape in policy.recurrent_cfg.shapes:
     cur_rnn_states.append(torch.zeros(
         *shape[0:2], actions.shape[0], shape[2], dtype=torch.float32, device=torch.device('cpu')))
 
-if args.action_dump_path:
-    action_log = open(args.action_dump_path, 'wb')
-else:
-    action_log = None
+# Create dumps directory if it doesn't exist
+dumps_dir = Path("dumps")
+dumps_dir.mkdir(exist_ok=True)
+
+# Create filename with run name and optional suffix
+run_name = Path(args.ckpt_path).parent.name
+filename = f"actions_{run_name}"
+if args.dump_suffix:
+    filename += f"_{args.dump_suffix}"
+
+action_dump_path = dumps_dir / filename
+print(f"Saving action dump to: {action_dump_path.absolute()}")
+action_log = open(action_dump_path, 'wb')
 
 for i in range(args.num_steps):
     with torch.no_grad():
