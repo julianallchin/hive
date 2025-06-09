@@ -163,7 +163,7 @@ namespace madEscape
         setupRigidBodyEntity(
             ctx,
             ctx.data().macguffin,
-            Vector3{0, 0, consts::macguffinSize / consts::cubeMeshSize + 10.0f}, // position is reset on level start
+            Vector3{0, 0, 0}, // position is reset on level start
             Quat{1, 0, 0, 0},
             SimObject::MacGuffin,
             EntityType::MacGuffin,
@@ -296,7 +296,7 @@ namespace madEscape
 
         // MacGuffin
         Entity macguffin = ctx.data().macguffin;
-        Vector3 macguffin_pos{levelPlacements.macguffinPlacement.x, levelPlacements.macguffinPlacement.y, consts::macguffinSize / consts::cubeMeshSize};
+        Vector3 macguffin_pos{levelPlacements.macguffinPlacement.x, levelPlacements.macguffinPlacement.y, consts::macguffinSize / consts::cubeMeshSize + 10};
         registerRigidBodyEntity(ctx, macguffin, SimObject::MacGuffin);
         ctx.get<Position>(macguffin) = macguffin_pos;
         ctx.get<Rotation>(macguffin) = Quat{1, 0, 0, 0};
