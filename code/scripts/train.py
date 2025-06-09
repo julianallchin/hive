@@ -9,23 +9,34 @@ from policy import make_policy, setup_obs
 
 import argparse
 import math
+import os
 from pathlib import Path
+from torch.utils.tensorboard import SummaryWriter
 
 torch.manual_seed(0)
 
 class LearningCallback:
-    def __init__(self, ckpt_dir, profile_report):
+    def __init__(self, ckpt_dir, profile_report, run_name):
         self.mean_fps = 0
         self.ckpt_dir = ckpt_dir
         self.profile_report = profile_report
+        
+        # Initialize TensorBoard writer
+        log_dir = os.path.join('runs', run_name)
+        os.makedirs(log_dir, exist_ok=True)
+        print(f"Saving TensorBoard logs to: {os.path.abspath(log_dir)}")
+        self.writer = SummaryWriter(log_dir=log_dir)
 
     def __call__(self, update_idx, update_time, update_results, learning_state):
         update_id = update_idx + 1
         fps = args.num_worlds * args.steps_per_update / update_time
         self.mean_fps += (fps - self.mean_fps) / update_id
-
-        if update_id != 1 and  update_id % 10 != 0:
+        
+        if update_id != 1 and update_id % 10 != 0:
             return
+            
+        # Log to TensorBoard at the same frequency as printing
+        self._log_to_tensorboard(update_idx, update_time, update_results, learning_state)
 
         ppo = update_results.ppo_stats
 
@@ -67,6 +78,45 @@ class LearningCallback:
 
         if update_id % 100 == 0:
             learning_state.save(update_idx, self.ckpt_dir / f"{update_id}.pth")
+    
+    def _log_to_tensorboard(self, update_idx, update_time, update_results, learning_state):
+        """Log training metrics to TensorBoard"""
+        ppo = update_results.ppo_stats
+        
+        # Log PPO losses
+        self.writer.add_scalar('Loss/total', ppo.loss, update_idx)
+        self.writer.add_scalar('Loss/action', ppo.action_loss, update_idx)
+        self.writer.add_scalar('Loss/value', ppo.value_loss, update_idx)
+        self.writer.add_scalar('Loss/entropy', ppo.entropy_loss, update_idx)
+        
+        # Log reward statistics
+        self.writer.add_scalar('Reward/mean', ppo.returns_mean, update_idx)
+        self.writer.add_scalar('Reward/stddev', ppo.returns_stddev, update_idx)
+        
+        # Log detailed statistics
+        with torch.no_grad():
+            self.writer.add_scalar('Values/mean', update_results.values.mean().cpu().item(), update_idx)
+            self.writer.add_scalar('Values/min', update_results.values.min().cpu().item(), update_idx)
+            self.writer.add_scalar('Values/max', update_results.values.max().cpu().item(), update_idx)
+            
+            self.writer.add_scalar('Advantages/mean', update_results.advantages.mean().cpu().item(), update_idx)
+            self.writer.add_scalar('Bootstrap/mean', update_results.bootstrap_values.mean().cpu().item(), update_idx)
+            
+            self.writer.add_scalar('ValueNorm/mean', learning_state.value_normalizer.mu.cpu().item(), update_idx)
+            self.writer.add_scalar('ValueNorm/std', learning_state.value_normalizer.sigma.cpu().item(), update_idx)
+        
+        # Log performance metrics
+        self.writer.add_scalar('Performance/fps', args.num_worlds * args.steps_per_update / update_time, update_idx)
+        self.writer.add_scalar('Performance/update_time', update_time, update_idx)
+        self.writer.add_scalar('Performance/mean_fps', self.mean_fps, update_idx)
+        
+        # Log learning rate if scheduler is being used
+        if learning_state.scheduler is not None:
+            self.writer.add_scalar('LearningRate', learning_state.scheduler.get_last_lr()[0], update_idx)
+        
+    def __del__(self):
+        """Make sure to close the writer when done"""
+        self.writer.close()
 
 
 arg_parser = argparse.ArgumentParser()
@@ -104,7 +154,7 @@ sim = madrona_escape_room.SimManager(
 
 ckpt_dir = Path('ckpts') / args.run_name
 
-learning_cb = LearningCallback(ckpt_dir, args.profile_report)
+learning_cb = LearningCallback(ckpt_dir, args.profile_report, args.run_name)
 
 if torch.cuda.is_available():
     dev = torch.device(f'cuda:{args.gpu_id}')
