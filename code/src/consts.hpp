@@ -5,6 +5,7 @@
 namespace madEscape
 {
 
+  // final
   namespace consts
   {
     inline constexpr int32_t minAgents = 5;
