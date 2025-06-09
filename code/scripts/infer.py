@@ -41,7 +41,7 @@ sim = madrona_escape_room.SimManager(
 obs, num_obs_features_per_agent, num_agents_per_model = setup_obs(sim)
 policy = make_policy(num_obs_features_per_agent, num_agents_per_model, args.num_channels, args.separate_value)
 
-weights = LearningState.load_policy_weights(args.ckpt_path)
+weights = LearningState.load_policy_weights(args.ckpt_path, map_location=torch.device('cpu'))
 policy.load_state_dict(weights)
 
 actions = sim.action_tensor().to_torch()

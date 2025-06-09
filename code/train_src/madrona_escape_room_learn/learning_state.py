@@ -65,7 +65,7 @@ class LearningState:
         return loaded['next_update']
 
     @staticmethod
-    def load_policy_weights(path):
-        loaded = torch.load(path)
+    def load_policy_weights(path, map_location=None):
+        loaded = torch.load(path, map_location=map_location)
         return loaded['policy']
 
