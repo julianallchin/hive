@@ -14,27 +14,34 @@ import math
 import torch
 
 def setup_obs(sim):
-    # Each should be transformed to num_worlds, num models per world, num agents per model, ...(>=1 feature dim)
+    # Each should be transformed to num_worlds, num models per world, {1 or A}, (>=1 feature dim)...
     self_obs_tensor = sim.self_observation_tensor().to_torch()
     lidar_tensor = sim.lidar_tensor().to_torch()
     steps_remaining_tensor = sim.steps_remaining_tensor().to_torch()
 
-    N, M, agents_per_model = self_obs_tensor.shape[0:3]
+    N, M, A = self_obs_tensor.shape[0:3] # num worlds, num models per world, num agents per model
     batch_size = N * M
+
+    id_tensor = torch.arange(A).float()
+    if A > 1:
+        id_tensor = id_tensor / (A - 1)
+    id_tensor = id_tensor.to(device=self_obs_tensor.device)
+    id_tensor = id_tensor.view(1, 1, A, 1).expand(batch_size, -1, -1, -1)
 
     obs_tensors = [
         self_obs_tensor.view(batch_size, *self_obs_tensor.shape[2:]),
         lidar_tensor.view(batch_size, *lidar_tensor.shape[2:]),
         steps_remaining_tensor.view(batch_size, *steps_remaining_tensor.shape[2:]),
+        id_tensor.view(batch_size, *id_tensor.shape[2:])
     ]
 
     num_obs_features_per_agent = 0
     for tensor in obs_tensors:
-        num_obs_features_per_agent += math.prod(tensor.shape[2:])
+        num_obs_features_per_agent += math.prod(tensor.shape[2:]) # starts counting after agent dim
 
-    return obs_tensors, num_obs_features_per_agent, agents_per_model
+    return obs_tensors, num_obs_features_per_agent, A
 
-def process_obs(self_obs, lidar, steps_remaining):
+def process_obs(self_obs, lidar, steps_remaining, id_tensor):
     assert(not torch.isnan(self_obs).any())
     assert(not torch.isinf(self_obs).any())
 
@@ -46,19 +53,14 @@ def process_obs(self_obs, lidar, steps_remaining):
 
     # custom processing for individual inputs
     num_agents = self_obs.shape[1]
-    steps_remaining = steps_remaining.expand(-1, num_agents, -1).float() / ModelConfig.episodeLen
-
-    id_tensor = torch.arange(num_agents).float()
-    if num_agents > 1:
-        id_tensor = id_tensor / (num_agents - 1)
-    id_tensor = id_tensor.to(device=self_obs.device)
-    id_tensor = id_tensor.view(1, num_agents, 1).expand(self_obs.shape[0], num_agents, -1) # [N * M, agents, 1]
+    
+    steps_remaining = steps_remaining.expand(-1, num_agents, -1).float() / ModelConfig.episode_len
 
     obs_by_agent = torch.cat([
         self_obs.view(*self_obs.shape[0:2], -1),
         lidar.view(*lidar.shape[0:2], -1),
         steps_remaining.view(*steps_remaining.shape[0:2], -1),
-        id_tensor,
+        id_tensor.view(*id_tensor.shape[0:2], -1),
         ], dim = -1
     ) # [N * models, agents, feature_dims]
 
@@ -78,37 +80,6 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     # #    ),
     # #)
 
-    # encoder = BackboneEncoder(
-    #     net = MLP(
-    #         input_dim = num_obs_features_per_agent * num_agents_per_model,
-    #         num_channels = num_channels * num_agents_per_model,
-    #         num_layers = 3
-    #     )
-    # )
-
-    # # if separate_value:
-    # #     backbone = BackboneSeparate(
-    # #         process_obs = process_obs,
-    # #         actor_encoder = encoder,
-    # #         critic_encoder = RecurrentBackboneEncoder(
-    # #             net = MLP(
-    # #                 input_dim = num_obs_features_per_agent * num_agents_per_model,
-    # #                 num_channels = num_channels,
-    # #                 num_layers = 2,
-    # #             ),
-    # #             rnn = LSTM(
-    # #                 in_channels = num_channels,
-    # #                 hidden_channels = num_channels,
-    # #                 num_layers = 1,
-    # #             ),
-    # #         )
-    # #     )
-    # # else:
-    # backbone = BackboneShared(
-    #     process_obs = process_obs,
-    #     encoder = encoder,
-    # )
-
     # return ActorCritic(
     #     backbone = backbone,
     #     actor = LinearLayerDiscreteActor(
@@ -127,18 +98,16 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     # )
 
 
-    # these can be different; should make them configurable
-    msg_dim = num_channels
-    command_dim = num_channels
-
     # [N * M, agents * observations] -> [N * models, agents * channels] (independent of num agents)
     actor_encoder = BackboneEncoder(
         net = DictatorAttentionActorEncoder(
             obs_per_agent = num_obs_features_per_agent,
-            agent_msg_dim = msg_dim,
-            num_layers = 2,
-            command_dim = command_dim,
-            action_logits_dim = num_channels
+            agent_msg_dim = ModelConfig.ant_msg_dim,
+            ant_msg_mlp_num_layers = ModelConfig.ant_msg_mlp_num_layers,
+            command_mlp_num_layers = ModelConfig.command_mlp_num_layers,
+            ant_action_mlp_num_layers = ModelConfig.ant_action_mlp_num_layers,
+            command_dim = ModelConfig.command_dim,
+            action_logits_dim = ModelConfig.action_logits_dim,
         )
     )
 
@@ -154,9 +123,10 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
     critic_encoder = BackboneEncoder(
         net = AttentionEncoder(
             input_dim_per_agent = num_obs_features_per_agent,
-            num_channels_per_agent = num_channels,
-            num_layers = 2,
-            output_dim = num_channels
+            msg_dim = ModelConfig.ant_msg_dim,
+            mlp1_num_layers = ModelConfig.ant_msg_mlp_num_layers,
+            mlp2_num_layers = ModelConfig.command_mlp_num_layers,
+            output_dim = ModelConfig.num_critic_channels
         )
     )
 
@@ -173,7 +143,7 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
         backbone = backbone,
         actor = MultiAgentLinearDiscreteActor(
             [4, 8, 5, 2],
-            num_channels,
+            ModelConfig.action_logits_dim,
         ),
-        critic = LinearLayerCritic(num_channels)
+        critic = LinearLayerCritic(ModelConfig.num_critic_channels)
     )
