@@ -370,8 +370,8 @@ namespace madEscape
                                          });
 
         setupHull(SimObject::MacGuffin, consts::macguffinInverseMass, {
-                                                    .muS = 0.5f,
-                                                    .muD = 0.75f,
+                                                    .muS = 0.75f,
+                                                    .muD = 0.9f,
                                                 });
 
         setupHull(SimObject::Goal, 0.0f, {
