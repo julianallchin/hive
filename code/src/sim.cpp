@@ -491,8 +491,16 @@ inline void rewardSystem(Engine &ctx,
     // Existential penalty per timestep
     float exist_penalty = consts::existentialPenalty;
 
+    // Reward for macguffin having velocity above threshold
+    float macguffin_velocity = ctx.get<Velocity>(ctx.data().macguffin).linear.length();
+    float macguffin_velocity_penalty = 0.0f;
+    if (macguffin_velocity < consts::macguffinVelocityThreshold)
+    {
+        macguffin_velocity_penalty = consts::macguffinStationaryPenalty;
+    }
+
     // Total reward for this step
-    out_reward.v = step_reward + goal_reward + exist_penalty;
+    out_reward.v = step_reward + goal_reward + exist_penalty + macguffin_velocity_penalty;
 
     // Store current distance for next step
     reward_helper.prev_dist = dist;
