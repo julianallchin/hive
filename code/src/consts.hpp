@@ -59,7 +59,7 @@ namespace madEscape
     inline constexpr int maxAgentPlacementAttemptsPerAgent = 30;
 
     inline constexpr float macguffinSize = 3.0f;
-    inline constexpr float macguffinInverseMass = 0.2f;
+    inline constexpr float macguffinInverseMass = 0.05f;
 
     inline constexpr float goalSize = 3.0f;
 
