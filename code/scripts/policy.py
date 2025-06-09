@@ -168,21 +168,24 @@ def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, 
             pooled_msg_dim = RecurrentModelConfig.pooled_msg_dim,
             pooled_msg_mlp_num_layers = RecurrentModelConfig.pooled_msg_mlp_num_layers,
             agent_action_mlp_num_layers = RecurrentModelConfig.agent_action_mlp_num_layers,
-            command_mlp_num_layers = RecurrentModelConfig.command_mlp_num_layers,
             command_dim = RecurrentModelConfig.command_dim,
             action_logits_dim = RecurrentModelConfig.action_logits_dim,
+            command_mlp_num_layers = RecurrentModelConfig.command_mlp_num_layers,
         )
     )
 
-    # [N * M, agents * observations] -> attention -> [N * models, channels] (independent of num_agents)
-    critic_encoder = BackboneEncoder(
-        net = AttentionEncoder(
-            input_dim_per_agent = num_obs_features_per_agent,
-            msg_dim = NonRecurrentModelConfig.agent_msg_dim,
-            mlp1_num_layers = NonRecurrentModelConfig.agent_msg_mlp_num_layers,
-            num_attn_heads = NonRecurrentModelConfig.num_attn_heads,
-            mlp2_num_layers = NonRecurrentModelConfig.command_mlp_num_layers,
-            output_dim = NonRecurrentModelConfig.num_critic_channels
+    critic_encoder = RecurrentBackboneEncoder(
+        net = nn.Identity(),
+        rnn = RecurrentAttentionCriticEncoder(
+            obs_per_agent = num_obs_features_per_agent,
+            agent_msg_dim = RecurrentModelConfig.agent_msg_dim,
+            agent_msg_mlp_num_layers = RecurrentModelConfig.agent_msg_mlp_num_layers,
+            num_attn_heads = RecurrentModelConfig.num_attn_heads,
+            pooled_msg_dim = RecurrentModelConfig.pooled_msg_dim,
+            pooled_msg_mlp_num_layers = RecurrentModelConfig.pooled_msg_mlp_num_layers,
+            lstm_hidden_size = RecurrentModelConfig.lstm_hidden_size,
+            out_mlp_num_layers = RecurrentModelConfig.out_mlp_num_layers,
+            num_critic_channels = RecurrentModelConfig.num_critic_channels,
         )
     )
 

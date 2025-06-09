@@ -310,11 +310,11 @@ class RecurrentAttentionActorEncoder(nn.Module):
 class RecurrentAttentionCriticEncoder(nn.Module):
     def __init__(self,
                  obs_per_agent,
-                 agent_msg_mlp_num_layers,
                  agent_msg_dim,
+                 agent_msg_mlp_num_layers,
                  num_attn_heads,
-                 pooled_msg_mlp_num_layers,
                  pooled_msg_dim,
+                 pooled_msg_mlp_num_layers,
                  lstm_hidden_size,
                  out_mlp_num_layers,
                  num_critic_channels,
@@ -324,11 +324,11 @@ class RecurrentAttentionCriticEncoder(nn.Module):
         self.agent_msg_dim = agent_msg_dim
         self.agent_msg_mlp_num_layers = agent_msg_mlp_num_layers
         self.num_attn_heads = num_attn_heads
-        self.pooled_msg_mlp_num_layers = pooled_msg_mlp_num_layers
         self.pooled_msg_dim = pooled_msg_dim
+        self.pooled_msg_mlp_num_layers = pooled_msg_mlp_num_layers
         self.lstm_hidden_size = lstm_hidden_size
-        self.out_mlp_num_layers = out_mlp_num_layers
         self.num_critic_channels = num_critic_channels
+        self.out_mlp_num_layers = out_mlp_num_layers
 
         
         self.hidden_shape = (2, 1, self.lstm_hidden_size)
@@ -377,7 +377,7 @@ class RecurrentAttentionCriticEncoder(nn.Module):
 
         # agents: obs -> msg
         obs_by_agent = obs.view(obs.shape[0], num_agents, self.obs_per_agent) # [N * M, A, obs_per_agent]
-        agent_msg = self.agent_mlp(obs_by_agent) # [N * M, A, agent_msg_dim]
+        agent_msg = self.agent_msg_mlp(obs_by_agent) # [N * M, A, agent_msg_dim]
         
         # pool messages
         pooled_msg, _ = self.attn(self.query.expand(obs.shape[0], -1, -1), agent_msg, agent_msg) # [N * M, 1, agent_msg_dim]
