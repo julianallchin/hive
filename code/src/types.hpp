@@ -116,12 +116,12 @@ struct Active{
 // classifying the objects hit by each lidar sample.
 enum class EntityType : uint32_t {
     None,
-    Cube,
-    Border,
-    Barrier,
-    Agent,
-    MacGuffin,
-    Goal,
+    Cube, // .14
+    Border, // .28
+    Barrier, // .42
+    Agent, // .56
+    MacGuffin, // .70
+    Goal, // .84
     NumTypes,
 };
 
