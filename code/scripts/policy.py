@@ -96,7 +96,7 @@ def make_mlp_policy(num_obs_features_per_agent, num_agents_per_model):
             num_agents_per_model * [4, 8, 5, 2],
             num_agents_per_model * MLPModelConfig.num_actor_channels,
         ),
-        critic = LinearLayerCritic(MLPModelConfig.num_critic_channels)
+        critic = LinearLayerCritic(num_agents_per_model * MLPModelConfig.num_critic_channels)
     )
 
 def make_non_recurrent_policy(num_obs_features_per_agent):
