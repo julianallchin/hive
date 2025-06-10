@@ -94,7 +94,7 @@ def make_mlp_policy(num_obs_features_per_agent, num_agents_per_model):
         backbone = backbone,
         actor = LinearLayerDiscreteActor(
             num_agents_per_model * [4, 8, 5, 2],
-            MLPModelConfig.num_actor_channels,
+            num_agents_per_model * MLPModelConfig.num_actor_channels,
         ),
         critic = LinearLayerCritic(MLPModelConfig.num_critic_channels)
     )
