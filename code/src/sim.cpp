@@ -507,8 +507,9 @@ namespace madEscape
                               macguffin_pos.y >= goal_min_y && macguffin_pos.y <= goal_max_y);
         if (within_bounds)
         {
-            WorldID world_id = ctx.get<WorldID>(ctx.data().macguffin);
-            printf("%d %.2f\n", world_id.idx, static_cast<float>(steps_remaining.t) / static_cast<float>(consts::episodeLen));
+            // WorldID world_id = ctx.get<WorldID>(ctx.data().macguffin);
+            // int world_id = (uint32_t)ctx.worldID().idx
+            // printf("%d %.2f\n", world_id.idx, static_cast<float>(steps_remaining.t) / static_cast<float>(consts::episodeLen));
             goal_reward = consts::goalReward;
             done.v = 1; // Episode complete on goal achievement
         }

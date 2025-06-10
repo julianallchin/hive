@@ -196,5 +196,5 @@ def make_recurrent_policy(num_obs_features_per_agent):
 
 def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, separate_value):
     # return make_mlp_policy(num_obs_features_per_agent, num_agents_per_model)
-    return make_non_recurrent_policy(num_obs_features_per_agent)
-    # return make_recurrent_policy(num_obs_features_per_agent)
+    # return make_non_recurrent_policy(num_obs_features_per_agent)
+    return make_recurrent_policy(num_obs_features_per_agent)
