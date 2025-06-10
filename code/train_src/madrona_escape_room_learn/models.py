@@ -125,7 +125,7 @@ class AttentionEncoder(nn.Module):
         return ret
         
 class DictatorAttentionActorEncoder(nn.Module):
-    def __init__(self, obs_per_agent, agent_msg_dim, agent_msg_mlp_num_layers, command_mlp_num_layers, agent_action_mlp_num_layers, command_dim, action_logits_dim):
+    def __init__(self, obs_per_agent, agent_msg_dim, agent_msg_mlp_num_layers, command_mlp_num_layers, num_attn_heads, agent_action_mlp_num_layers, command_dim, action_logits_dim):
         super().__init__()
         self.obs_per_agent = obs_per_agent
         self.agent_msg_dim = agent_msg_dim
@@ -138,6 +138,7 @@ class DictatorAttentionActorEncoder(nn.Module):
         self.msg_to_command = AttentionEncoder(
             input_dim_per_agent=obs_per_agent,
             msg_dim=agent_msg_dim,
+            num_attn_heads=num_attn_heads,
             mlp1_num_layers=agent_msg_mlp_num_layers,
             mlp2_num_layers=command_mlp_num_layers,
             output_dim=command_dim

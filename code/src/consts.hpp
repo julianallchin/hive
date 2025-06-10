@@ -77,7 +77,7 @@ namespace madEscape
 
     // Reward for macguffin having velocity
     inline constexpr float macguffinStationaryPenalty = (1.0f * (-1.0f / episodeLen));
-    inline constexpr float macguffinVelocityThreshold = 1.5f; // agent move speed is 100
+    inline constexpr float macguffinVelocityThreshold = .25f; // agent move speed is 100
 
     // How many discrete options for actions
     inline constexpr madrona::CountT numMoveAmountBuckets = 4;

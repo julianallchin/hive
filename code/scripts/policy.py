@@ -106,11 +106,11 @@ def make_non_recurrent_policy(num_obs_features_per_agent):
             obs_per_agent = num_obs_features_per_agent,
             agent_msg_dim = NonRecurrentModelConfig.agent_msg_dim,
             agent_msg_mlp_num_layers = NonRecurrentModelConfig.agent_msg_mlp_num_layers,
-            num_attn_heads = NonRecurrentModelConfig.num_attn_heads,
             command_mlp_num_layers = NonRecurrentModelConfig.command_mlp_num_layers,
+            num_attn_heads = NonRecurrentModelConfig.num_attn_heads,
             agent_action_mlp_num_layers = NonRecurrentModelConfig.agent_action_mlp_num_layers,
             command_dim = NonRecurrentModelConfig.command_dim,
-            action_logits_dim = ModelConfig.action_logits_dim,
+            action_logits_dim = NonRecurrentModelConfig.action_logits_dim,
         )
     )
 
@@ -118,11 +118,11 @@ def make_non_recurrent_policy(num_obs_features_per_agent):
     critic_encoder = BackboneEncoder(
         net = AttentionEncoder(
             input_dim_per_agent = num_obs_features_per_agent,
-            msg_dim = ModelConfig.agent_msg_dim,
-            mlp1_num_layers = ModelConfig.agent_msg_mlp_num_layers,
-            num_attn_heads = ModelConfig.num_attn_heads,
-            mlp2_num_layers = ModelConfig.command_mlp_num_layers,
-            output_dim = ModelConfig.num_critic_channels
+            msg_dim = NonRecurrentModelConfig.agent_msg_dim,
+            mlp1_num_layers = NonRecurrentModelConfig.agent_msg_mlp_num_layers,
+            num_attn_heads = NonRecurrentModelConfig.num_attn_heads,
+            mlp2_num_layers = NonRecurrentModelConfig.command_mlp_num_layers,
+            output_dim = NonRecurrentModelConfig.num_critic_channels
         )
     )
 
@@ -138,9 +138,9 @@ def make_non_recurrent_policy(num_obs_features_per_agent):
         backbone = backbone,
         actor = MultiAgentLinearDiscreteActor(
             [4, 8, 5, 2],
-            ModelConfig.action_logits_dim,
+            NonRecurrentModelConfig.action_logits_dim,
         ),
-        critic = LinearLayerCritic(ModelConfig.num_critic_channels)
+        critic = LinearLayerCritic(NonRecurrentModelConfig.num_critic_channels)
     )
 
 def make_recurrent_policy(num_obs_features_per_agent):
@@ -191,10 +191,10 @@ def make_recurrent_policy(num_obs_features_per_agent):
             [4, 8, 5, 2],
             RecurrentModelConfig.action_logits_dim,
         ),
-        critic = LinearLayerCritic(NonRecurrentModelConfig.num_critic_channels)
+        critic = LinearLayerCritic(RecurrentModelConfig.num_critic_channels)
     )
 
 def make_policy(num_obs_features_per_agent, num_agents_per_model, num_channels, separate_value):
-    return make_mlp_policy(num_obs_features_per_agent, num_agents_per_model)
-    # return make_non_recurrent_policy(num_obs_features_per_agent)
+    # return make_mlp_policy(num_obs_features_per_agent, num_agents_per_model)
+    return make_non_recurrent_policy(num_obs_features_per_agent)
     # return make_recurrent_policy(num_obs_features_per_agent)
