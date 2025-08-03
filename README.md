@@ -1,5 +1,7 @@
 # HIVE
 
+See the full report in the docs folder.
+
 ## A Note on Shouting Ants
 
 During a late-night brainstorming session with Ty and Diego, Ty remarked:
